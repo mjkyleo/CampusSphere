@@ -1,0 +1,11 @@
+{
+  "name": "CampusSphere - All-in-One Campus Life Hub",
+  "description": "A comprehensive campus platform for second-hand trading, course evaluations, canteen reviews, teammate recruitment, job listings, and community sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

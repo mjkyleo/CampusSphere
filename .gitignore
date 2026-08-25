@@ -1,0 +1,46 @@
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+dist-ssr/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# ---- 环境变量与密钥（.env.example 保留） ----
+.env
+.env.local
+*.env.local
+
+# ---- 数据库 ----
+*.db
+*.sqlite3
+
+# ---- 日志 ----
+*.log
+dev_log.txt
+
+# ---- 后端排障临时文件 ----
+check_imports.*
+pip_install*.txt
+pytest_collect.txt
+pytest_ver.txt
+ruff_out.txt
+
+# ---- 编辑器 / 工具 ----
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---- 本地工具目录 ----
+.codebuddy/
+.workbuddy/

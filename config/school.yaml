@@ -1,0 +1,58 @@
+# 单校配置模板 —— 部署新校时复制本文件并修改字段即可（"改配置即上线"）
+school_name: "示例大学"
+school_domain: "campus.example.edu.cn"
+
+# OAuth 第三方登录凭据（微信/QQ 开放平台）
+oauth:
+  wechat:
+    appid: "wx_appid_placeholder"
+    secret: "wx_secret_placeholder"
+  qq:
+    appid: "qq_appid_placeholder"
+    secret: "qq_secret_placeholder"
+  # state 防 CSRF 有效期（秒）
+  state_ttl: 300
+
+# 账号体系：邮箱注册规则（可在后台 /api/admin/auth/email-config 动态覆盖）
+auth:
+  email_register:
+    # 是否允许邮箱注册 / 绑定邮箱
+    enabled: true
+    # 允许注册的邮箱域名白名单（空列表表示不限制域名）
+    domains:
+      - example.edu.cn
+      - example.com
+    # 可选：额外的正则校验（如学号格式邮箱）；留空表示不校验
+    pattern: ""
+
+# MinIO / S3 兼容对象存储
+minio:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  secure: false
+  bucket: "campus"
+  # 临时签名 URL 有效期（秒）
+  presigned_ttl: 600
+
+# Meilisearch 搜索
+meilisearch:
+  host: "http://localhost:7700"
+  api_key: "masterKey"
+  # 索引主键与中文分词
+  indices:
+    users: "users"
+    items: "items"
+
+# 自动封禁规则（举报模块）
+report_policy:
+  # 同一用户被举报次数达到阈值则自动封禁
+  auto_ban_threshold: 5
+  # 单个工单处理时限（小时），超时自动升级
+  escalate_hours: 48
+
+# 二手物品发布审核（可在后台 /api/admin/items/review-config 动态覆盖）
+items:
+  review:
+    # 是否启用"发布后审核再上架"：false=发布即上架；true=进入待审核(PENDING)
+    enabled: false

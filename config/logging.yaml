@@ -1,0 +1,13 @@
+# 日志配置（structlog 结构化输出到 stdout，容器化采集）
+version: 1
+disable_existing_loggers: false
+loggers:
+  campus:
+    level: INFO
+    propagate: true
+  uvicorn:
+    level: INFO
+  sqlalchemy:
+    level: WARNING
+  alembic:
+    level: INFO

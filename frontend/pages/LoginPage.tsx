@@ -1,0 +1,506 @@
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
+import { useToast } from '../context/ToastContext.tsx';
+import { api } from '../services/api.ts';
+import {
+  MessageSquare, MessageCircle, Mail, Phone, Lock,
+  User, Sparkles, ArrowRight, ShieldCheck, CheckCircle2, KeyRound
+} from 'lucide-react';
+
+interface LoginPageProps {
+  onLogin?: () => void;
+}
+
+type TabMode = 'password_login' | 'phone_login' | 'email_register' | 'standard_register';
+
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+  const { login, phoneLogin, emailRegister, register, adminLogin } = useAuth();
+  const { success, error, info } = useToast();
+
+  const [mode, setMode] = useState<TabMode>('password_login');
+  const [loading, setLoading] = useState(false);
+
+  // Form states
+  const [account, setAccount] = useState('campus_student');
+  const [password, setPassword] = useState('123456');
+
+  const [phoneTarget, setPhoneTarget] = useState('13800138000');
+  const [phoneCode, setPhoneCode] = useState('');
+
+  const [emailTarget, setEmailTarget] = useState('qiang@example.edu.cn');
+  const [emailPassword, setEmailPassword] = useState('123456');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailNickname, setEmailNickname] = useState('阿强同学');
+
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regNickname, setRegNickname] = useState('');
+
+  // Countdown timer for verification code
+  const [countdown, setCountdown] = useState(0);
+
+  const startCountdown = () => {
+    setCountdown(60);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendCode = async (target: string, purpose: 'login' | 'register') => {
+    if (!target) {
+      error('请先输入手机号或校园邮箱');
+      return;
+    }
+    try {
+      const res = await api.auth.sendCode(target, purpose);
+      if (res.code === 0) {
+        success(`验证码已发送至 ${target}（模拟验证码可直接填写任意6位或 888888）`);
+        startCountdown();
+      } else {
+        error(res.message || '发送验证码失败');
+      }
+    } catch {
+      error('发送验证码异常');
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const ok = await login(account, password);
+    setLoading(false);
+    if (ok && onLogin) onLogin();
+  };
+
+  const handlePhoneLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phoneCode) {
+      error('请输入收到的短信验证码');
+      return;
+    }
+    setLoading(true);
+    const ok = await phoneLogin(phoneTarget, phoneCode);
+    setLoading(false);
+    if (ok && onLogin) onLogin();
+  };
+
+  const handleEmailRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailCode) {
+      error('请输入收到的邮箱验证码');
+      return;
+    }
+    setLoading(true);
+    const ok = await emailRegister(emailTarget, emailPassword, emailCode, emailNickname);
+    setLoading(false);
+    if (ok && onLogin) onLogin();
+  };
+
+  const handleStandardRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const ok = await register({
+      username: regUsername,
+      password: regPassword,
+      email: regEmail || undefined,
+      nickname: regNickname || undefined
+    });
+    setLoading(false);
+    if (ok) {
+      setMode('password_login');
+      setAccount(regUsername);
+      setPassword(regPassword);
+    }
+  };
+
+  const handleOAuthLogin = (provider: 'wechat' | 'qq') => {
+    info(`正在唤起 ${provider === 'wechat' ? '微信' : 'QQ'} 授权认证...`);
+    setTimeout(async () => {
+      await login('campus_student', '123456');
+      if (onLogin) onLogin();
+    }, 600);
+  };
+
+  const handleQuickAdminLogin = async () => {
+    setLoading(true);
+    const ok = await adminLogin('admin', 'admin123');
+    setLoading(false);
+    if (ok && onLogin) onLogin();
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-xl w-full bg-white rounded-3xl shadow-2xl p-6 sm:p-10 space-y-8 border border-slate-200 relative overflow-hidden">
+        {/* Decorative ambient background glows */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        {/* Brand Header */}
+        <div className="text-center space-y-2 relative z-10">
+          <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black mb-3 shadow-xl shadow-indigo-200">
+            C
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
+            CampusSphere
+          </h1>
+          <p className="text-slate-500 text-sm font-medium">
+            校园生活综合服务枢纽 · 73项接口全面贯通
+          </p>
+        </div>
+
+        {/* Auth Mode Tabs */}
+        <div className="grid grid-cols-4 p-1.5 bg-slate-100 rounded-2xl text-xs font-bold relative z-10">
+          <button
+            onClick={() => setMode('password_login')}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'password_login' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            账号登录
+          </button>
+          <button
+            onClick={() => setMode('phone_login')}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'phone_login' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            短信登录
+          </button>
+          <button
+            onClick={() => setMode('email_register')}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'email_register' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            邮箱注册
+          </button>
+          <button
+            onClick={() => setMode('standard_register')}
+            className={`py-2 rounded-xl transition-all ${
+              mode === 'standard_register' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            新户注册
+          </button>
+        </div>
+
+        {/* 1. Password Login Form (Supports Username / Email / Phone) */}
+        {mode === 'password_login' && (
+          <form onSubmit={handlePasswordLogin} className="space-y-4 relative z-10">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                统一登录账号 (用户名 / 邮箱 / 手机号)
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  value={account}
+                  onChange={(e) => setAccount(e.target.value)}
+                  placeholder="例如: campus_student 或 qiang@example.edu.cn"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                登录密码
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="请输入登录密码 (默认: 123456)"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              {loading ? '正在验证身份...' : '立即登录系统'}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </form>
+        )}
+
+        {/* 2. Phone SMS Login */}
+        {mode === 'phone_login' && (
+          <form onSubmit={handlePhoneLogin} className="space-y-4 relative z-10">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                手机号码
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="tel"
+                  required
+                  value={phoneTarget}
+                  onChange={(e) => setPhoneTarget(e.target.value)}
+                  placeholder="11位手机号码"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                短信验证码
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={phoneCode}
+                    onChange={(e) => setPhoneCode(e.target.value)}
+                    placeholder="6位数字验证码"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={countdown > 0}
+                  onClick={() => handleSendCode(phoneTarget, 'login')}
+                  className="px-4 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-2xl hover:bg-indigo-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {countdown > 0 ? `${countdown}s 后重发` : '获取验证码'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              {loading ? '正在验证...' : '手机验证码一键登录'}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </form>
+        )}
+
+        {/* 3. Email Code Registration */}
+        {mode === 'email_register' && (
+          <form onSubmit={handleEmailRegister} className="space-y-4 relative z-10">
+            <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 text-xs text-indigo-800 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              <span>支持白名单校园邮箱 (@example.edu.cn / @campus.edu) 快速验证注册。</span>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                校园教育邮箱
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={emailTarget}
+                  onChange={(e) => setEmailTarget(e.target.value)}
+                  placeholder="student@example.edu.cn"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  设置登录密码
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  placeholder="不少于6位"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  校园昵称
+                </label>
+                <input
+                  type="text"
+                  value={emailNickname}
+                  onChange={(e) => setEmailNickname(e.target.value)}
+                  placeholder="例如: 阳光学长"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                邮箱验证码
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value)}
+                  placeholder="6位邮件验证码"
+                  className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={countdown > 0}
+                  onClick={() => handleSendCode(emailTarget, 'register')}
+                  className="px-4 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-2xl hover:bg-indigo-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {countdown > 0 ? `${countdown}s 后重发` : '获取邮箱验证码'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              {loading ? '正在注册...' : '完成邮箱认证并进入'}
+              <CheckCircle2 className="w-5 h-5" />
+            </button>
+          </form>
+        )}
+
+        {/* 4. Standard Registration Form */}
+        {mode === 'standard_register' && (
+          <form onSubmit={handleStandardRegister} className="space-y-3.5 relative z-10">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                用户名 (登录主账号) *
+              </label>
+              <input
+                type="text"
+                required
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                placeholder="3-32位字母数字"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                密码 *
+              </label>
+              <input
+                type="password"
+                required
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                placeholder="不少于6位字符"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  个性昵称
+                </label>
+                <input
+                  type="text"
+                  value={regNickname}
+                  onChange={(e) => setRegNickname(e.target.value)}
+                  placeholder="展示昵称"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  电子邮箱 (可选)
+                </label>
+                <input
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="用于找回密码"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? '正在注册...' : '提交注册'}
+            </button>
+          </form>
+        )}
+
+        {/* Third-Party OAuth & Admin Fast Access */}
+        <div className="space-y-4 pt-2 border-t border-slate-100 relative z-10">
+          <div className="flex items-center gap-3 justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
+            <span>或使用第三方快捷授权</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('wechat')}
+              className="flex items-center justify-center gap-2.5 py-3 px-4 bg-[#07C160]/10 text-[#07C160] hover:bg-[#07C160]/20 border border-[#07C160]/30 rounded-2xl font-bold text-sm transition-all"
+            >
+              <MessageSquare className="w-5 h-5 fill-[#07C160]" />
+              微信授权登录
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('qq')}
+              className="flex items-center justify-center gap-2.5 py-3 px-4 bg-[#12B7F5]/10 text-[#12B7F5] hover:bg-[#12B7F5]/20 border border-[#12B7F5]/30 rounded-2xl font-bold text-sm transition-all"
+            >
+              <MessageCircle className="w-5 h-5 fill-[#12B7F5]" />
+              QQ授权登录
+            </button>
+          </div>
+
+          {/* Quick Evaluation Shortcut for Admin Dashboard */}
+          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <ShieldCheck className="w-4 h-4 text-amber-600" />
+              <span className="font-semibold">管理后台快速测试入口</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleQuickAdminLogin}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            >
+              管理员身份进入 (admin/admin123)
+            </button>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center text-xs text-slate-400 leading-relaxed relative z-10">
+          登录即代表您已阅读并同意 <a href="#/terms" className="text-indigo-600 font-medium hover:underline">校园社区守则</a> 与{' '}
+          <a href="#/privacy" className="text-indigo-600 font-medium hover:underline">隐私保护协议</a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;

@@ -1,0 +1,44 @@
+"""队友招募 Pydantic 模型。"""
+
+from __future__ import annotations
+
+from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel
+
+
+class TeamCreate(BaseModel):
+    title: str
+    description: str = ""
+    required_roles: str = ""
+
+
+class TeamUpdate(BaseModel):
+    status: Optional[int] = None
+
+
+class TeamOut(BaseModel):
+    id: UUID
+    creator_id: str
+    title: str
+    description: str
+    required_roles: str
+    status: int
+    member_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class JoinRequest(BaseModel):
+    role: str = ""
+
+
+class TeamMemberOut(BaseModel):
+    id: UUID
+    team_id: str
+    user_id: str
+    role: str
+    status: int
+
+    model_config = {"from_attributes": True}

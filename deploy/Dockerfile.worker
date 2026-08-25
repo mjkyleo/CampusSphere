@@ -1,0 +1,21 @@
+# Celery Worker 镜像
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+RUN pip install --upgrade pip && pip install celery redis sqlalchemy aiosqlite pydantic \
+    httpx meilisearch structlog psycopg2-binary
+
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
+
+# 启动 Celery Worker（邮件/通知/搜索同步队列）
+CMD ["celery", "-A", "app.tasks.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "email,notify,search,default"]
