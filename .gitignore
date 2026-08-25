@@ -22,6 +22,7 @@ __pycache__/
 # ---- 日志 ----
 *.log
 dev_log.txt
+dev_err.txt
 
 # ---- 后端排障临时文件 ----
 check_imports.*
