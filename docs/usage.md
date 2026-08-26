@@ -102,7 +102,7 @@ uvicorn app.asgi:app --reload --port 8000
 启动时自动完成：
 
 - 开发模式（SQLite）自动建表（`init_models`），无需手动迁移；
-- 注入默认管理员账号；
+- 按 `config/school.yaml` 的 `admin.bootstrap` 段注入引导管理员账号（配置下发，非硬编码）；
 - 启动 WebSocket Redis 广播监听。
 
 ### 4.2 启动前端
@@ -134,7 +134,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 
 | 角色 | 账号 | 密码 |
 | --- | --- | --- |
-| 管理员 | `admin` | `admin123` |
+| 管理员 | 由 `admin.bootstrap.username` 配置下发 | 由 `admin.bootstrap.password` 配置下发（另需网关密钥换取登录令牌） |
 
 普通用户：注册页面走邮箱验证码流程（开发模式 `AUTH_EMAIL_ENABLED` 开启时，任意符合规则的邮箱即可注册）。
 

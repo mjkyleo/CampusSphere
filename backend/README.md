@@ -10,7 +10,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env            # 默认使用 SQLite，无需任何外部组件
 
-# 启动（自动建表 + 注入默认管理员 admin/admin123）
+# 启动（自动建表 + 按 config/school.yaml 的 admin 段注入引导管理员）
 uvicorn app.asgi:app --reload --port 8000
 
 # 另开终端执行迁移（可选，等价的建表方式）

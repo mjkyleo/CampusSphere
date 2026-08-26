@@ -82,7 +82,7 @@ cd backend
 python -m venv .venv && .venv\Scripts\activate      # Windows；macOS/Linux 用 source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env                                # 默认 SQLite，无需任何外部组件
-uvicorn app.asgi:app --reload --port 8000           # 自动建表 + 注入默认管理员 admin/admin123
+uvicorn app.asgi:app --reload --port 8000           # 自动建表 + 按 config/school.yaml 的 admin 段注入引导管理员
 ```
 
 验证：<http://localhost:8000/health> 返回 `ok`，API 文档 <http://localhost:8000/docs>。
@@ -105,7 +105,7 @@ npm run dev                                         # http://localhost:5173
 
 **普通用户**：登录页支持「账号密码登录」（用户名 / 邮箱 / 手机号 + 密码）与「邮箱验证码注册」（按后台配置的白名单校园邮箱，注册成功即自动登录）。微信 / QQ 授权登录需在后台配置应用凭据后开放。
 
-**管理员**：登录页底部「系统管理后台入口 → 管理员登录」，输入管理员账号密码（默认 **admin / admin123**，由后端首次启动自动创建，登录后请在后台及时修改）即可进入 `/admin` 管理后台。
+**管理员**：登录页底部「系统管理后台入口 → 管理员登录」，需依次输入**网关密钥 + 管理员账号 + 密码**（三者均通过 `config/school.yaml` 的 `admin` 段与 `.env` 配置下发，不再硬编码、不再对外暴露）方可进入 `/admin` 管理后台；后端未携带有效网关令牌时 `/api/admin/*` 一律返回 404，避免被探测。
 
 **页面权限分离**：前端按登录身份隔离路由——未登录只能浏览公开内容（首页 / 市场 / 课程 / 食堂 / 分享 / 兼职 / 组队列表，后端列表接口对 GET 开放）；发布、评价、消息、个人中心需普通用户登录（自动跳转 `/login`）；`/admin` 管理后台仅管理员账号可进入，普通用户 token 无法访问任何 `/api/admin/*` 接口。
 
