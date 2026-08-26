@@ -1,9 +1,12 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './context/ToastContext.tsx';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { ReportModal } from './components/ReportModal.tsx';
+import { ProtectedRoute } from './components/ProtectedRoute.tsx';
+import { AdminRoute } from './components/AdminRoute.tsx';
+import { PublicOnlyRoute } from './components/PublicOnlyRoute.tsx';
 
 // Pages
 import HomePage from './pages/HomePage.tsx';
@@ -24,9 +27,11 @@ import AdminDashboard from './pages/AdminDashboard.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { loading, adminLoading } = useAuth();
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
 
-  if (loading) {
+  if (loading || adminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center space-y-3">
@@ -39,31 +44,31 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-800 pb-20 lg:pb-12 lg:pt-16 antialiased selection:bg-indigo-500 selection:text-white">
-      <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {!isLoginPage && <Navbar />}
+      <main className={isLoginPage ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/market" element={<MarketList />} />
           <Route path="/market/:id" element={<MarketDetail />} />
-          <Route path="/market/publish" element={<MarketPublish />} />
+          <Route path="/market/publish" element={<ProtectedRoute><MarketPublish /></ProtectedRoute>} />
           <Route path="/courses" element={<CourseSearch />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/courses/review" element={<CourseReview />} />
-          <Route path="/courses/:id/review" element={<CourseReview />} />
+          <Route path="/courses/review" element={<ProtectedRoute><CourseReview /></ProtectedRoute>} />
+          <Route path="/courses/:id/review" element={<ProtectedRoute><CourseReview /></ProtectedRoute>} />
           <Route path="/canteens" element={<CanteenList />} />
           <Route path="/canteens/:id" element={<CanteenStall />} />
           <Route path="/canteens/stall/:id" element={<CanteenStall />} />
           <Route path="/teammates" element={<TeammatePost />} />
           <Route path="/share" element={<ShareFeed />} />
           <Route path="/jobs" element={<JobList />} />
-          <Route path="/messages" element={<MessageCenter />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/messages" element={<ProtectedRoute><MessageCenter /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <ReportModal />
+      {!isLoginPage && <ReportModal />}
     </div>
   );
 };
@@ -72,9 +77,9 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
       <AuthProvider>
-        <HashRouter>
+        <BrowserRouter>
           <AppContent />
-        </HashRouter>
+        </BrowserRouter>
       </AuthProvider>
     </ToastProvider>
   );

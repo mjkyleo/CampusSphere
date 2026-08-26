@@ -2,13 +2,13 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home, ShoppingBag, BookOpen, Utensils, Users, Share2,
-  Briefcase, MessageSquare, LayoutDashboard, User, ShieldCheck
+  Briefcase, MessageSquare, LayoutDashboard, User, ShieldCheck, LogOut
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { user, isAdmin, unreadCount, toggleAdminMode } = useAuth();
+  const { user, admin, isAuthenticated, isAdminAuthenticated, unreadCount, logout, adminLogout } = useAuth();
 
   const navItems = [
     { path: '/', icon: Home, label: '首页' },
@@ -70,49 +70,64 @@ export const Navbar: React.FC = () => {
 
       {/* Right controls */}
       <div className="hidden lg:flex items-center gap-3 ml-4">
-        {/* Switch Admin / User Mode */}
-        <button
-          onClick={toggleAdminMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-            isAdmin
-              ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-xs'
-              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-          }`}
-          title="切换角色视图"
-        >
-          <ShieldCheck className={`w-3.5 h-3.5 ${isAdmin ? 'text-amber-600' : 'text-slate-400'}`} />
-          <span>{isAdmin ? '后台管理模式' : '身份: 学生用户'}</span>
-        </button>
-
-        {isAdmin && (
+        {isAdminAuthenticated ? (
+          <>
+            <Link
+              to="/admin"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                location.pathname === '/admin'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+              }`}
+              title="管理控制台"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>管理后台</span>
+            </Link>
+            <button
+              onClick={adminLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all"
+              title="退出管理后台"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>退出</span>
+            </button>
+          </>
+        ) : isAuthenticated && user ? (
+          <>
+            <Link
+              to="/profile"
+              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-50 border border-slate-200 transition-colors"
+            >
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-100 border border-slate-300 shrink-0">
+                <img
+                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="text-xs font-bold text-slate-700 max-w-[90px] truncate">
+                {user.nickname || user.username}
+              </span>
+            </Link>
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all"
+              title="退出登录"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>退出</span>
+            </button>
+          </>
+        ) : (
           <Link
-            to="/admin"
-            className={`p-2 rounded-xl border transition-colors ${
-              location.pathname === '/admin'
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
-            }`}
-            title="管理控制台"
+            to="/login"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
           >
-            <LayoutDashboard className="w-4.5 h-4.5" />
+            <User className="w-3.5 h-3.5" />
+            <span>登录 / 注册</span>
           </Link>
         )}
-
-        <Link
-          to="/profile"
-          className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-50 border border-slate-200 transition-colors"
-        >
-          <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-100 border border-slate-300 shrink-0">
-            <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-              alt="Avatar"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <span className="text-xs font-bold text-slate-700 max-w-[90px] truncate">
-            {user?.nickname || '阿强同学'}
-          </span>
-        </Link>
       </div>
     </nav>
   );

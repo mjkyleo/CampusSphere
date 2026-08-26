@@ -43,6 +43,16 @@ PUBLIC_PATHS = {
     "/redoc",
 }
 
+# 公开读取接口：未登录用户可浏览校园信息广场、课程、二手、组队、食堂、分享、兼职
+PUBLIC_GET_PREFIXES = {
+    "/api/items",
+    "/api/courses",
+    "/api/teams",
+    "/api/canteens",
+    "/api/shares",
+    "/api/jobs",
+}
+
 
 def _extract_token(request: Request) -> str | None:
     auth = request.headers.get("Authorization", "")
@@ -84,7 +94,12 @@ class GatewayMiddleware(BaseHTTPMiddleware):
 
         # 鉴权
         path = request.url.path
-        if path not in PUBLIC_PATHS and not path.startswith("/ws"):
+        is_public = (
+            path in PUBLIC_PATHS
+            or path.startswith("/ws")
+            or (request.method == "GET" and any(path.startswith(prefix) for prefix in PUBLIC_GET_PREFIXES))
+        )
+        if not is_public:
             token = _extract_token(request)
             if not token:
                 clear_request()

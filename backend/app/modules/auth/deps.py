@@ -25,3 +25,18 @@ async def get_current_user(
     if user.status == 1:  # BANNED
         raise BizError(ErrorCode.FORBIDDEN, "账号已被封禁")
     return user
+
+
+async def get_current_user_optional(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> User | None:
+    """解析当前登录用户；未登录时返回 None（用于公开读取接口）。"""
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        return None
+    user = await db.get(User, user_id)
+    if not user:
+        return None
+    if user.status == 1:  # BANNED
+        return None
+    return user

@@ -30,7 +30,6 @@ async def list_all(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     return ApiResponse.ok(data=await list_shares(db, category=category, page=page, page_size=page_size))
 

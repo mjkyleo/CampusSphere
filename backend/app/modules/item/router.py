@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.common.enums import ItemStatus
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.modules.auth.deps import get_current_user
+from app.modules.auth.deps import get_current_user, get_current_user_optional
 from app.modules.auth.models import User
 from app.modules.item.schemas import ItemCreate, ItemOut, ItemUpdate, TradeSessionOut
 from app.modules.item.service import (
@@ -44,7 +44,6 @@ async def list_all(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     result = await list_items(
         db, keyword=keyword, category=category,
@@ -74,11 +73,11 @@ async def search(
 async def detail(
     item_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_current_user_optional),
 ):
     item = await get_item(db, item_id)
     # 待审核(PENDING)物品仅本人可见，其他人一律视为不存在
-    if item.status == ItemStatus.PENDING.value and str(item.owner_id) != str(user.id):
+    if item.status == ItemStatus.PENDING.value and (not user or str(item.owner_id) != str(user.id)):
         raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
     return ApiResponse.ok(data=ItemOut.model_validate(item))
 
