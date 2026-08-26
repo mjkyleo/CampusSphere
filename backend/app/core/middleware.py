@@ -34,6 +34,7 @@ PUBLIC_PATHS = {
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
+    "/api/ai/status",
     "/health",
     "/metrics",
     "/docs",

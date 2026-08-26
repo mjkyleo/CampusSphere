@@ -12,6 +12,7 @@ from app.modules.admin.schemas import (
     AdminLoginRequest,
     AdminOut,
     AdminTokenResponse,
+    AiFeatureConfig,
     BanRequest,
     EmailRegisterConfig,
     ItemReviewConfig,
@@ -149,6 +150,32 @@ async def admin_put_item_review(
 ):
     payload = await update_item_review_config(db, data.model_dump())
     return ApiResponse.ok(data=ItemReviewConfig(**payload))
+
+
+# ------------------------------------------------------------------
+# AI 智能助手功能开关（复用 ai 模块的配置读写，与 review-config 同一模式）
+# ------------------------------------------------------------------
+
+
+@router.get("/ai/config", response_model=ApiResponse[dict])
+async def admin_get_ai_config(db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)):
+    """读取 AI 助手开关与运行状态（含 API Key 配置提示，不回传 Key 本身）。"""
+    from app.modules.ai.service import get_ai_feature_config, get_ai_status
+
+    cfg = await get_ai_feature_config(db)
+    status = await get_ai_status(db)
+    return ApiResponse.ok(data={**cfg, "status": status})
+
+
+@router.put("/ai/config", response_model=ApiResponse[AiFeatureConfig])
+async def admin_put_ai_config(
+    data: AiFeatureConfig, db: AsyncSession = Depends(get_db), _=Depends(get_current_admin)
+):
+    """更新 AI 助手开关与模型名（写 DB，实时生效）。"""
+    from app.modules.ai.service import update_ai_feature_config
+
+    payload = await update_ai_feature_config(db, data.model_dump())
+    return ApiResponse.ok(data=AiFeatureConfig(**payload))
 
 
 @router.patch("/items/{item_id}", response_model=ApiResponse[ItemOut])

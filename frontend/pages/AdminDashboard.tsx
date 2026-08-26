@@ -3,7 +3,8 @@ import {
   Users, ShoppingBag, ShieldAlert, Activity, CheckCircle,
   XCircle, Search, ArrowUpRight, TrendingUp, BarChart3,
   FileText, ShieldCheck, RefreshCw, AlertTriangle, Eye,
-  Package, Mail, Trash2, ArrowDownCircle, Save, ChevronLeft, ChevronRight
+  Package, Mail, Trash2, ArrowDownCircle, Save, ChevronLeft, ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -13,12 +14,13 @@ import { api, formatPrice } from '../services/api.ts';
 import {
   AdminOverviewOut, AdminReportOut, ReportStatus,
   ReportAction,
-  ItemOut, ItemStatus, EmailRegisterConfig, ItemReviewConfig
+  ItemOut, ItemStatus, EmailRegisterConfig, ItemReviewConfig, AiConfig
 } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
+import { invalidateAiStatusCache } from '../services/geminiService.ts';
 
-type AdminTab = 'overview' | 'reports' | 'users' | 'items' | 'email' | 'logs';
+type AdminTab = 'overview' | 'reports' | 'users' | 'items' | 'email' | 'ai' | 'logs';
 
 /** Human-readable labels for item status codes (matching backend ItemStatus enum). */
 const itemStatusMap: Record<number, string> = {
@@ -57,6 +59,12 @@ const AdminDashboard: React.FC = () => {
   const [emailDomainsInput, setEmailDomainsInput] = useState('');
   const [emailPatternInput, setEmailPatternInput] = useState('');
   const [emailConfigLoading, setEmailConfigLoading] = useState(false);
+
+  // AI 助手配置 state
+  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiModel, setAiModel] = useState('gemini-2.0-flash');
+  const [aiConfigLoading, setAiConfigLoading] = useState(false);
 
   // Audit log state — derived from reports (processed records)
   const [auditReports, setAuditReports] = useState<AdminReportOut[]>([]);
@@ -168,6 +176,9 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === 'email' && !emailConfig) {
       fetchEmailConfig();
     }
+    if (activeTab === 'ai' && !aiConfig) {
+      fetchAiConfig();
+    }
   }, [activeTab]);
 
   // ---- Item audit actions (via admin endpoints, bypasses owner checks) ----
@@ -267,6 +278,46 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // ---- Fetch AI config (lazy-loaded when the AI tab is opened) ----
+  const fetchAiConfig = async () => {
+    try {
+      const res = await api.admin.getAiConfig();
+      if (res.code === 0 && res.data) {
+        setAiConfig(res.data);
+        setAiEnabled(res.data.enabled ?? false);
+        setAiModel(res.data.model || 'gemini-2.0-flash');
+      }
+    } catch {
+      // Mock fallback
+    }
+  };
+
+  // ---- Save AI config ----
+  const handleSaveAiConfig = async () => {
+    setAiConfigLoading(true);
+    try {
+      const res = await api.admin.updateAiConfig({
+        enabled: aiEnabled,
+        model: aiModel.trim() || 'gemini-2.0-flash'
+      });
+      if (res.code === 0 && res.data) {
+        success(res.data.enabled ? 'AI 智能助手已开启，前端将实时生效' : 'AI 智能助手已关闭');
+        invalidateAiStatusCache(); // 使首页等处的 AI 状态缓存失效，立即按新开关渲染
+        setAiEnabled(res.data.enabled ?? false);
+        setAiModel(res.data.model || 'gemini-2.0-flash');
+        setAiConfig((prev) =>
+          prev ? { ...prev, enabled: res.data.enabled, model: res.data.model } : prev
+        );
+      } else {
+        error(res.message || 'AI 配置保存失败');
+      }
+    } catch {
+      error('AI 配置保存异常');
+    } finally {
+      setAiConfigLoading(false);
+    }
+  };
+
   // ---- Report handling ----
   const handleResolveReport = async (status: ReportStatus) => {
     if (!selectedReport) return;
@@ -356,6 +407,7 @@ const AdminDashboard: React.FC = () => {
           { id: 'users', label: '用户治理 & 封禁', icon: Users },
           { id: 'items', label: '物品审核管理', icon: Package },
           { id: 'email', label: '邮箱注册配置', icon: Mail },
+          { id: 'ai', label: 'AI 智能助手', icon: Sparkles },
           { id: 'logs', label: '处理记录与审计', icon: FileText }
         ].map((tab) => (
           <button
@@ -882,7 +934,105 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 6: Audit Logs (Processing Records from Reports) */}
+      {/* Tab 6: AI 智能助手配置 */}
+      {activeTab === 'ai' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-slate-900">AI 智能助手配置</h3>
+            <span className="text-xs text-slate-400">控制全站 AI 能力开关、模型与运行状态</span>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+            {/* 运行状态 banner */}
+            {aiConfig?.status && (
+              <div className={`flex items-start gap-3 p-4 rounded-2xl border text-xs font-medium ${
+                aiConfig.status.available
+                  ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                  : 'bg-amber-50 border-amber-100 text-amber-700'
+              }`}>
+                {aiConfig.status.available ? (
+                  <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-bold">{aiConfig.status.available ? 'AI 服务可用' : 'AI 服务暂不可用'}</p>
+                  <p className="opacity-80">{aiConfig.status.message || '未配置 GEMINI_API_KEY 或后端未启动'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Enabled toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-800">启用 AI 智能助手</p>
+                <p className="text-xs text-slate-400 mt-0.5">关闭后，首页灵感、物品润色、课程画像等全部 AI 入口隐藏</p>
+              </div>
+              <button
+                onClick={() => setAiEnabled(!aiEnabled)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  aiEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                  aiEnabled ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {/* Model selection (可自定义输入) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Gemini 模型 <span className="text-slate-400 normal-case">(可自定义输入)</span>
+              </label>
+              <input
+                list="ai-model-options"
+                type="text"
+                placeholder="gemini-2.0-flash"
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              />
+              <datalist id="ai-model-options">
+                <option value="gemini-2.0-flash" />
+                <option value="gemini-2.0-flash-lite" />
+                <option value="gemini-2.5-flash" />
+                <option value="gemini-2.5-pro" />
+              </datalist>
+              <p className="text-[11px] text-slate-400">
+                需为当前 GEMINI_API_KEY 有权访问的模型；温度等生成参数由服务端按场景预设
+              </p>
+            </div>
+
+            {/* Save button */}
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={handleSaveAiConfig}
+                disabled={aiConfigLoading}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
+              >
+                {aiConfigLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {aiConfigLoading ? '保存中...' : '保存配置'}
+              </button>
+            </div>
+
+            {/* Current config preview */}
+            {aiConfig && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 text-xs">
+                <p className="font-bold text-slate-500 uppercase mb-2">当前生效配置</p>
+                <p><span className="text-slate-400">启用状态：</span><span className={`font-bold ${aiConfig.enabled ? 'text-emerald-600' : 'text-rose-600'}`}>{aiConfig.enabled ? '已启用' : '已关闭'}</span></p>
+                <p><span className="text-slate-400">使用模型：</span><span className="font-mono text-slate-700">{aiConfig.model || 'gemini-2.0-flash'}</span></p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 7: Audit Logs (Processing Records from Reports) */}
       {activeTab === 'logs' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">

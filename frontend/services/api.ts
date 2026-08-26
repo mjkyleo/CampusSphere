@@ -9,7 +9,8 @@ import {
   ShareOut, ShareCreate, ShareCommentOut,
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
   ReportOut, ReportTargetType, ReportStatus,
-  EmailRegisterConfig, ItemReviewConfig, AdminOut
+  EmailRegisterConfig, ItemReviewConfig, AdminOut,
+  AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate
 } from '../types.ts';
 
 // Storage keys
@@ -1385,7 +1386,28 @@ export const api = {
     approveItem: (itemId: string) =>
       request<any>(`/api/admin/items/${itemId}/approve`, { method: 'POST' }),
     rejectItem: (itemId: string, reason = '') =>
-      request<any>(`/api/admin/items/${itemId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
+      request<any>(`/api/admin/items/${itemId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    // AI 助手配置
+    getAiConfig: () => request<AiConfig>('/api/admin/ai/config'),
+    updateAiConfig: (config: AiConfigUpdate) =>
+      request<AiFeatureConfig>('/api/admin/ai/config', { method: 'PUT', body: JSON.stringify(config) })
+  },
+
+  // AI 智能助手（Gemini）
+  ai: {
+    status: () => request<AiStatusOut>('/api/ai/status'),
+    getInsights: (topic: string) =>
+      request<{ text: string }>('/api/ai/insights', { method: 'POST', body: JSON.stringify({ topic }) }),
+    generateItemDescription: (title: string, category: string) =>
+      request<{ text: string }>('/api/ai/item-description', { method: 'POST', body: JSON.stringify({ title, category }) }),
+    summarizeCourseReviews: (reviewTexts: string[]) =>
+      request<{ text: string }>('/api/ai/course-summary', { method: 'POST', body: JSON.stringify({ reviewTexts }) }),
+    categorizePost: (content: string) =>
+      request<{ category: string; isSafe: boolean; summary: string }>('/api/ai/categorize', { method: 'POST', body: JSON.stringify({ content }) }),
+    // AI 配置（管理端路由 /api/admin/ai/config，需管理员权限，与 admin.* 同一后端）
+    getConfig: () => request<AiConfig>('/api/admin/ai/config'),
+    updateConfig: (config: AiConfigUpdate) =>
+      request<AiFeatureConfig>('/api/admin/ai/config', { method: 'PUT', body: JSON.stringify(config) })
   },
 
   // Files
