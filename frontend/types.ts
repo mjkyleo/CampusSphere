@@ -501,6 +501,27 @@ export interface ItemReviewConfig {
   enabled: boolean;
 }
 
+export interface AiFeatureConfig {
+  enabled: boolean;
+  model: string;
+}
+
+export interface AiStatusOut {
+  enabled: boolean;
+  available: boolean;
+  message: string;
+}
+
+/** 管理端获取 AI 配置：配置项 + 实时运行状态（/api/admin/ai/config GET） */
+export interface AiConfig {
+  enabled: boolean;
+  model: string;
+  status: AiStatusOut;
+}
+
+/** 更新 AI 配置的请求体（/api/admin/ai/config PUT） */
+export type AiConfigUpdate = Pick<AiFeatureConfig, 'enabled' | 'model'>;
+
 export interface AdminOut {
   id: string;
   username: string;

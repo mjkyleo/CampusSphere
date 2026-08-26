@@ -53,6 +53,17 @@ class ItemReviewConfig(BaseModel):
     enabled: bool = False
 
 
+class AiFeatureConfig(BaseModel):
+    """AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。
+
+    个人开发者无大模型 API 额度时保持关闭，前端隐藏所有 AI 入口；
+    额度到位后管理员在后台一键开启即可上线。
+    """
+
+    enabled: bool = False
+    model: str = "gemini-2.0-flash"
+
+
 class ItemReviewRejectRequest(BaseModel):
     """拒绝审核时的原因说明。"""
 

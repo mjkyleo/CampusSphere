@@ -13,7 +13,9 @@ import { useAuth } from '../context/AuthContext.tsx';
 const HomePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [insight, setInsight] = useState<string>('正在获取今日校园智能灵感...');
+  const [insight, setInsight] = useState<string>('');
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiLoading, setAiLoading] = useState(true);
   const [items, setItems] = useState<ItemOut[]>([]);
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [teams, setTeams] = useState<TeamOut[]>([]);
@@ -23,9 +25,22 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     const fetchInsight = async () => {
-      const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-      const text = await getSmartCampusInsights(randomTopic);
-      setInsight(text || '今日校园充满活力，记得劳逸结合，享受美好的大学时光！');
+      try {
+        // 先检查 AI 功能是否可用
+        const statusRes = await api.ai.status();
+        if (statusRes.code === 0 && statusRes.data?.available) {
+          setAiAvailable(true);
+          const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+          const res = await api.ai.getInsights(randomTopic);
+          if (res.code === 0 && res.data?.text) {
+            setInsight(res.data.text);
+          }
+        }
+      } catch (error) {
+        console.warn('AI insights fetch failed:', error);
+      } finally {
+        setAiLoading(false);
+      }
     };
     fetchInsight();
 
@@ -72,18 +87,30 @@ const HomePage: React.FC = () => {
       {/* Hero Banner with Personalized Greeting and Gemini Smart Insights */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-8 md:p-12 shadow-2xl border border-indigo-900/40">
         <div className="relative z-10 space-y-4 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold text-indigo-200 border border-white/10">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>AI 校园智能助手</span>
-          </div>
+          {!aiLoading && aiAvailable && (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold text-indigo-200 border border-white/10">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span>AI 校园智能助手</span>
+            </div>
+          )}
 
           <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
             你好，{user?.nickname || '同学'} <span className="inline-block animate-pulse">👋</span>
           </h1>
 
-          <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">
-            {insight}
-          </p>
+          {aiLoading ? (
+            <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">
+              <span className="animate-pulse">正在加载校园智能洞察...</span>
+            </p>
+          ) : aiAvailable && insight ? (
+            <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">
+              {insight}
+            </p>
+          ) : (
+            <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">
+              欢迎使用校园生活平台，这里可以买卖二手物品、寻找学习搭子、查看食堂美食、分享校园动态。
+            </p>
+          )}
 
           {/* Unified Global Search Bar */}
           <form onSubmit={handleSearchSubmit} className="pt-2 flex gap-2">
