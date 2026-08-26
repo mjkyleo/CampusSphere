@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { api } from '../services/api.ts';
@@ -15,6 +16,8 @@ interface LoginPageProps {
 type TabMode = 'password_login' | 'phone_login' | 'email_register' | 'standard_register';
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, phoneLogin, emailRegister, register, adminLogin } = useAuth();
   const { success, error, info } = useToast();
 
@@ -39,7 +42,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [regNickname, setRegNickname] = useState('');
 
   // Admin login form（正式入口，不使用硬编码账号）
-  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [showAdminForm, setShowAdminForm] = useState(searchParams.get('admin') === '1');
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
 
@@ -101,7 +104,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setLoading(true);
     const ok = await login(account, password);
     setLoading(false);
-    if (ok && onLogin) onLogin();
+    if (ok) {
+      if (onLogin) onLogin();
+      navigate('/');
+    }
   };
 
   const handlePhoneLogin = async (e: React.FormEvent) => {
@@ -113,7 +119,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setLoading(true);
     const ok = await phoneLogin(phoneTarget, phoneCode);
     setLoading(false);
-    if (ok && onLogin) onLogin();
+    if (ok) {
+      if (onLogin) onLogin();
+      navigate('/');
+    }
   };
 
   const handleEmailRegister = async (e: React.FormEvent) => {
@@ -125,7 +134,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setLoading(true);
     const ok = await emailRegister(emailTarget, emailPassword, emailCode, emailNickname);
     setLoading(false);
-    if (ok && onLogin) onLogin();
+    if (ok) {
+      if (onLogin) onLogin();
+      navigate('/');
+    }
   };
 
   const handleStandardRegister = async (e: React.FormEvent) => {
@@ -158,7 +170,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setLoading(true);
     const ok = await adminLogin(adminUsername, adminPassword);
     setLoading(false);
-    if (ok && onLogin) onLogin();
+    if (ok) {
+      if (onLogin) onLogin();
+      navigate('/admin');
+    }
   };
 
   return (
@@ -567,8 +582,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
         {/* Footer info */}
         <div className="text-center text-xs text-slate-400 leading-relaxed relative z-10">
-          登录即代表您已阅读并同意 <a href="#/terms" className="text-indigo-600 font-medium hover:underline">校园社区守则</a> 与{' '}
-          <a href="#/privacy" className="text-indigo-600 font-medium hover:underline">隐私保护协议</a>
+          登录即代表您已阅读并同意 <a href="/terms" className="text-indigo-600 font-medium hover:underline">校园社区守则</a> 与{' '}
+          <a href="/privacy" className="text-indigo-600 font-medium hover:underline">隐私保护协议</a>
         </div>
       </div>
     </div>

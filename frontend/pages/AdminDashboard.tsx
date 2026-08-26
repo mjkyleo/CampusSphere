@@ -34,7 +34,7 @@ const itemStatusMap: Record<number, string> = {
 const ITEMS_PAGE_SIZE = 10;
 
 const AdminDashboard: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { admin } = useAuth();
   const { success, error, info } = useToast();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');

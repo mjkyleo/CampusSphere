@@ -1,26 +1,35 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
-import { api, getStoredAccessToken, setAuthTokens, clearAuthTokens } from '../services/api.ts';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import {
+  api,
+  getStoredAccessToken,
+  getStoredAdminAccessToken,
+  setAuthTokens,
+  clearAuthTokens,
+  clearAdminAuthTokens
+} from '../services/api.ts';
 import { wsClient } from '../services/websocket.ts';
-import { UserProfileOut, BindingsOut, ReportTargetType } from '../types.ts';
+import { UserProfileOut, BindingsOut, ReportTargetType, AdminOut } from '../types.ts';
 import { useToast } from './ToastContext.tsx';
 
 interface AuthContextType {
   user: UserProfileOut | null;
+  admin: AdminOut | null;
   bindings: BindingsOut | null;
   isAuthenticated: boolean;
-  isAdmin: boolean;
+  isAdminAuthenticated: boolean;
   unreadCount: number;
   loading: boolean;
+  adminLoading: boolean;
   login: (account: string, pass: string) => Promise<boolean>;
   phoneLogin: (target: string, code: string) => Promise<boolean>;
   emailRegister: (email: string, pass: string, code: string, nickname?: string) => Promise<boolean>;
   register: (params: { username: string; password: string; email?: string; phone?: string; nickname?: string }) => Promise<boolean>;
   adminLogin: (username: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  adminLogout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfileOut>) => Promise<boolean>;
   refreshBindings: () => Promise<void>;
   refreshUnread: () => Promise<void>;
-  toggleAdminMode: () => void;
   // Global Report Modal
   reportModal: {
     isOpen: boolean;
@@ -36,11 +45,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfileOut | null>(null);
+  const [admin, setAdmin] = useState<AdminOut | null>(null);
   const [bindings, setBindings] = useState<BindingsOut | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [adminLoading, setAdminLoading] = useState<boolean>(true);
   const { success, error, info } = useToast();
 
   // Report Modal state
@@ -75,11 +86,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (res.code === 0 && res.data) {
         setUser(res.data);
         setIsAuthenticated(true);
-        // Establish WebSocket connection after successful auth
         const token = getStoredAccessToken();
         if (token) {
           wsClient.connect(token);
         }
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
       const bRes = await api.auth.getBindings();
       if (bRes.code === 0 && bRes.data) {
@@ -90,28 +103,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUnreadCount(uRes.data.unread_count);
       }
     } catch {
-      // Ignored
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    const token = getStoredAccessToken();
-    if (token) {
-      loadUserData();
-    } else {
-      // 未登录：直接结束 loading，不做无谓请求
+  const loadAdminData = useCallback(async () => {
+    try {
+      const res = await api.admin.getMe();
+      if (res.code === 0 && res.data) {
+        setAdmin(res.data);
+        setIsAdminAuthenticated(true);
+      } else {
+        setAdmin(null);
+        setIsAdminAuthenticated(false);
+      }
+    } catch {
+      setAdmin(null);
+      setIsAdminAuthenticated(false);
+    } finally {
+      setAdminLoading(false);
       setLoading(false);
     }
-  }, [loadUserData]);
+  }, []);
+
+  useEffect(() => {
+    const userToken = getStoredAccessToken();
+    const adminToken = getStoredAdminAccessToken();
+    if (userToken) {
+      loadUserData();
+    }
+    if (adminToken) {
+      loadAdminData();
+    }
+    if (!userToken && !adminToken) {
+      setLoading(false);
+      setAdminLoading(false);
+    }
+  }, [loadUserData, loadAdminData]);
 
   // WebSocket: listen for incoming messages to update the unread badge.
-  // Depends on `user` so the handler always has access to the current user ID.
   useEffect(() => {
     if (!user) return;
     const unsubscribe = wsClient.on('message:new', (data) => {
-      // Only increment if the message is from someone else
       if (data && data.sender_id && data.sender_id !== user.id) {
         setUnreadCount((prev) => prev + 1);
       }
@@ -169,9 +205,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const adminLogin = async (username: string, pass: string): Promise<boolean> => {
     const res = await api.admin.login(username, pass);
     if (res.code === 0) {
-      setIsAdmin(true);
       success('管理员认证成功！');
-      await loadUserData();
+      await loadAdminData();
       return true;
     } else {
       error(res.message || '管理员认证失败');
@@ -181,12 +216,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     wsClient.disconnect();
-    await api.auth.logout();
+    try { await api.auth.logout(); } catch {}
     clearAuthTokens();
     setUser(null);
     setIsAuthenticated(false);
-    setIsAdmin(false);
+    setBindings(null);
+    setUnreadCount(0);
     info('您已退出当前账号');
+  };
+
+  const adminLogout = async () => {
+    clearAdminAuthTokens();
+    setAdmin(null);
+    setIsAdminAuthenticated(false);
+    info('您已退出管理后台');
   };
 
   const updateProfile = async (data: Partial<UserProfileOut>): Promise<boolean> => {
@@ -215,48 +258,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Keep a ref to refreshUnread so the WebSocket listener always calls
-  // the latest version without re-subscribing on every render.
-  const refreshUnreadRef = useRef(refreshUnread);
-  refreshUnreadRef.current = refreshUnread;
-
   // Listen for incoming WebSocket messages to auto-update the unread badge.
-  // This subscription persists for the lifetime of AuthProvider (one per tab).
   useEffect(() => {
     const unsub = wsClient.on('message:new', () => {
-      refreshUnreadRef.current();
+      refreshUnread();
     });
     return () => unsub();
   }, []);
-
-  const toggleAdminMode = () => {
-    setIsAdmin((prev) => !prev);
-    if (!isAdmin) {
-      info('已切换至管理员模式');
-    } else {
-      info('已切换回普通用户模式');
-    }
-  };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        admin,
         bindings,
         isAuthenticated,
-        isAdmin,
+        isAdminAuthenticated,
         unreadCount,
         loading,
+        adminLoading,
         login,
         phoneLogin,
         emailRegister,
         register,
         adminLogin,
         logout,
+        adminLogout,
         updateProfile,
         refreshBindings,
         refreshUnread,
-        toggleAdminMode,
         reportModal,
         openReport,
         closeReport

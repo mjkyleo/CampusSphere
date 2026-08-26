@@ -17,21 +17,37 @@ import {
 // Storage keys
 const ACCESS_TOKEN_KEY = 'cs_access_token';
 const REFRESH_TOKEN_KEY = 'cs_refresh_token';
+const ADMIN_ACCESS_TOKEN_KEY = 'cs_admin_access_token';
+const ADMIN_REFRESH_TOKEN_KEY = 'cs_admin_refresh_token';
 const USER_PROFILE_KEY = 'cs_user_profile';
+const ADMIN_PROFILE_KEY = 'cs_admin_profile';
 const MOCK_STORAGE_KEY = 'cs_mock_db_v3';
 
 export const getStoredAccessToken = (): string | null => localStorage.getItem(ACCESS_TOKEN_KEY);
 export const getStoredRefreshToken = (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY);
+export const getStoredAdminAccessToken = (): string | null => localStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+export const getStoredAdminRefreshToken = (): string | null => localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
 
 export const setAuthTokens = (tokens: TokenResponse) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
 };
 
+export const setAdminAuthTokens = (tokens: TokenResponse) => {
+  localStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, tokens.access_token);
+  localStorage.setItem(ADMIN_REFRESH_TOKEN_KEY, tokens.refresh_token);
+};
+
 export const clearAuthTokens = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_PROFILE_KEY);
+};
+
+export const clearAdminAuthTokens = () => {
+  localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
+  localStorage.removeItem(ADMIN_PROFILE_KEY);
 };
 
 // Helper: Format price from cents (分) to Yuan string
@@ -606,9 +622,9 @@ let refreshPromise: Promise<string | null> | null = null;
  * Redirect the browser to the login page.
  * Guarded against repeated calls and the login page itself.
  */
-function redirectToLogin(): void {
+function redirectToLogin(admin = false): void {
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.href = '/login';
+    window.location.href = admin ? '/login?admin=1' : '/login';
   }
 }
 
@@ -667,7 +683,8 @@ export async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = getStoredAccessToken();
+  const isAdminRequest = endpoint.startsWith('/api/admin/');
+  const token = isAdminRequest ? getStoredAdminAccessToken() : getStoredAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {})
@@ -694,6 +711,12 @@ export async function request<T>(
 
     // Handle 401 unauthorized — the backend returns HTTP 200 with code 40100
     if (data && data.code === 40100) {
+      if (isAdminRequest) {
+        // 管理员 token 不支持 refresh，直接清除并跳转管理员登录
+        clearAdminAuthTokens();
+        redirectToLogin(true);
+        return data as ApiResponse<T>;
+      }
       // Attempt token refresh (concurrent 401s share a single refresh)
       const newToken = await refreshTokenIfNeeded();
       if (newToken) {
@@ -720,7 +743,11 @@ export async function request<T>(
 
     // 认证成功响应自动保存令牌（login / phone-login / email-register / admin-login）
     if (data && data.code === 0 && data.data && typeof data.data.access_token === 'string') {
-      setAuthTokens(data.data);
+      if (isAdminRequest) {
+        setAdminAuthTokens(data.data);
+      } else {
+        setAuthTokens(data.data);
+      }
     }
 
     // Return any valid JSON response (success or business error like 40400/42200).
