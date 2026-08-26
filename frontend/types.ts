@@ -91,6 +91,11 @@ export interface TokenResponse {
   expires_in: number;
 }
 
+export interface SendCodeOut {
+  debug_code?: string | null;
+  expires_in?: number;
+}
+
 export interface UserOut {
   id: string;
   username: string;

@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [bindings, setBindings] = useState<BindingsOut | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [unreadCount, setUnreadCount] = useState<number>(1);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const { success, error, info } = useToast();
 
@@ -101,8 +101,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (token) {
       loadUserData();
     } else {
-      // Initial state can be active for quick testing
-      loadUserData();
+      // 未登录：直接结束 loading，不做无谓请求
+      setLoading(false);
     }
   }, [loadUserData]);
 

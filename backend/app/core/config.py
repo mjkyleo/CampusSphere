@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     # ----- 限流 -----
     rate_limit_per_minute: int = 120
 
+    # ----- 邮件发送（验证码 / 通知）-----
+    # 未配置 SMTP 时，验证码接口会返回 debug_code 便于测试联调；
+    # 配置后验证码仅通过邮件送达，生产环境必须配置。
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_pass: str = ""
+
     # ----- CORS -----
     # 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖
     cors_origins: List[str] = Field(

@@ -31,6 +31,7 @@ PUBLIC_PATHS = {
     "/api/auth/refresh",
     "/api/auth/send-code",
     "/api/auth/verify-email",
+    "/api/auth/email-config",
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",

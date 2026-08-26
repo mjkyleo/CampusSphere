@@ -1,12 +1,13 @@
 # campus-life-platform — API 接口文档
 
-> 版本：`1.0.0` | 接口总数：73 | 生成时间：2026-08-25 16:29
+> 版本：`1.0.0` | 接口总数：88 | 生成时间：2026-08-26 11:14
 
 > 约定：业务错误统一返回 **HTTP 200**，错误码在响应体 `code` 字段（如 40100 未认证 / 40300 禁止 / 40400 未找到 / 40900 冲突 / 42200 参数错误）。
 
 ## 目录
 
 - [admin](#admin)
+- [ai](#ai)
 - [auth](#auth)
 - [canteen](#canteen)
 - [course](#course)
@@ -42,6 +43,24 @@
 - `refresh_token`：string，必填。
 - `token_type`：string，可选。
 
+### `AiFeatureConfig`
+
+AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。
+
+个人开发者无大模型 API 额度时保持关闭，前端隐藏所有 AI 入口；
+额度到位后管理员在后台一键开启即可上线。
+
+- `enabled`：boolean，可选。
+- `model`：string，可选。
+
+### `AiStatusOut`
+
+AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
+
+- `enabled`：boolean，可选。
+- `available`：boolean，可选。
+- `message`：string，可选。
+
 ### `ApiResponse_AdminOut_`
 
 - `code`：integer，可选。
@@ -53,6 +72,18 @@
 - `code`：integer，可选。
 - `message`：string，可选。
 - `data`：AdminTokenResponse | null，可选。
+
+### `ApiResponse_AiFeatureConfig_`
+
+- `code`：integer，可选。
+- `message`：string，可选。
+- `data`：AiFeatureConfig | null，可选。
+
+### `ApiResponse_AiStatusOut_`
+
+- `code`：integer，可选。
+- `message`：string，可选。
+- `data`：AiStatusOut | null，可选。
 
 ### `ApiResponse_BindingsOut_`
 
@@ -71,6 +102,12 @@
 - `code`：integer，可选。
 - `message`：string，可选。
 - `data`：CanteenReviewOut | null，可选。
+
+### `ApiResponse_CategorizeOut_`
+
+- `code`：integer，可选。
+- `message`：string，可选。
+- `data`：CategorizeOut | null，可选。
 
 ### `ApiResponse_CourseOut_`
 
@@ -102,6 +139,12 @@
 - `message`：string，可选。
 - `data`：ItemOut | null，可选。
 
+### `ApiResponse_ItemReviewConfig_`
+
+- `code`：integer，可选。
+- `message`：string，可选。
+- `data`：ItemReviewConfig | null，可选。
+
 ### `ApiResponse_JobApplicationOut_`
 
 - `code`：integer，可选。
@@ -125,6 +168,12 @@
 - `code`：integer，可选。
 - `message`：string，可选。
 - `data`：ReportOut | null，可选。
+
+### `ApiResponse_SendCodeOut_`
+
+- `code`：integer，可选。
+- `message`：string，可选。
+- `data`：SendCodeOut | null，可选。
 
 ### `ApiResponse_ShareOut_`
 
@@ -263,6 +312,20 @@
 - `rating`：integer，必填。
 - `content`：string，必填。
 
+### `CategorizeOut`
+
+内容分类结果。
+
+- `category`：string，必填。
+- `isSafe`：boolean，必填。
+- `summary`：string，必填。
+
+### `CategorizeRequest`
+
+内容自动分类与安全预审（发帖场景预留）。
+
+- `content`：string，必填。
+
 ### `CourseCreate`
 
 - `code`：string，必填。
@@ -292,6 +355,12 @@
 - `user_id`：string，必填。
 - `rating`：integer，必填。
 - `content`：string，必填。
+
+### `CourseSummaryRequest`
+
+课程评价 AI 汇总提炼。
+
+- `reviewTexts`：array[string]，必填。
 
 ### `DishCreate`
 
@@ -330,6 +399,12 @@
   - `input`：any，可选。
   - `ctx`：object，可选。
 
+### `InsightRequest`
+
+首页校园智能灵感。
+
+- `topic`：string，必填。
+
 ### `ItemCreate`
 
 - `title`：string，必填。
@@ -339,6 +414,13 @@
 - `images`：array[ItemImageIn]，可选。
   - `object_key`：string，必填。
   - `sort_order`：integer，可选。
+
+### `ItemDescriptionRequest`
+
+闲置物品描述 AI 润色。
+
+- `title`：string，必填。
+- `category`：string，必填。
 
 ### `ItemImageIn`
 
@@ -365,6 +447,18 @@
   - `object_key`：string，必填。
   - `sort_order`：integer，必填。
 - `created_at`：string | null，可选。
+
+### `ItemReviewConfig`
+
+二手物品发布审核开关（DB 值覆盖 school.yaml 默认值）。
+
+- `enabled`：boolean，可选。
+
+### `ItemReviewRejectRequest`
+
+拒绝审核时的原因说明。
+
+- `reason`：string，可选。
 
 ### `ItemUpdate`
 
@@ -476,6 +570,14 @@
   - `operator_id`：string，必填。
   - `action`：string，必填。
   - `note`：string，必填。
+
+### `SendCodeOut`
+
+发送验证码响应。开发/测试模式（debug=true）返回 debug_code 便于本地验证；
+生产环境 debug_code 恒为 null，验证码只能通过邮件/短信真实送达。
+
+- `debug_code`：string | null，可选。
+- `expires_in`：integer，可选。
 
 ### `SendCodeRequest`
 
@@ -601,6 +703,19 @@
 
 ## admin
 
+### DELETE `/api/admin/items/{item_id}` — Admin Delete Item View
+
+Soft-delete any item. Bypasses owner check.
+
+**请求参数**
+
+- `item_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_NoneType_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ### GET `/api/admin/me` — Me
 
 **响应**
@@ -642,6 +757,58 @@
 **响应**
 
 - `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### GET `/api/admin/items` — Admin List Items
+
+List all items (any user's) with optional status filter and pagination.
+
+**请求参数**
+
+- `status`（查询，可选）：integer。
+- `page`（查询，可选）：integer。
+- `page_size`（查询，可选）：integer。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### GET `/api/admin/items/review-config` — Admin Get Item Review
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_ItemReviewConfig_`
+
+### GET `/api/admin/ai/config` — Admin Get Ai Config
+
+读取 AI 助手开关与运行状态（含 API Key 配置提示，不回传 Key 本身）。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+
+### PATCH `/api/admin/items/{item_id}` — Admin Update Item View
+
+Update any item's fields (e.g., take off sale). Bypasses owner check.
+
+**请求参数**
+
+- `item_id`（路径，必填）：string。
+
+**请求体**
+
+> 必填
+
+- `title`：string | null，可选。
+- `description`：string | null，可选。
+- `price`：integer | null，可选。
+- `category`：string | null，可选。
+- `status`：integer | null，可选。状态流转目标值
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_ItemOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
 ### POST `/api/admin/login` — Login
@@ -686,6 +853,38 @@
 - `200`：Successful Response — `ApiResponse_dict_`
 - `422`：Validation Error — `HTTPValidationError`
 
+### POST `/api/admin/items/{item_id}/approve` — Admin Approve Item View
+
+审核通过：待审核(PENDING) -> 上架(ON_SALE)。
+
+**请求参数**
+
+- `item_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_ItemOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/admin/items/{item_id}/reject` — Admin Reject Item View
+
+审核拒绝：待审核(PENDING) -> 下架(OFF_SHELF)。
+
+**请求参数**
+
+- `item_id`（路径，必填）：string。
+
+**请求体**
+
+> 必填
+
+- `reason`：string，可选。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_ItemOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ### PUT `/api/admin/auth/email-config` — Put Email Config
 
 **请求体**
@@ -699,6 +898,108 @@
 **响应**
 
 - `200`：Successful Response — `ApiResponse_EmailRegisterConfig_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### PUT `/api/admin/items/review-config` — Admin Put Item Review
+
+**请求体**
+
+> 必填
+
+- `enabled`：boolean，可选。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_ItemReviewConfig_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### PUT `/api/admin/ai/config` — Admin Put Ai Config
+
+更新 AI 助手开关与模型名（写 DB，实时生效）。
+
+**请求体**
+
+> 必填
+
+- `enabled`：boolean，可选。
+- `model`：string，可选。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_AiFeatureConfig_`
+- `422`：Validation Error — `HTTPValidationError`
+
+---
+
+## ai
+
+### GET `/api/ai/status` — Ai Status
+
+AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_AiStatusOut_`
+
+### POST `/api/ai/insights` — Insights
+
+首页校园智能灵感。
+
+**请求体**
+
+> 必填
+
+- `topic`：string，必填。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/ai/item-description` — Item Description
+
+闲置发布描述 AI 润色。
+
+**请求体**
+
+> 必填
+
+- `title`：string，必填。
+- `category`：string，必填。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/ai/course-summary` — Course Summary
+
+课程评价 AI 汇总。
+
+**请求体**
+
+> 必填
+
+- `reviewTexts`：array[string]，必填。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/ai/categorize` — Categorize
+
+内容自动分类与安全预审（发帖场景预留）。
+
+**请求体**
+
+> 必填
+
+- `content`：string，必填。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_CategorizeOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
 ---
@@ -729,6 +1030,14 @@
 
 - `200`：Successful Response — `ApiResponse_NoneType_`
 - `422`：Validation Error — `HTTPValidationError`
+
+### GET `/api/auth/email-config` — Email Register Config
+
+公开只读：邮箱注册规则（是否开启 + 允许域名/正则），供注册页动态展示。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_EmailRegisterConfig_`
 
 ### GET `/api/auth/wechat/state` — Wechat Oauth State
 
@@ -845,6 +1154,11 @@
 
 ### POST `/api/auth/send-code` — Send Verification Code
 
+发送验证码（邮箱/手机号，purpose 区分用途）。
+
+开发/测试模式（settings.debug=true）下响应中直接返回 debug_code，
+便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
+
 **请求体**
 
 > 必填
@@ -854,7 +1168,7 @@
 
 **响应**
 
-- `200`：Successful Response — `ApiResponse_NoneType_`
+- `200`：Successful Response — `ApiResponse_SendCodeOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
 ### POST `/api/auth/verify-email` — Verify Email Endpoint
@@ -872,7 +1186,7 @@
 
 ### POST `/api/auth/email-register` — Email Register
 
-邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号。
+邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号并签发令牌（注册即登录）。
 
 **请求体**
 
@@ -885,7 +1199,7 @@
 
 **响应**
 
-- `200`：Successful Response — `ApiResponse_UserOut_`
+- `200`：Successful Response — `ApiResponse_TokenResponse_`
 - `422`：Validation Error — `HTTPValidationError`
 
 ### POST `/api/auth/bind/email` — Bind Email Endpoint
