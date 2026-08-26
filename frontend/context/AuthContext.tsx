@@ -24,7 +24,7 @@ interface AuthContextType {
   phoneLogin: (target: string, code: string) => Promise<boolean>;
   emailRegister: (email: string, pass: string, code: string, nickname?: string) => Promise<boolean>;
   register: (params: { username: string; password: string; email?: string; phone?: string; nickname?: string }) => Promise<boolean>;
-  adminLogin: (username: string, pass: string) => Promise<boolean>;
+  adminLogin: (gatewayKey: string, username: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
   adminLogout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfileOut>) => Promise<boolean>;
@@ -209,8 +209,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const adminLogin = async (username: string, pass: string): Promise<boolean> => {
-    const res = await api.admin.login(username, pass);
+  const adminLogin = async (gatewayKey: string, username: string, pass: string): Promise<boolean> => {
+    const res = await api.admin.loginWithGateway(gatewayKey, username, pass);
     if (res.code === 0) {
       success('管理员认证成功！');
       await loadAdminData();

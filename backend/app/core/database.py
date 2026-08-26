@@ -58,6 +58,9 @@ _SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("campus", "VARCHAR(64) DEFAULT ''"),
         ("contact_wx", "VARCHAR(64) DEFAULT ''"),
     ],
+    "users": [
+        ("is_admin", "BOOLEAN DEFAULT 0"),
+    ],
     "courses": [
         ("department", "VARCHAR(64) DEFAULT ''"),
     ],

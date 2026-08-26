@@ -25,6 +25,7 @@ class User(Base, PKMixin, TimestampMixin, SoftDeleteMixin):
     nickname: Mapped[str] = mapped_column(String(64), default="")
     avatar: Mapped[Optional[str]] = mapped_column(String(255), default=None)
     status: Mapped[int] = mapped_column(Integer, default=UserStatus.NORMAL.value, index=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"

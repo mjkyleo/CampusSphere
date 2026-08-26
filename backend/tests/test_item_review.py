@@ -10,6 +10,7 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.config import settings
 from app.modules.admin.service import ensure_seed
 from helpers import auth_header, register_login
 
@@ -26,7 +27,13 @@ def _seed_admin(test_engine) -> None:
 
 
 def _admin_token(client) -> str:
-    r = client.post("/api/admin/login", json={"username": "admin", "password": "admin123"})
+    r = client.post(
+        "/api/admin/login",
+        json={
+            "username": settings.admin_bootstrap_username,
+            "password": settings.admin_bootstrap_password or "admin123",
+        },
+    )
     assert r.status_code == 200, r.text
     assert r.json()["code"] == 0
     return r.json()["data"]["access_token"]

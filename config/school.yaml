@@ -87,3 +87,19 @@ ai:
     model: "gemini-2.0-flash"
   # API Key 推荐用环境变量 GEMINI_API_KEY 注入；此处仅作兜底配置位
   api_key: ""
+
+# 管理员后台入口与安全（与 school.yaml 同源，部署时用 .env 覆盖更敏感字段）
+# 说明：
+# - gateway.key：管理端"网关密钥"，仅用于换取短时网关令牌，不写入前端源码；
+#   部署后通过安全渠道告知管理员。缺失/过短（<16）时生产启动会被 validate_admin_security 拦截。
+# - bootstrap：首次启动自动创建的管理员账号，密码至少 admin_gateway_min_length 位；
+#   未配置密码时回退到开发用弱口令 admin123（仅本地/测试，生产必须显式配置）。
+admin:
+  bootstrap:
+    enabled: true
+    username: "siteadmin"
+    password: "change-me-deploy-with-strong-pw-16plus"
+    min_length: 16
+  gateway:
+    key: "change-me-admin-gateway-key-16plus"
+    rotate_seconds: 3600

@@ -13,6 +13,18 @@ class AdminLoginRequest(BaseModel):
     password: str
 
 
+class AdminDiscoverRequest(BaseModel):
+    """用网关密钥换取短时网关令牌。"""
+
+    gateway_key: str
+
+
+class AdminPromoteRequest(BaseModel):
+    """将普通用户提升为管理员时设置其后台登录密码（必填）。"""
+
+    password: str
+
+
 class AdminTokenResponse(BaseModel):
     access_token: str
     refresh_token: str

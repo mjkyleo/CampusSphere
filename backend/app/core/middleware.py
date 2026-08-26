@@ -35,6 +35,7 @@ PUBLIC_PATHS = {
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
+    "/api/admin/discover",
     "/api/ai/status",
     "/health",
     "/metrics",
@@ -91,6 +92,20 @@ class GatewayMiddleware(BaseHTTPMiddleware):
                 )
         except Exception:  # noqa: BLE001
             pass  # 限流失败不阻断业务
+
+        # 管理端网关隐藏：/api/admin/*（discover 除外）未携带有效网关令牌时一律 404，
+        # 让未授权探测者看起来像接口不存在（先于鉴权执行，避免泄露 401）。
+        _path = request.url.path
+        if _path.startswith("/api/admin/") and _path != "/api/admin/discover":
+            from app.modules.admin.gateway import gateway_enforced, verify_gateway_token
+
+            if gateway_enforced() and not verify_gateway_token(request.headers.get("X-Admin-Gateway")):
+                return JSONResponse(
+                    status_code=404,
+                    content=ApiResponse(
+                        code=ErrorCode.NOT_FOUND, message="资源不存在", data=None
+                    ).model_dump(),
+                )
 
         # 鉴权
         path = request.url.path

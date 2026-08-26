@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+import string
 import uuid
 from datetime import datetime, timezone
 
@@ -55,8 +57,18 @@ async def get_permissions(db: AsyncSession, admin: AdminUser) -> list:
 
 
 async def ensure_seed(db: AsyncSession) -> None:
-    """初始化默认角色与管理员（首次启动调用）。"""
-    existing = await db.scalar(select(AdminUser).where(AdminUser.username == "admin"))
+    """初始化默认角色与管理员（首次启动调用）。
+
+    账号与密码读取自配置（school.yaml 的 ``admin.bootstrap.*`` 或由 ``.env`` 覆盖），
+    不再硬编码于源码。仅当配置未提供密码时，回退到开发/测试用弱口令 ``admin123`` 并告警——
+    生产环境必须在配置中指定强密码（由 ``validate_admin_security`` 在启动期拦截弱配置）。
+    """
+    if not settings.admin_bootstrap_enabled:
+        _logger.info("admin_seed_disabled")
+        return
+    username = settings.admin_bootstrap_username or "siteadmin"
+    password = settings.admin_bootstrap_password or "admin123"
+    existing = await db.scalar(select(AdminUser).where(AdminUser.username == username))
     if existing:
         return
     perms = ["user:ban", "user:view", "report:handle", "content:audit", "dashboard:view"]
@@ -67,10 +79,49 @@ async def ensure_seed(db: AsyncSession) -> None:
     db.add(role)
     await db.flush()
     # role_id 列类型为 String(36)，直接存入字符串形式的 UUID
-    admin = AdminUser(username="admin", password_hash=hash_password("admin123"), role_id=role.id)
+    admin = AdminUser(username=username, password_hash=hash_password(password), role_id=role.id)
     db.add(admin)
     await db.commit()
-    _logger.info("admin_seeded", username="admin")
+    _logger.info("admin_seeded", username=username, from_config=bool(settings.admin_bootstrap_password))
+
+
+def _gen_random_password(length: int = 16) -> str:
+    """生成一次性随机强口令（用于未提供密码的提升场景，不回传前端）。"""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+async def promote_user_to_admin(
+    db: AsyncSession, user_id: str, password: str, operator: AdminUser
+) -> User:
+    """将普通用户提升为管理员：标记 ``User.is_admin`` 并创建/更新其后台 AdminUser 登录账号。"""
+    user = await db.get(User, user_id)
+    if not user:
+        raise BizError(ErrorCode.NOT_FOUND, "用户不存在")
+    user.is_admin = True
+
+    # 确保存在超级管理员角色
+    role = await db.scalar(select(Role).where(Role.name == "super_admin"))
+    if not role:
+        perms = ["user:ban", "user:view", "report:handle", "content:audit", "dashboard:view"]
+        role = Role(name="super_admin", description="超级管理员", permissions=perms)
+        db.add(role)
+        await db.flush()
+
+    admin_user = await db.scalar(select(AdminUser).where(AdminUser.username == user.username))
+    if admin_user:
+        if password:
+            admin_user.password_hash = hash_password(password)
+        admin_user.disabled = False
+    else:
+        # 后台账号用户名复用平台用户名；未提供密码时生成一次性随机强口令
+        pw = password or _gen_random_password()
+        admin_user = AdminUser(username=user.username, password_hash=hash_password(pw), role_id=role.id)
+        db.add(admin_user)
+    await db.commit()
+    await db.refresh(user)
+    _logger.warning("admin_promote_user", operator=operator.username, target=user.username)
+    return user
 
 
 async def list_users(db: AsyncSession, page: int = 1, page_size: int = 20) -> dict:

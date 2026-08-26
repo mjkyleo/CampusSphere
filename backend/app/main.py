@@ -36,6 +36,11 @@ _logger = get_logger("main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    # 启动期管理员安全校验：生产环境（非 debug 且 admin_gateway_enforce）若网关密钥或 bootstrap
+    # 密码过弱/缺失，直接 SystemExit 拒绝带病上线（开发/测试放宽模式跳过）。
+    from app.core.config import validate_admin_security
+
+    validate_admin_security()
     _logger.info("app_starting", school=settings.school_name)
     # 开发模式（SQLite）自动建表，免去手动 alembic
     if settings.db_url.startswith("sqlite"):

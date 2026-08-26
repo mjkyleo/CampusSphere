@@ -52,6 +52,22 @@ class Settings(BaseSettings):
     # ----- 限流 -----
     rate_limit_per_minute: int = 120
 
+    # ----- 管理员入口与安全 -----
+    # 这些字段专门保护 /api/admin/* 的可达性，与普通用户账号无关。
+    # - admin_gateway_key  : 前端页面可见，调用 /api/admin/discover 时用它换取 X-Admin-Gateway 短期 token。
+    #                        错误的 gateway key 一律 404 Not Found（对未授权者表现得像端点不存在）。
+    # - admin_bootstrap_* : school.yaml 配置段，可由 .env 覆盖；生产环境强制密码长度 ≥ 16，
+    #                        否则启动 fail-fast 拒绝运行。
+    admin_gateway_key: str = ""
+    admin_bootstrap_enabled: bool = True
+    admin_bootstrap_username: str = "siteadmin"
+    admin_bootstrap_password: str = ""
+    admin_bootstrap_min_length: int = 16
+    admin_gateway_rotate_seconds: int = 3600  # 派生 token 1 小时轮换
+    # 网关强制开关：True=生产（默认，强制校验 X-Admin-Gateway）；False=本地开发放宽（免网关密钥）。
+    # 仅用于本地联调，生产环境请勿置为 false（validate_admin_security 会告警）。
+    admin_gateway_enforce: bool = True
+
     # ----- 邮件发送（验证码 / 通知）-----
     # 未配置 SMTP 时，验证码接口会返回 debug_code 便于测试联调；
     # 配置后验证码仅通过邮件送达，生产环境必须配置。
@@ -80,6 +96,7 @@ class Settings(BaseSettings):
     items: Dict[str, Any] = Field(default_factory=dict)
     courses: Dict[str, Any] = Field(default_factory=dict)
     ai: Dict[str, Any] = Field(default_factory=dict)
+    admin: Dict[str, Any] = Field(default_factory=dict)
 
     # ----- 基础设施（可由 .env 覆盖，缺省取 school.yaml）-----
     minio_endpoint: Optional[str] = None
@@ -110,9 +127,27 @@ class Settings(BaseSettings):
         for key in ("school_name", "school_domain"):
             if data.get(key):
                 setattr(self, key, data[key])
-        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "courses", "ai"):
+        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "courses", "ai", "admin"):
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
+
+        # admin：school.yaml 的 admin.bootstrap.{enabled,username,password,min_length} 可由 .env 覆盖
+        ad = self.admin or {}
+        bs = ad.get("bootstrap") or {}
+        if isinstance(bs, dict):
+            self.admin_bootstrap_enabled = bool(bs.get("enabled", self.admin_bootstrap_enabled))
+            if bs.get("username"):
+                self.admin_bootstrap_username = str(bs["username"])
+            if bs.get("password"):
+                self.admin_bootstrap_password = str(bs["password"])
+            if isinstance(bs.get("min_length"), int):
+                self.admin_bootstrap_min_length = bs["min_length"]
+        gw = ad.get("gateway") or {}
+        if isinstance(gw, dict):
+            if gw.get("key"):
+                self.admin_gateway_key = str(gw["key"])
+            if isinstance(gw.get("rotate_seconds"), int):
+                self.admin_gateway_rotate_seconds = gw["rotate_seconds"]
 
         # MinIO / Meili 取最具体来源（.env 优先于 school.yaml）
         mc = self.minio or {}
@@ -140,3 +175,47 @@ def get_settings() -> Settings:
 
 # 全局配置单例（模块导入即可用）
 settings = get_settings()
+
+
+# 启动时校验的管理员安全开关。生产环境必须配置 ADMIN_GATEWAY_KEY + 强 bootstrap 密码，
+# 否则 init_logging 之后、lifespan 启动前 SystemExit(2)，避免带病上线。
+# DEBUG=true 时放过（开发模式继续可以用默认 siteadmin / 弱密码）。
+def validate_admin_security(strict: Optional[bool] = None) -> None:
+    """管理员安全配置校验：非 debug 模式下失败即抛 SystemExit。
+
+    校验项：
+    1. ADMIN_GATEWAY_KEY 已设置且非默认占位
+    2. bootstrap password 长度 ≥ 配置的 ``admin_bootstrap_min_length``
+    3. gateway key 长度 ≥ 16
+
+    测试环境通过 strict=False 跳过（conftest 不希望启动失败）。
+    """
+    s = settings
+    is_strict = (not s.debug) if strict is None else strict
+    # 本地开发放宽（admin_gateway_enforce=false）时不强制，避免带病启动阻断联调
+    if not s.admin_gateway_enforce:
+        if not s.debug:
+            _logger.warning("admin_security_relaxed", reason="admin_gateway_enforce=false in non-debug mode")
+        is_strict = False
+    if not is_strict:
+        return
+
+    placeholder_keys = {"", "change-me", "change-me-admin-gateway-key", "change-me-deploy-with-strong-pw"}
+    bad_key = (
+        not s.admin_gateway_key
+        or s.admin_gateway_key.lower() in placeholder_keys
+        or len(s.admin_gateway_key) < 16
+    )
+    if bad_key:
+        raise SystemExit(
+            "[SECURITY] ADMIN_GATEWAY_KEY is missing or too short.\n"
+            "         Set it in backend/.env (>=16 random chars) or pass ADMIN_GATEWAY_KEY env var.\n"
+            "         For dev only: DEBUG=true bypasses this check."
+        )
+
+    if s.admin_bootstrap_enabled and s.admin_bootstrap_password:
+        if len(s.admin_bootstrap_password) < s.admin_bootstrap_min_length:
+            raise SystemExit(
+                f"[SECURITY] admin.bootstrap.password must be >= {s.admin_bootstrap_min_length} chars in production.\n"
+                "         Update config/school.yaml admin.bootstrap.password, or set DEBUG=true for dev."
+            )

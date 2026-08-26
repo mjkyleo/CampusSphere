@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from app.core.config import settings
 from app.modules.auth import oauth as oauth_mod
 from app.modules.auth.service import send_code
 from helpers import auth_header, register_login, run_async
@@ -52,7 +53,13 @@ def _seed_admin(session_factory):
 
 
 def _admin_login(client):
-    r = client.post("/api/admin/login", json={"username": "admin", "password": "admin123"})
+    r = client.post(
+        "/api/admin/login",
+        json={
+            "username": settings.admin_bootstrap_username,
+            "password": settings.admin_bootstrap_password or "admin123",
+        },
+    )
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['data']['access_token']}"}
 

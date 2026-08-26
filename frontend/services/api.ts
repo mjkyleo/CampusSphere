@@ -19,6 +19,7 @@ const ACCESS_TOKEN_KEY = 'cs_access_token';
 const REFRESH_TOKEN_KEY = 'cs_refresh_token';
 const ADMIN_ACCESS_TOKEN_KEY = 'cs_admin_access_token';
 const ADMIN_REFRESH_TOKEN_KEY = 'cs_admin_refresh_token';
+const ADMIN_GATEWAY_TOKEN_KEY = 'cs_admin_gateway_token';
 const USER_PROFILE_KEY = 'cs_user_profile';
 const ADMIN_PROFILE_KEY = 'cs_admin_profile';
 const MOCK_STORAGE_KEY = 'cs_mock_db_v3';
@@ -27,6 +28,9 @@ export const getStoredAccessToken = (): string | null => localStorage.getItem(AC
 export const getStoredRefreshToken = (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY);
 export const getStoredAdminAccessToken = (): string | null => localStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
 export const getStoredAdminRefreshToken = (): string | null => localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+export const getStoredAdminGatewayToken = (): string | null => localStorage.getItem(ADMIN_GATEWAY_TOKEN_KEY);
+export const setAdminGatewayToken = (token: string) => localStorage.setItem(ADMIN_GATEWAY_TOKEN_KEY, token);
+export const clearAdminGatewayToken = () => localStorage.removeItem(ADMIN_GATEWAY_TOKEN_KEY);
 
 export const setAuthTokens = (tokens: TokenResponse) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
@@ -48,6 +52,7 @@ export const clearAdminAuthTokens = () => {
   localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
   localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
   localStorage.removeItem(ADMIN_PROFILE_KEY);
+  localStorage.removeItem(ADMIN_GATEWAY_TOKEN_KEY);
 };
 
 // Helper: Format price from cents (分) to Yuan string
@@ -708,6 +713,14 @@ export async function request<T>(
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  // 管理端请求自动附带网关令牌（由 /api/admin/discover 换取并缓存于 sessionStorage），
+  // 缺失时后端一律 404，从而"隐藏"管理接口的可达性。
+  if (isAdminRequest) {
+    const gw = getStoredAdminGatewayToken();
+    if (gw) {
+      headers['X-Admin-Gateway'] = gw;
+    }
   }
 
   try {
@@ -1388,6 +1401,19 @@ export const api = {
 
   // Admin
   admin: {
+    // 用网关密钥换取短时网关令牌（HMAC），缓存后由 request() 自动附带
+    discover: (gatewayKey: string) =>
+      request<{ gateway_token: string }>('/api/admin/discover', { method: 'POST', body: JSON.stringify({ gateway_key: gatewayKey }) }),
+    // 先 discover 换取网关令牌再登录，成功后缓存令牌
+    loginWithGateway: async (gatewayKey: string, username: string, password: string) => {
+      const d = await api.admin.discover(gatewayKey);
+      if (d.code === 0 && d.data?.gateway_token) {
+        setAdminGatewayToken(d.data.gateway_token);
+        return api.admin.login(username, password);
+      }
+      // 网关密钥错误或后台未开放管理端：返回友好错误（后端对未授权访问统一 404 屏蔽）
+      return { code: 40100, message: '管理后台网关密钥错误或未开放', data: null } as unknown as ApiResponse<TokenResponse>;
+    },
     login: (username: string, password: string) =>
       request<TokenResponse>('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
     getMe: () => request<AdminOut>('/api/admin/me'),

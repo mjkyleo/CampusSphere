@@ -44,6 +44,7 @@ import app.modules.share.models  # noqa: E402,F401
 import app.modules.teammate.models  # noqa: E402,F401
 import app.modules.user.models  # noqa: E402,F401
 
+from app.core.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 
 _TEST_DB = os.path.join(tempfile.gettempdir(), "campus_test.db")
@@ -76,6 +77,18 @@ def _relax_rate_limit():
     for mw in app.user_middleware:
         if mw.cls is GatewayMiddleware:
             mw.kwargs["rate_limit_per_minute"] = 100_000
+
+
+@pytest.fixture(autouse=True)
+def _relax_admin_gateway():
+    """测试环境放宽管理端网关校验：既有测试直接调用 /api/admin/* 不携带网关令牌。
+
+    网关强制校验是生产默认行为，由 AdminGateway 相关测试显式开启验证；
+    此处默认关闭，保证既有管理后台测试无需改动即可通过。
+    """
+    settings.admin_gateway_enforce = False
+    yield
+    settings.admin_gateway_enforce = True
 
 
 @pytest.fixture(scope="function")

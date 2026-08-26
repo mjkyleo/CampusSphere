@@ -43,6 +43,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   // Admin login form（正式入口，不使用硬编码账号）
   const [showAdminForm, setShowAdminForm] = useState(searchParams.get('admin') === '1');
+  const [adminGatewayKey, setAdminGatewayKey] = useState('');
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
 
@@ -170,12 +171,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminUsername || !adminPassword) {
-      error('请输入管理员账号和密码');
+    if (!adminGatewayKey || !adminUsername || !adminPassword) {
+      error('请填写网关密钥、管理员账号与密码');
       return;
     }
     setLoading(true);
-    const ok = await adminLogin(adminUsername, adminPassword);
+    const ok = await adminLogin(adminGatewayKey, adminUsername, adminPassword);
     setLoading(false);
     if (ok) {
       if (onLogin) onLogin();
@@ -555,8 +556,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <ShieldCheck className="w-4 h-4 text-amber-600" />
                 <span className="font-semibold">管理员登录</span>
-                <span className="text-slate-400">（初始账号 admin / admin123，请在后台及时修改）</span>
+                <span className="text-slate-400">（需网关密钥 + 账号密码，均通过部署配置下发）</span>
               </div>
+              <input
+                type="password"
+                required
+                value={adminGatewayKey}
+                onChange={(e) => setAdminGatewayKey(e.target.value)}
+                placeholder="管理后台网关密钥"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-amber-500 outline-none"
+              />
               <input
                 type="text"
                 required

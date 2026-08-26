@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.core.config import settings
 from helpers import auth_header, register_login, run_async
 
 
@@ -77,7 +78,13 @@ def test_admin_login_dashboard_and_lists(client, session_factory):
 
     run_async(_seed())
 
-    r = client.post("/api/admin/login", json={"username": "admin", "password": "admin123"})
+    r = client.post(
+        "/api/admin/login",
+        json={
+            "username": settings.admin_bootstrap_username,
+            "password": settings.admin_bootstrap_password or "admin123",
+        },
+    )
     assert r.status_code == 200, r.text
     token = r.json()["data"]["access_token"]
     h = auth_header(token)
