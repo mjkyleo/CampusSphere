@@ -44,6 +44,14 @@ class SendCodeRequest(BaseModel):
     purpose: str = Field(default="login", description="login/register/email")
 
 
+class SendCodeOut(BaseModel):
+    """发送验证码响应。开发/测试模式（debug=true）返回 debug_code 便于本地验证；
+    生产环境 debug_code 恒为 null，验证码只能通过邮件/短信真实送达。"""
+
+    debug_code: Optional[str] = None
+    expires_in: int = 300
+
+
 class VerifyCodeRequest(BaseModel):
     target: str
     code: str

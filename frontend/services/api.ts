@@ -10,7 +10,8 @@ import {
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
   ReportOut, ReportTargetType, ReportStatus,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
-  AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate
+  AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
+  SendCodeOut
 } from '../types.ts';
 
 // Storage keys
@@ -717,6 +718,11 @@ export async function request<T>(
       return data as ApiResponse<T>;
     }
 
+    // 认证成功响应自动保存令牌（login / phone-login / email-register / admin-login）
+    if (data && data.code === 0 && data.data && typeof data.data.access_token === 'string') {
+      setAuthTokens(data.data);
+    }
+
     // Return any valid JSON response (success or business error like 40400/42200).
     // The backend wraps all responses — including errors — in { code, message, data }.
     if (data) {
@@ -740,46 +746,25 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     try { body = JSON.parse(options.body); } catch {}
   }
 
-  // Auth: Login
-  if (path === '/api/auth/login' && method === 'POST') {
+  // 认证关键路径：测试生产阶段不再允许 mock 伪造成功，
+  // 后端不可达时明确报错，避免出现“登录成功”但实际未认证的假象。
+  const AUTH_REAL_PATHS = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/email-register',
+    '/api/auth/phone-login',
+    '/api/auth/send-code',
+    '/api/auth/refresh',
+    '/api/admin/login',
+    '/api/admin/me',
+    '/api/users/me',
+  ];
+  if (AUTH_REAL_PATHS.includes(path)) {
     return {
-      code: 0,
-      message: '登录成功',
-      data: {
-        access_token: 'mock_token_' + Date.now(),
-        refresh_token: 'mock_refresh_' + Date.now(),
-        token_type: 'Bearer',
-        expires_in: 86400
-      } as any
+      code: -1,
+      message: '后端服务不可用，请确认后端已启动后重试',
+      data: null as any,
     };
-  }
-
-  // Auth: Register
-  if (path === '/api/auth/register' && method === 'POST') {
-    const newUser: UserOut = {
-      id: 'usr-' + Date.now(),
-      username: body.username || 'new_user',
-      nickname: body.nickname || body.username || '校园新同学',
-      email: body.email,
-      phone: body.phone,
-      status: 0,
-      created_at: new Date().toISOString()
-    };
-    db.adminUsers.push(newUser);
-    saveMockDB(db);
-    return { code: 0, message: '注册成功', data: newUser as any };
-  }
-
-  // Users: Get Me
-  if (path === '/api/users/me' && method === 'GET') {
-    return { code: 0, message: 'ok', data: db.currentUser as any };
-  }
-
-  // Users: Update Me
-  if (path === '/api/users/me' && method === 'PATCH') {
-    db.currentUser = { ...db.currentUser, ...body };
-    saveMockDB(db);
-    return { code: 0, message: '个人信息更新成功', data: db.currentUser as any };
   }
 
   // Items: List
@@ -1072,13 +1057,16 @@ export const api = {
       request<TokenResponse>('/api/auth/phone-login', { method: 'POST', body: JSON.stringify({ target, code }) }),
     
     emailRegister: (email: string, password: string, code: string, nickname?: string) =>
-      request<UserOut>('/api/auth/email-register', { method: 'POST', body: JSON.stringify({ email, password, code, nickname }) }),
-    
+      request<TokenResponse>('/api/auth/email-register', { method: 'POST', body: JSON.stringify({ email, password, code, nickname }) }),
+
     register: (params: { username: string; password: string; email?: string; phone?: string; nickname?: string }) =>
       request<UserOut>('/api/auth/register', { method: 'POST', body: JSON.stringify(params) }),
-    
+
     sendCode: (target: string, purpose: 'login' | 'register' | 'email' | 'bind_email' | 'bind_phone') =>
-      request<null>('/api/auth/send-code', { method: 'POST', body: JSON.stringify({ target, purpose }) }),
+      request<SendCodeOut>('/api/auth/send-code', { method: 'POST', body: JSON.stringify({ target, purpose }) }),
+
+    emailConfig: () =>
+      request<EmailRegisterConfig>('/api/auth/email-config'),
     
     logout: () => request<null>('/api/auth/logout', { method: 'POST' }),
     

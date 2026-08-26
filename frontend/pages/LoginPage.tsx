@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { api } from '../services/api.ts';
+import type { EmailRegisterConfig } from '../types.ts';
 import {
   MessageSquare, MessageCircle, Mail, Phone, Lock,
   User, Sparkles, ArrowRight, ShieldCheck, CheckCircle2, KeyRound
@@ -21,24 +22,40 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
 
   // Form states
-  const [account, setAccount] = useState('campus_student');
-  const [password, setPassword] = useState('123456');
+  const [account, setAccount] = useState('');
+  const [password, setPassword] = useState('');
 
-  const [phoneTarget, setPhoneTarget] = useState('13800138000');
+  const [phoneTarget, setPhoneTarget] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
 
-  const [emailTarget, setEmailTarget] = useState('qiang@example.edu.cn');
-  const [emailPassword, setEmailPassword] = useState('123456');
+  const [emailTarget, setEmailTarget] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
   const [emailCode, setEmailCode] = useState('');
-  const [emailNickname, setEmailNickname] = useState('阿强同学');
+  const [emailNickname, setEmailNickname] = useState('');
 
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regNickname, setRegNickname] = useState('');
 
+  // Admin login form（正式入口，不使用硬编码账号）
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+
+  // 邮箱注册规则（由后端公开接口动态提供）
+  const [emailConfig, setEmailConfig] = useState<EmailRegisterConfig | null>(null);
+
   // Countdown timer for verification code
   const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    api.auth.emailConfig()
+      .then((res) => {
+        if (res.code === 0 && res.data) setEmailConfig(res.data);
+      })
+      .catch(() => { /* 后端不可达时保持默认提示 */ });
+  }, []);
 
   const startCountdown = () => {
     setCountdown(60);
@@ -61,13 +78,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     try {
       const res = await api.auth.sendCode(target, purpose);
       if (res.code === 0) {
-        success(`验证码已发送至 ${target}（模拟验证码可直接填写任意6位或 888888）`);
+        const debugCode = res.data?.debug_code;
+        if (debugCode) {
+          // 开发/测试模式：验证码随响应返回，自动填入便于联调
+          if (target.includes('@')) setEmailCode(debugCode);
+          else setPhoneCode(debugCode);
+          success(`验证码已发送至 ${target}，测试模式已自动填入`);
+        } else {
+          success(`验证码已发送至 ${target}，请查收邮件/短信（生产环境需配置发送服务）`);
+        }
         startCountdown();
       } else {
         error(res.message || '发送验证码失败');
       }
     } catch {
-      error('发送验证码异常');
+      error('发送验证码异常，请确认后端服务已启动');
     }
   };
 
@@ -121,16 +146,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   const handleOAuthLogin = (provider: 'wechat' | 'qq') => {
-    info(`正在唤起 ${provider === 'wechat' ? '微信' : 'QQ'} 授权认证...`);
-    setTimeout(async () => {
-      await login('campus_student', '123456');
-      if (onLogin) onLogin();
-    }, 600);
+    info(`${provider === 'wechat' ? '微信' : 'QQ'}授权登录需在后台配置应用凭据（AppID/Secret）后开放，当前尚未接入。`);
   };
 
-  const handleQuickAdminLogin = async () => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminUsername || !adminPassword) {
+      error('请输入管理员账号和密码');
+      return;
+    }
     setLoading(true);
-    const ok = await adminLogin('admin', 'admin123');
+    const ok = await adminLogin(adminUsername, adminPassword);
     setLoading(false);
     if (ok && onLogin) onLogin();
   };
@@ -151,7 +177,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             CampusSphere
           </h1>
           <p className="text-slate-500 text-sm font-medium">
-            校园生活综合服务枢纽 · 73项接口全面贯通
+            校园生活综合服务枢纽
           </p>
         </div>
 
@@ -205,7 +231,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   required
                   value={account}
                   onChange={(e) => setAccount(e.target.value)}
-                  placeholder="例如: campus_student 或 qiang@example.edu.cn"
+                  placeholder="用户名 / 邮箱 / 手机号"
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                 />
               </div>
@@ -222,7 +248,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="请输入登录密码 (默认: 123456)"
+                  placeholder="请输入登录密码"
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
                 />
               </div>
@@ -302,7 +328,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <form onSubmit={handleEmailRegister} className="space-y-4 relative z-10">
             <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 text-xs text-indigo-800 flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <span>支持白名单校园邮箱 (@example.edu.cn / @campus.edu) 快速验证注册。</span>
+              <span>
+                {emailConfig && emailConfig.enabled
+                  ? `使用白名单校园邮箱注册（${(emailConfig.domains ?? []).join(' / ') || '按后台规则'}），验证码由系统发送至邮箱。`
+                  : '邮箱注册暂未开放，请联系管理员在后台「校园配置」中开启。'}
+              </span>
             </div>
 
             <div className="space-y-1">
@@ -477,20 +507,62 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </button>
           </div>
 
-          {/* Quick Evaluation Shortcut for Admin Dashboard */}
-          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-slate-600">
-              <ShieldCheck className="w-4 h-4 text-amber-600" />
-              <span className="font-semibold">管理后台快速测试入口</span>
+          {/* Admin Dashboard Entry */}
+          {!showAdminForm ? (
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold">系统管理后台入口</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdminForm(true)}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              >
+                管理员登录
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleQuickAdminLogin}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              管理员身份进入 (admin/admin123)
-            </button>
-          </div>
+          ) : (
+            <form onSubmit={handleAdminLogin} className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold">管理员登录</span>
+                <span className="text-slate-400">（初始账号 admin / admin123，请在后台及时修改）</span>
+              </div>
+              <input
+                type="text"
+                required
+                value={adminUsername}
+                onChange={(e) => setAdminUsername(e.target.value)}
+                placeholder="管理员账号"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-amber-500 outline-none"
+              />
+              <input
+                type="password"
+                required
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="管理员密码"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-amber-500 outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                >
+                  {loading ? '正在验证...' : '进入管理后台'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminForm(false)}
+                  className="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors"
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Footer info */}

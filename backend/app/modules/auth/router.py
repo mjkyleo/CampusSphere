@@ -5,9 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
+from app.modules.admin.schemas import EmailRegisterConfig
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.oauth import (
@@ -27,6 +29,7 @@ from app.modules.auth.schemas import (
     PhoneLoginRequest,
     RefreshRequest,
     RegisterRequest,
+    SendCodeOut,
     SendCodeRequest,
     TokenResponse,
     UnbindOAuthRequest,
@@ -96,10 +99,28 @@ async def logout_user(
     return ApiResponse.ok(message="已注销")
 
 
-@router.post("/send-code", response_model=ApiResponse[None])
+@router.post("/send-code", response_model=ApiResponse[SendCodeOut])
 async def send_verification_code(data: SendCodeRequest):
-    await send_code(data.target, data.purpose)
-    return ApiResponse.ok(message="验证码已发送")
+    """发送验证码（邮箱/手机号，purpose 区分用途）。
+
+    开发/测试模式（settings.debug=true）下响应中直接返回 debug_code，
+    便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
+    """
+    code = await send_code(data.target, data.purpose)
+    debug_code = code if settings.debug else None
+    return ApiResponse.ok(
+        message="验证码已发送" + ("（测试模式：见响应 debug_code）" if debug_code else ""),
+        data=SendCodeOut(debug_code=debug_code),
+    )
+
+
+@router.get("/email-config", response_model=ApiResponse[EmailRegisterConfig])
+async def email_register_config(db: AsyncSession = Depends(get_db)):
+    """公开只读：邮箱注册规则（是否开启 + 允许域名/正则），供注册页动态展示。"""
+    from app.modules.admin.service import get_email_register_config
+
+    cfg = await get_email_register_config(db)
+    return ApiResponse.ok(data=EmailRegisterConfig(**cfg))
 
 
 @router.post("/verify-email", response_model=ApiResponse[UserOut])
@@ -141,11 +162,12 @@ async def qq_callback(
     return ApiResponse.ok(data=TokenResponse(**tokens))
 
 
-@router.post("/email-register", response_model=ApiResponse[UserOut])
+@router.post("/email-register", response_model=ApiResponse[TokenResponse])
 async def email_register(data: EmailRegisterRequest, db: AsyncSession = Depends(get_db)):
-    """邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号。"""
+    """邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号并签发令牌（注册即登录）。"""
     user = await register_by_email(db, data)
-    return ApiResponse.ok(data=UserOut.model_validate(user))
+    tokens = await issue_tokens(db, user)
+    return ApiResponse.ok(message="注册成功，已自动登录", data=TokenResponse(**tokens))
 
 
 @router.get("/bindings", response_model=ApiResponse[BindingsOut])
