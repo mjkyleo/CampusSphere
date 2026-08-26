@@ -32,6 +32,8 @@ def _build_profile_out(user: User, profile: UserProfile) -> UserProfileOut:
             "avatar": user.avatar,
             "bio": profile.bio,
             "school_major": profile.school_major,
+            "campus": profile.campus,
+            "contact_wx": profile.contact_wx,
             "grade": profile.grade,
             "verified": profile.verified,
             "email": user.email,

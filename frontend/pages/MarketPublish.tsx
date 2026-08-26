@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Plus, Image as ImageIcon, Sparkles, AlertCircle, CheckCircle2, DollarSign, Upload, Loader2 } from 'lucide-react';
 import { api, toCents } from '../services/api.ts';
@@ -7,7 +7,8 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { generateItemDescription } from '../services/geminiService.ts';
 
-const categories = ['电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
+// 兜底分类：后端 /api/items/categories 不可达时的默认值
+const FALLBACK_CATEGORIES = ['电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
 
 const presetImages = [
   'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600',
@@ -36,12 +37,27 @@ const MarketPublish: React.FC = () => {
 
   const [title, setTitle] = useState('');
   const [priceYuan, setPriceYuan] = useState('');
-  const [category, setCategory] = useState(categories[0]);
+  const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES);
+  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>([presetImages[0]]);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // 动态拉取后台配置的分类（含 school.yaml 兜底），加载完成后设置默认选中项
+  useEffect(() => {
+    api.items.categories()
+      .then((res) => {
+        const list = res.code === 0 && res.data?.categories?.length ? res.data.categories : FALLBACK_CATEGORIES;
+        setCategories(list);
+        setCategory((prev) => prev || list[0] || '');
+      })
+      .catch(() => {
+        setCategories(FALLBACK_CATEGORIES);
+        setCategory((prev) => prev || FALLBACK_CATEGORIES[0]);
+      });
+  }, []);
 
   const handleAddImage = (url: string) => {
     if (!url) return;
@@ -117,7 +133,7 @@ const MarketPublish: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !priceYuan || !description.trim()) {
+    if (!title.trim() || !priceYuan || !description.trim() || !category) {
       error('请填写完整的物品信息');
       return;
     }

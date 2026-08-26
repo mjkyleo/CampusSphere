@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, ShoppingBag, ShieldAlert, Activity, CheckCircle,
   XCircle, Search, ArrowUpRight, TrendingUp, BarChart3,
   FileText, ShieldCheck, RefreshCw, AlertTriangle, Eye,
   Package, Mail, Trash2, ArrowDownCircle, Save, ChevronLeft, ChevronRight,
-  Sparkles
+  Sparkles, Settings, UtensilsCrossed, Plus, Pencil, ImagePlus, Upload, FolderOpen
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -14,13 +14,14 @@ import { api, formatPrice } from '../services/api.ts';
 import {
   AdminOverviewOut, AdminReportOut, ReportStatus,
   ReportAction,
-  ItemOut, ItemStatus, EmailRegisterConfig, ItemReviewConfig, AiConfig
+  ItemOut, ItemStatus, EmailRegisterConfig, ItemReviewConfig, AiConfig,
+  CanteenOut
 } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { invalidateAiStatusCache } from '../services/geminiService.ts';
 
-type AdminTab = 'overview' | 'reports' | 'users' | 'items' | 'email' | 'ai' | 'logs';
+type AdminTab = 'overview' | 'reports' | 'users' | 'items' | 'email' | 'ai' | 'config' | 'canteen' | 'logs';
 
 /** Human-readable labels for item status codes (matching backend ItemStatus enum). */
 const itemStatusMap: Record<number, string> = {
@@ -32,6 +33,119 @@ const itemStatusMap: Record<number, string> = {
 };
 
 const ITEMS_PAGE_SIZE = 10;
+
+/** 将 object_key（如 canteens/xxx.png）转为可访问的图片 URL（兼容完整 URL 与相对路径）。 */
+const imageSrc = (img: string): string => {
+  if (!img) return '';
+  if (img.startsWith('http') || img.startsWith('/')) return img;
+  return `/api/files/raw?key=${encodeURIComponent(img)}`;
+};
+
+const ImagePicker: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  folder: string;
+  compact?: boolean;
+}> = ({ value, onChange, folder, compact }) => {
+  const { success, error } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      error('仅支持上传图片文件');
+      return;
+    }
+    setUploading(true);
+    try {
+      const key = await api.files.uploadImage(file, folder);
+      onChange(key);
+      success('图片上传成功');
+    } catch {
+      error('图片上传失败，请重试');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const input = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) handleFile(f);
+      }}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5">
+        {value ? (
+          <img src={imageSrc(value)} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
+        ) : (
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            title="上传图片"
+            className="w-10 h-10 inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+          </button>
+        )}
+        {value && (
+          <button
+            onClick={() => onChange('')}
+            title="移除图片"
+            className="w-10 h-10 inline-flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
+        {input}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wide">封面图（可选）</p>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <img src={imageSrc(value)} alt="封面预览" className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-300">
+            <ImagePlus className="w-5 h-5" />
+          </div>
+        )}
+        <div className="flex flex-col gap-1.5">
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+          >
+            {uploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            {uploading ? '上传中...' : '上传图片'}
+          </button>
+          {value && (
+            <button
+              onClick={() => onChange('')}
+              className="inline-flex items-center gap-1 px-3 py-1 text-red-500 hover:text-red-600 text-xs font-bold transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              移除
+            </button>
+          )}
+        </div>
+      </div>
+      {input}
+    </div>
+  );
+};
 
 const AdminDashboard: React.FC = () => {
   const { admin } = useAuth();
@@ -52,6 +166,23 @@ const AdminDashboard: React.FC = () => {
   const [itemsStatusFilter, setItemsStatusFilter] = useState<number | undefined>(undefined);
   const [reviewEnabled, setReviewEnabled] = useState(false);
   const [reviewConfigLoading, setReviewConfigLoading] = useState(false);
+  const [itemCategories, setItemCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [courseDepartments, setCourseDepartments] = useState<string[]>([]);
+  const [newDepartment, setNewDepartment] = useState('');
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [canteens, setCanteens] = useState<CanteenOut[]>([]);
+  const [canteenLoading, setCanteenLoading] = useState(false);
+  const [canteenForm, setCanteenForm] = useState({ name: '', location: '', image: '' });
+  const [editingCanteenId, setEditingCanteenId] = useState<string | null>(null);
+  const [stallForm, setStallForm] = useState({ canteen_id: '', name: '', image: '' });
+  const [dishForm, setDishForm] = useState({ stall_id: '', name: '', price: '', image: '' });
+
+  // Storage maintenance (orphan files) state
+  const [orphanFiles, setOrphanFiles] = useState<{ key: string; size: number }[]>([]);
+  const [orphanScanning, setOrphanScanning] = useState(false);
+  const [orphanCleanupLoading, setOrphanCleanupLoading] = useState(false);
 
   // Email config state
   const [emailConfig, setEmailConfig] = useState<EmailRegisterConfig | null>(null);
@@ -134,6 +265,262 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // ---- Fetch item categories (lazy-loaded when the items tab is opened) ----
+  const fetchItemCategories = async () => {
+    try {
+      const res = await api.admin.getItemCategories();
+      if (res.code === 0 && res.data?.categories) {
+        setItemCategories(res.data.categories);
+      }
+    } catch {
+      // Mock fallback
+    }
+  };
+
+  // ---- Save item categories ----
+  const handleSaveCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const res = await api.admin.updateItemCategories(itemCategories);
+      if (res.code === 0 && res.data) {
+        success('分类配置已保存');
+        setItemCategories(res.data.categories);
+      } else {
+        error(res.message || '分类保存失败');
+      }
+    } catch {
+      error('分类保存异常');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const handleAddCategory = () => {
+    const value = newCategory.trim();
+    if (!value) return;
+    if (itemCategories.includes(value)) {
+      error('该分类已存在');
+      return;
+    }
+    setItemCategories([...itemCategories, value]);
+    setNewCategory('');
+  };
+
+  const handleRemoveCategory = (target: string) => {
+    setItemCategories(itemCategories.filter((c) => c !== target));
+  };
+
+  // ---- Fetch course departments (lazy-loaded when the config tab is opened) ----
+  const fetchCourseDepartments = async () => {
+    try {
+      const res = await api.admin.getCourseDepartments();
+      if (res.code === 0 && res.data?.departments) {
+        setCourseDepartments(res.data.departments);
+      }
+    } catch {
+      // Mock fallback
+    }
+  };
+
+  // ---- Save course departments ----
+  const handleSaveDepartments = async () => {
+    setDepartmentsLoading(true);
+    try {
+      const res = await api.admin.updateCourseDepartments(courseDepartments);
+      if (res.code === 0 && res.data) {
+        success('院系列表已保存');
+        setCourseDepartments(res.data.departments);
+      } else {
+        error(res.message || '院系保存失败');
+      }
+    } catch {
+      error('院系保存异常');
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
+  const handleAddDepartment = () => {
+    const value = newDepartment.trim();
+    if (!value) return;
+    if (courseDepartments.includes(value)) {
+      error('该院系已存在');
+      return;
+    }
+    setCourseDepartments([...courseDepartments, value]);
+    setNewDepartment('');
+  };
+
+  const handleRemoveDepartment = (target: string) => {
+    setCourseDepartments(courseDepartments.filter((d) => d !== target));
+  };
+
+  // ---- Canteen management ----
+  const fetchCanteens = async () => {
+    setCanteenLoading(true);
+    try {
+      const res = await api.admin.canteens.list();
+      if (res.code === 0 && Array.isArray(res.data)) {
+        setCanteens(res.data);
+      }
+    } catch {
+      // Mock fallback
+    } finally {
+      setCanteenLoading(false);
+    }
+  };
+
+  const handleAddCanteen = async () => {
+    const name = canteenForm.name.trim();
+    if (!name) {
+      error('请输入食堂名称');
+      return;
+    }
+    const res = await api.admin.canteens.create({
+      name,
+      location: canteenForm.location.trim(),
+      image: canteenForm.image.trim()
+    });
+    if (res.code === 0 && res.data) {
+      success('食堂已创建');
+      setCanteenForm({ name: '', location: '', image: '' });
+      fetchCanteens();
+    } else {
+      error(res.message || '创建失败');
+    }
+  };
+
+  const handleSaveCanteen = async (id: string) => {
+    const name = canteenForm.name.trim();
+    if (!name) {
+      error('请输入食堂名称');
+      return;
+    }
+    const res = await api.admin.canteens.update(id, {
+      name,
+      location: canteenForm.location.trim(),
+      image: canteenForm.image.trim()
+    });
+    if (res.code === 0) {
+      success('食堂已更新');
+      setEditingCanteenId(null);
+      setCanteenForm({ name: '', location: '', image: '' });
+      fetchCanteens();
+    } else {
+      error(res.message || '更新失败');
+    }
+  };
+
+  const handleDeleteCanteen = async (id: string, name: string) => {
+    if (!window.confirm(`确认删除食堂「${name}」？其下档口、菜品与评价将一并删除。`)) return;
+    const res = await api.admin.canteens.remove(id);
+    if (res.code === 0) {
+      success('食堂已删除');
+      fetchCanteens();
+    } else {
+      error(res.message || '删除失败');
+    }
+  };
+
+  const handleAddStall = async (canteenId: string) => {
+    const name = stallForm.name.trim();
+    if (!name) {
+      error('请输入档口名称');
+      return;
+    }
+    const res = await api.admin.canteens.createStall({ canteen_id: canteenId, name, image: stallForm.image.trim() });
+    if (res.code === 0) {
+      success('档口已创建');
+      setStallForm({ canteen_id: '', name: '', image: '' });
+      fetchCanteens();
+    } else {
+      error(res.message || '创建失败');
+    }
+  };
+
+  const handleDeleteStall = async (id: string, name: string) => {
+    if (!window.confirm(`确认删除档口「${name}」？`)) return;
+    const res = await api.admin.canteens.removeStall(id);
+    if (res.code === 0) {
+      success('档口已删除');
+      fetchCanteens();
+    } else {
+      error(res.message || '删除失败');
+    }
+  };
+
+  const handleAddDish = async (stallId: string) => {
+    const name = dishForm.name.trim();
+    const price = Number(dishForm.price);
+    if (!name) {
+      error('请输入菜品名称');
+      return;
+    }
+    if (!dishForm.price || Number.isNaN(price) || price <= 0) {
+      error('请输入正确的菜品价格');
+      return;
+    }
+    const res = await api.admin.canteens.createDish({ stall_id: stallId, name, price: Math.round(price * 100), image: dishForm.image.trim() });
+    if (res.code === 0) {
+      success('菜品已创建');
+      setDishForm({ stall_id: '', name: '', price: '', image: '' });
+      fetchCanteens();
+    } else {
+      error(res.message || '创建失败');
+    }
+  };
+
+  const handleDeleteDish = async (id: string, name: string) => {
+    if (!window.confirm(`确认删除菜品「${name}」？`)) return;
+    const res = await api.admin.canteens.removeDish(id);
+    if (res.code === 0) {
+      success('菜品已删除');
+      fetchCanteens();
+    } else {
+      error(res.message || '删除失败');
+    }
+  };
+
+  // ---- Storage maintenance (orphan files) ----
+  const scanOrphanFiles = async () => {
+    setOrphanScanning(true);
+    try {
+      const res = await api.admin.listOrphanFiles();
+      if (res.code === 0 && res.data) {
+        setOrphanFiles(res.data.files || []);
+        if (res.data.total === 0) {
+          info('存储中暂无孤儿文件');
+        } else {
+          success(`发现 ${res.data.total} 个孤儿文件`);
+        }
+      } else {
+        error(res.message || '扫描失败');
+      }
+    } catch {
+      error('扫描孤儿文件失败');
+    } finally {
+      setOrphanScanning(false);
+    }
+  };
+
+  const cleanupOrphanFiles = async () => {
+    if (!window.confirm(`确认删除 ${orphanFiles.length} 个孤儿文件？此操作不可恢复。`)) return;
+    setOrphanCleanupLoading(true);
+    try {
+      const res = await api.admin.cleanupOrphanFiles();
+      if (res.code === 0 && res.data) {
+        success(`已清理 ${res.data.removed} 个孤儿文件`);
+        setOrphanFiles([]);
+      } else {
+        error(res.message || '清理失败');
+      }
+    } catch {
+      error('清理孤儿文件失败');
+    } finally {
+      setOrphanCleanupLoading(false);
+    }
+  };
+
   // ---- Save item review switch ----
   const handleSaveReviewConfig = async () => {
     setReviewConfigLoading(true);
@@ -172,12 +559,20 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === 'items' && itemsList.length === 0) {
       fetchItems(1);
       fetchReviewConfig();
+      fetchItemCategories();
     }
     if (activeTab === 'email' && !emailConfig) {
       fetchEmailConfig();
     }
     if (activeTab === 'ai' && !aiConfig) {
       fetchAiConfig();
+    }
+    if (activeTab === 'config' && itemCategories.length === 0) {
+      fetchItemCategories();
+      fetchCourseDepartments();
+    }
+    if (activeTab === 'canteen' && canteens.length === 0) {
+      fetchCanteens();
     }
   }, [activeTab]);
 
@@ -408,6 +803,8 @@ const AdminDashboard: React.FC = () => {
           { id: 'items', label: '物品审核管理', icon: Package },
           { id: 'email', label: '邮箱注册配置', icon: Mail },
           { id: 'ai', label: 'AI 智能助手', icon: Sparkles },
+          { id: 'config', label: '内容配置', icon: Settings },
+          { id: 'canteen', label: '食堂管理', icon: UtensilsCrossed },
           { id: 'logs', label: '处理记录与审计', icon: FileText }
         ].map((tab) => (
           <button
@@ -1145,6 +1542,400 @@ const AdminDashboard: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab 8: Content Config (item categories & course departments) */}
+      {activeTab === 'config' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-slate-900">内容配置</h3>
+            <span className="text-xs text-slate-400">配置实时生效，无需重启服务</span>
+          </div>
+
+          {/* Item categories config */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold text-slate-800">二手交易分类</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  分类在二手市集发布与筛选页实时生效；"全部"为前端筛选用，无需在此维护
+                </p>
+              </div>
+              <button
+                onClick={handleSaveCategories}
+                disabled={categoriesLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                {categoriesLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {categoriesLoading ? '保存中...' : '保存分类'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {itemCategories.length === 0 && (
+                <span className="text-xs text-slate-400">暂无分类，请在下方添加</span>
+              )}
+              {itemCategories.map((cat) => (
+                <span
+                  key={cat}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold"
+                >
+                  {cat}
+                  <button
+                    onClick={() => handleRemoveCategory(cat)}
+                    className="hover:text-red-500 transition-colors"
+                    aria-label={`删除分类 ${cat}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCategory();
+                  }
+                }}
+                placeholder="输入新分类名"
+                className="flex-1 min-w-0 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+              <button
+                onClick={handleAddCategory}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              >
+                添加
+              </button>
+            </div>
+          </div>
+
+          {/* Course departments config */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold text-slate-800">课程评价院系</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  院系列表在课程评价筛选与发布页实时生效，课程归属院系后可按院系筛选
+                </p>
+              </div>
+              <button
+                onClick={handleSaveDepartments}
+                disabled={departmentsLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                {departmentsLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {departmentsLoading ? '保存中...' : '保存院系'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {courseDepartments.length === 0 && (
+                <span className="text-xs text-slate-400">暂无院系，请在下方添加</span>
+              )}
+              {courseDepartments.map((dept) => (
+                <span
+                  key={dept}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold"
+                >
+                  {dept}
+                  <button
+                    onClick={() => handleRemoveDepartment(dept)}
+                    className="hover:text-red-500 transition-colors"
+                    aria-label={`删除院系 ${dept}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newDepartment}
+                onChange={(e) => setNewDepartment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddDepartment();
+                  }
+                }}
+                placeholder="输入院系名称"
+                className="flex-1 min-w-0 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+              <button
+                onClick={handleAddDepartment}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              >
+                添加
+              </button>
+            </div>
+          </div>
+
+          {/* Storage maintenance: orphan files */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-bold text-slate-800">存储清理</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  扫描未被任何食堂、菜品或二手商品引用的图片文件（孤儿文件）
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={scanOrphanFiles}
+                  disabled={orphanScanning}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  {orphanScanning ? '扫描中...' : '扫描孤儿文件'}
+                </button>
+                {orphanFiles.length > 0 && (
+                  <button
+                    onClick={cleanupOrphanFiles}
+                    disabled={orphanCleanupLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {orphanCleanupLoading ? '清理中...' : `清理 ${orphanFiles.length} 个`}
+                  </button>
+                )}
+              </div>
+            </div>
+            {orphanFiles.length > 0 && (
+              <div className="max-h-48 overflow-y-auto rounded-2xl bg-slate-50 border border-slate-100 p-3 space-y-1.5">
+                {orphanFiles.map((f) => (
+                  <div key={f.key} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-mono text-slate-600 truncate">{f.key}</span>
+                    <span className="text-slate-400 shrink-0">{(f.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Canteen Management */}
+      {activeTab === 'canteen' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-slate-900">食堂管理</h3>
+            <button
+              onClick={fetchCanteens}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${canteenLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </button>
+          </div>
+
+          {/* Add / Edit canteen form */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+            <p className="text-sm font-bold text-slate-800 mb-3">
+              {editingCanteenId ? '编辑食堂' : '新增食堂'}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+              <input
+                type="text"
+                value={canteenForm.name}
+                onChange={(e) => setCanteenForm({ ...canteenForm, name: e.target.value })}
+                placeholder="食堂名称（如：第一食堂）"
+                className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+              <input
+                type="text"
+                value={canteenForm.location}
+                onChange={(e) => setCanteenForm({ ...canteenForm, location: e.target.value })}
+                placeholder="位置（如：北区）"
+                className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              />
+              <ImagePicker
+                value={canteenForm.image}
+                onChange={(v) => setCanteenForm({ ...canteenForm, image: v })}
+                folder="canteens"
+              />
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => (editingCanteenId ? handleSaveCanteen(editingCanteenId) : handleAddCanteen())}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {editingCanteenId ? '保存修改' : '创建食堂'}
+              </button>
+              {editingCanteenId && (
+                <button
+                  onClick={() => {
+                    setEditingCanteenId(null);
+                    setCanteenForm({ name: '', location: '', image: '' });
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  取消编辑
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Canteen list */}
+          {canteenLoading && canteens.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-sm text-slate-400 shadow-xs">
+              加载中...
+            </div>
+          ) : canteens.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-sm text-slate-400 shadow-xs">
+              暂无食堂，请先在上方创建
+            </div>
+          ) : (
+            canteens.map((c) => (
+              <div key={c.id} className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {c.image ? (
+                      <img src={imageSrc(c.image)} alt={c.name} className="w-12 h-12 rounded-xl object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
+                        <UtensilsCrossed className="w-5 h-5 text-indigo-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-800">{c.name}</p>
+                      <p className="text-xs text-slate-400">{c.location || '未设置位置'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        setEditingCanteenId(c.id);
+                        setCanteenForm({ name: c.name, location: c.location, image: c.image });
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCanteen(c.id, c.name)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      删除
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stalls */}
+                <div className="space-y-3 mt-3">
+                  {c.stalls?.length === 0 && (
+                    <p className="text-xs text-slate-400">暂无档口</p>
+                  )}
+                  {c.stalls?.map((s) => (
+                    <div key={s.id} className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {s.image ? (
+                            <img src={imageSrc(s.image)} alt={s.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                              <UtensilsCrossed className="w-3.5 h-3.5 text-slate-300" />
+                            </div>
+                          )}
+                          <p className="text-sm font-bold text-slate-700 truncate">{s.name}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteStall(s.id, s.name)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          删除档口
+                        </button>
+                      </div>
+
+                      {/* Dishes */}
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {s.dishes?.map((d) => (
+                          <span key={d.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs">
+                            {d.image && <img src={imageSrc(d.image)} alt={d.name} className="w-4 h-4 rounded object-cover" />}
+                            <span className="font-bold text-slate-700">{d.name}</span>
+                            <span className="text-slate-400">¥{(d.price / 100).toFixed(2)}</span>
+                            <button
+                              onClick={() => handleDeleteDish(d.id, d.name)}
+                              className="text-slate-300 hover:text-red-500 transition-colors"
+                              aria-label={`删除菜品 ${d.name}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        {s.dishes?.length === 0 && (
+                          <span className="text-xs text-slate-400">暂无菜品</span>
+                        )}
+                      </div>
+
+                      {/* Add dish */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={dishForm.stall_id === s.id ? dishForm.name : ''}
+                          onChange={(e) => setDishForm({ stall_id: s.id, name: e.target.value, price: dishForm.stall_id === s.id ? dishForm.price : '' })}
+                          placeholder="菜品名称"
+                          className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={dishForm.stall_id === s.id ? dishForm.price : ''}
+                          onChange={(e) => setDishForm({ stall_id: s.id, name: dishForm.stall_id === s.id ? dishForm.name : '', price: e.target.value })}
+                          placeholder="价格(元)"
+                          className="w-24 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                        />
+                        <ImagePicker
+                          value={dishForm.stall_id === s.id ? dishForm.image : ''}
+                          onChange={(v) => setDishForm({ stall_id: s.id, name: dishForm.stall_id === s.id ? dishForm.name : '', price: dishForm.stall_id === s.id ? dishForm.price : '', image: v })}
+                          folder="dishes"
+                          compact
+                        />
+                        <button
+                          onClick={() => handleAddDish(s.id)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                        >
+                          添加菜品
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add stall */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={stallForm.canteen_id === c.id ? stallForm.name : ''}
+                      onChange={(e) => setStallForm({ canteen_id: c.id, name: e.target.value })}
+                      placeholder="新档口名称"
+                      className="flex-1 min-w-0 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                    />
+                    <ImagePicker
+                      value={stallForm.canteen_id === c.id ? stallForm.image : ''}
+                      onChange={(v) => setStallForm({ canteen_id: c.id, name: stallForm.canteen_id === c.id ? stallForm.name : '', image: v })}
+                      folder="stalls"
+                      compact
+                    />
+                    <button
+                      onClick={() => handleAddStall(c.id)}
+                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors"
+                    >
+                      添加档口
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>

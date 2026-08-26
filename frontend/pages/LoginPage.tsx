@@ -60,6 +60,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       .catch(() => { /* 后端不可达时保持默认提示 */ });
   }, []);
 
+  // 会话过期被重定向到登录页时给出明确提示
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_expired') {
+      info('登录状态已失效，请重新登录');
+    }
+  }, [searchParams, info]);
+
   const startCountdown = () => {
     setCountdown(60);
     const interval = setInterval(() => {
@@ -244,6 +251,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <input
                   type="text"
                   required
+                  autoComplete="username"
                   value={account}
                   onChange={(e) => setAccount(e.target.value)}
                   placeholder="用户名 / 邮箱 / 手机号"
@@ -261,6 +269,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <input
                   type="password"
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入登录密码"
@@ -359,6 +368,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <input
                   type="email"
                   required
+                  autoComplete="email"
                   value={emailTarget}
                   onChange={(e) => setEmailTarget(e.target.value)}
                   placeholder="student@example.edu.cn"
@@ -375,6 +385,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <input
                   type="password"
                   required
+                  autoComplete="new-password"
                   value={emailPassword}
                   onChange={(e) => setEmailPassword(e.target.value)}
                   placeholder="不少于6位"
@@ -440,6 +451,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <input
                 type="text"
                 required
+                autoComplete="username"
                 value={regUsername}
                 onChange={(e) => setRegUsername(e.target.value)}
                 placeholder="3-32位字母数字"
@@ -453,6 +465,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <input
                 type="password"
                 required
+                autoComplete="new-password"
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
                 placeholder="不少于6位字符"
@@ -547,6 +560,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <input
                 type="text"
                 required
+                autoComplete="username"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
                 placeholder="管理员账号"
@@ -555,6 +569,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <input
                 type="password"
                 required
+                autoComplete="current-password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 placeholder="管理员密码"

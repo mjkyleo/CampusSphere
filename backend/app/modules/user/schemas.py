@@ -13,6 +13,8 @@ class ProfileUpdateRequest(BaseModel):
     avatar: Optional[str] = None
     bio: Optional[str] = None
     school_major: Optional[str] = None
+    campus: Optional[str] = None
+    contact_wx: Optional[str] = None
     grade: Optional[int] = None
 
 
@@ -24,6 +26,8 @@ class UserProfileOut(BaseModel):
     avatar: Optional[str] = None
     bio: str
     school_major: str
+    campus: str
+    contact_wx: str
     grade: int
     verified: bool
     email: Optional[str] = None

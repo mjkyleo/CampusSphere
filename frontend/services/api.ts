@@ -616,26 +616,33 @@ const saveMockDB = (data: any) => {
 // Ensures that when multiple concurrent requests receive a 401, only a single
 // refresh is performed. All waiting requests share the same refresh Promise.
 let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<RefreshResult> | null = null;
+
+type RefreshResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: 'network' | 'rejected' | 'no-token' };
 
 /**
  * Redirect the browser to the login page.
  * Guarded against repeated calls and the login page itself.
  */
-function redirectToLogin(admin = false): void {
+function redirectToLogin(admin = false, reason?: string): void {
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.href = admin ? '/login?admin=1' : '/login';
+    const params: string[] = [];
+    if (admin) params.push('admin=1');
+    else if (reason) params.push(`reason=${encodeURIComponent(reason)}`);
+    window.location.href = `/login${params.length > 0 ? `?${params.join('&')}` : ''}`;
   }
 }
 
 /**
  * Perform a single token refresh request against the backend.
  * Uses a raw fetch (not the request() wrapper) to avoid recursion.
- * Returns the new access_token on success, or null on failure.
+ * Returns the new access_token on success, or the failure reason.
  */
-async function doRefreshToken(): Promise<string | null> {
+async function doRefreshToken(): Promise<RefreshResult> {
   const refreshToken = getStoredRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) return { ok: false, reason: 'no-token' };
 
   try {
     const res = await fetch('/api/auth/refresh', {
@@ -643,17 +650,23 @@ async function doRefreshToken(): Promise<string | null> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      // Backend returns { code: 0, data: { access_token, refresh_token, ... } }
-      if (data.code === 0 && data.data?.access_token) {
-        setAuthTokens(data.data);
-        return data.data.access_token as string;
-      }
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      // 响应非 JSON —— 后端不可达或代理错误
+      return { ok: false, reason: 'network' };
     }
-    return null;
+    // Backend returns { code: 0, data: { access_token, refresh_token, ... } }
+    if (res.ok && data.code === 0 && data.data?.access_token) {
+      setAuthTokens(data.data);
+      return { ok: true, token: data.data.access_token as string };
+    }
+    // HTTP 401 或业务码非 0 —— refresh token 被后端拒绝（已失效/已吊销/过期）
+    return { ok: false, reason: 'rejected' };
   } catch {
-    return null;
+    // fetch 抛错 —— 网络层失败
+    return { ok: false, reason: 'network' };
   }
 }
 
@@ -661,7 +674,7 @@ async function doRefreshToken(): Promise<string | null> {
  * Get a fresh access token, ensuring only one refresh runs at a time.
  * Concurrent callers will await the same in-flight Promise.
  */
-async function refreshTokenIfNeeded(): Promise<string | null> {
+async function refreshTokenIfNeeded(): Promise<RefreshResult> {
   // If a refresh is already in progress, wait for the existing promise
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
@@ -679,9 +692,12 @@ async function refreshTokenIfNeeded(): Promise<string | null> {
 }
 
 // Unified request handler
+// softAuth: 可选，置为 true 时 401 刷新失败不强制跳转登录页，
+// 而是返回 40100 让调用方优雅降级（适用于未读消息等非关键请求）。
 export async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  softAuth = false
 ): Promise<ApiResponse<T>> {
   const isAdminRequest = endpoint.startsWith('/api/admin/');
   const token = isAdminRequest ? getStoredAdminAccessToken() : getStoredAccessToken();
@@ -718,12 +734,12 @@ export async function request<T>(
         return data as ApiResponse<T>;
       }
       // Attempt token refresh (concurrent 401s share a single refresh)
-      const newToken = await refreshTokenIfNeeded();
-      if (newToken) {
+      const result = await refreshTokenIfNeeded();
+      if (result.ok) {
         // Retry original request with the refreshed access token
         const retryRes = await fetch(endpoint, {
           ...options,
-          headers: { ...headers, Authorization: `Bearer ${newToken}` }
+          headers: { ...headers, Authorization: `Bearer ${result.token}` }
         });
         try {
           const retryData = await retryRes.json();
@@ -733,10 +749,34 @@ export async function request<T>(
         } catch {
           // Retry returned non-JSON — fall through to Mock below
         }
+      } else if ('reason' in result) {
+        // result 已收窄为失败分支 { ok: false; reason: ... }
+        if (result.reason === 'rejected') {
+          // 可能是其他标签页已刷新成功导致本地 refresh token 被后端吊销：
+          // 重读一次本地 access token，若已有新值则直接用新 token 重试。
+          const latest = getStoredAccessToken();
+          if (latest && latest !== token) {
+            const retryRes = await fetch(endpoint, {
+              ...options,
+              headers: { ...headers, Authorization: `Bearer ${latest}` }
+            });
+            try {
+              const retryData = await retryRes.json();
+              if (retryData) {
+                return retryData as ApiResponse<T>;
+              }
+            } catch {
+              // Retry returned non-JSON — fall through to Mock below
+            }
+          }
+        }
+        // Refresh 失败说明会话已失效；网络错误时保留登录态（后端不可达）。
+        // softAuth 模式不强制踢出，返回 40100 让调用方优雅降级。
+        if (!softAuth && result.reason !== 'network') {
+          clearAuthTokens();
+          redirectToLogin(false, 'session_expired');
+        }
       }
-      // Refresh failed or retry still unauthorized — clear auth and redirect
-      clearAuthTokens();
-      redirectToLogin();
       // Return the original 40100 error so callers can handle gracefully
       return data as ApiResponse<T>;
     }
@@ -1097,7 +1137,7 @@ export const api = {
     
     logout: () => request<null>('/api/auth/logout', { method: 'POST' }),
     
-    getBindings: () => request<BindingsOut>('/api/auth/bindings'),
+    getBindings: () => request<BindingsOut>('/api/auth/bindings', {}, true),
     
     bindEmail: (email: string, code: string) =>
       request<null>('/api/auth/bind/email', { method: 'POST', body: JSON.stringify({ email, code }) }),
@@ -1150,7 +1190,8 @@ export const api = {
     update: (id: string, data: ItemUpdate) => request<ItemOut>(`/api/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request<null>(`/api/items/${id}`, { method: 'DELETE' }),
     trade: (id: string) => request<TradeSessionOut>(`/api/items/${id}/trade`, { method: 'POST' }),
-    search: (q: string) => request<ItemOut[]>(`/api/items/search?q=${encodeURIComponent(q)}`)
+    search: (q: string) => request<ItemOut[]>(`/api/items/search?q=${encodeURIComponent(q)}`),
+    categories: () => request<{ categories: string[] }>('/api/items/categories')
   },
 
   // Messages (会话与实时消息)
@@ -1168,7 +1209,8 @@ export const api = {
     },
     unread: async () => {
       // Backend returns { unread: number }, frontend expects { unread_count: number }
-      const res = await request<{ unread: number }>('/api/messages/unread');
+      // softAuth: 未读数为非关键请求，401 时降级为 0 而不是踢出登录态
+      const res = await request<{ unread: number }>('/api/messages/unread', {}, true);
       if (res.code === 0 && res.data) {
         return { ...res, data: { unread_count: res.data.unread ?? 0 } } as ApiResponse<{ unread_count: number }>;
       }
@@ -1178,8 +1220,10 @@ export const api = {
 
   // Courses (课程评价)
   courses: {
-    list: (keyword = '', page = 1, page_size = 20) =>
-      request<{ total: number; items: CourseOut[] }>(`/api/courses?keyword=${encodeURIComponent(keyword)}&page=${page}&page_size=${page_size}`),
+    list: (keyword = '', page = 1, page_size = 20, department = '') =>
+      request<{ total: number; items: CourseOut[] }>(
+        `/api/courses?keyword=${encodeURIComponent(keyword)}&page=${page}&page_size=${page_size}${department ? `&department=${encodeURIComponent(department)}` : ''}`
+      ),
     get: async (id: string) => {
       // Backend returns { course: CourseOut, reviews: CourseReviewOut[] }
       // Flatten to match frontend expectation (course fields + reviews array)
@@ -1190,6 +1234,7 @@ export const api = {
       return res as unknown as ApiResponse<CourseOut & { reviews: CourseReviewOut[] }>;
     },
     create: (data: CourseCreate) => request<CourseOut>('/api/courses', { method: 'POST', body: JSON.stringify(data) }),
+    departments: () => request<{ departments: string[] }>('/api/courses/departments'),
     getReviews: async (courseId: string) => {
       // Backend has no dedicated reviews list endpoint; reviews come from the detail endpoint
       const res = await request<{ course: CourseOut; reviews: CourseReviewOut[] }>(`/api/courses/${courseId}`);
@@ -1217,20 +1262,7 @@ export const api = {
   // Canteens (食堂与菜品)
   canteens: {
     list: () => request<CanteenOut[]>('/api/canteens'),
-    get: async (id: string) => {
-      // Backend has no single-canteen endpoint; fetch the list and filter by id
-      const res = await request<CanteenOut[]>('/api/canteens');
-      if (res.code === 0 && res.data) {
-        const found = res.data.find((c: any) => String(c.id) === String(id));
-        if (found) {
-          return { ...res, data: found } as ApiResponse<CanteenOut>;
-        }
-      }
-      return res as unknown as ApiResponse<CanteenOut>;
-    },
-    create: (name: string, location?: string) => request<CanteenOut>('/api/canteens', { method: 'POST', body: JSON.stringify({ name, location }) }),
-    createStall: (canteen_id: string, name: string) => request<StallOut>('/api/canteens/stalls', { method: 'POST', body: JSON.stringify({ canteen_id, name }) }),
-    createDish: (stall_id: string, name: string, price: number) => request<DishOut>('/api/canteens/dishes', { method: 'POST', body: JSON.stringify({ stall_id, name, price }) }),
+    get: (id: string) => request<CanteenOut>(`/api/canteens/${id}`),
     getDish: (dishId: string) => request<DishOut>(`/api/canteens/dishes/${dishId}`),
     getReviews: (canteenId: string, stallId?: string) =>
       request<{ total: number; items: CanteenReviewOut[] }>(`/api/canteens/${canteenId}/reviews${stallId ? `?stall_id=${stallId}` : ''}`),
@@ -1398,6 +1430,34 @@ export const api = {
     getItemReviewConfig: () => request<ItemReviewConfig>('/api/admin/items/review-config'),
     updateItemReviewConfig: (config: ItemReviewConfig) =>
       request<ItemReviewConfig>('/api/admin/items/review-config', { method: 'PUT', body: JSON.stringify(config) }),
+    getItemCategories: () => request<{ categories: string[] }>('/api/admin/items/categories'),
+    updateItemCategories: (categories: string[]) =>
+      request<{ categories: string[] }>('/api/admin/items/categories', { method: 'PUT', body: JSON.stringify({ categories }) }),
+    getCourseDepartments: () => request<{ departments: string[] }>('/api/admin/courses/departments'),
+    updateCourseDepartments: (departments: string[]) =>
+      request<{ departments: string[] }>('/api/admin/courses/departments', { method: 'PUT', body: JSON.stringify({ departments }) }),
+    // Storage maintenance (orphan files)
+    listOrphanFiles: () => request<{ files: { key: string; size: number }[]; total: number }>('/api/admin/files/orphans', { method: 'GET' }),
+    cleanupOrphanFiles: () => request<{ removed: number }>('/api/admin/files/orphans', { method: 'DELETE' }),
+    // Canteen management (admin-only CRUD)
+    canteens: {
+      list: () => request<CanteenOut[]>('/api/admin/canteens'),
+      create: (data: { name: string; location: string; image?: string }) =>
+        request<CanteenOut>('/api/admin/canteens', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: { name: string; location: string; image?: string }) =>
+        request<CanteenOut>(`/api/admin/canteens/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) => request<null>(`/api/admin/canteens/${id}`, { method: 'DELETE' }),
+      createStall: (data: { canteen_id: string; name: string; image?: string }) =>
+        request<StallOut>('/api/admin/canteens/stalls', { method: 'POST', body: JSON.stringify(data) }),
+      updateStall: (id: string, data: { canteen_id: string; name: string; image?: string }) =>
+        request<StallOut>(`/api/admin/canteens/stalls/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      removeStall: (id: string) => request<null>(`/api/admin/canteens/stalls/${id}`, { method: 'DELETE' }),
+      createDish: (data: { stall_id: string; name: string; price: number; image?: string }) =>
+        request<DishOut>('/api/admin/canteens/dishes', { method: 'POST', body: JSON.stringify(data) }),
+      updateDish: (id: string, data: { stall_id: string; name: string; price: number; image?: string }) =>
+        request<DishOut>(`/api/admin/canteens/dishes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      removeDish: (id: string) => request<null>(`/api/admin/canteens/dishes/${id}`, { method: 'DELETE' })
+    },
     approveItem: (itemId: string) =>
       request<any>(`/api/admin/items/${itemId}/approve`, { method: 'POST' }),
     rejectItem: (itemId: string, reason = '') =>

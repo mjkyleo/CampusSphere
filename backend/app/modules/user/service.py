@@ -47,6 +47,10 @@ async def update_profile(
         profile.bio = data.bio
     if data.school_major is not None:
         profile.school_major = data.school_major
+    if data.campus is not None:
+        profile.campus = data.campus
+    if data.contact_wx is not None:
+        profile.contact_wx = data.contact_wx
     if data.grade is not None:
         profile.grade = data.grade
     await db.commit()

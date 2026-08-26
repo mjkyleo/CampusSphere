@@ -15,6 +15,7 @@ class Canteen(Base, PKMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(64), index=True)
     location: Mapped[str] = mapped_column(String(128), default="")
+    image: Mapped[str] = mapped_column(String(512), default="")
 
     stalls: Mapped[list["Stall"]] = relationship(
         back_populates="canteen", cascade="all, delete-orphan", lazy="selectin"
@@ -30,6 +31,7 @@ class Stall(Base, PKMixin, TimestampMixin):
         String(36), ForeignKey("canteens.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(64))
+    image: Mapped[str] = mapped_column(String(512), default="")
 
     canteen: Mapped["Canteen"] = relationship(back_populates="stalls")
     dishes: Mapped[list["Dish"]] = relationship(
@@ -47,6 +49,7 @@ class Dish(Base, PKMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(64), index=True)
     price: Mapped[int] = mapped_column(Integer, default=0, comment="单位：分")
+    image: Mapped[str] = mapped_column(String(512), default="")
 
     stall: Mapped["Stall"] = relationship(back_populates="dishes")
     reviews: Mapped[list["CanteenReview"]] = relationship(

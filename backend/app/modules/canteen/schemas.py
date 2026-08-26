@@ -11,17 +11,20 @@ from pydantic import BaseModel, Field
 class CanteenCreate(BaseModel):
     name: str
     location: str = ""
+    image: str = ""
 
 
 class StallCreate(BaseModel):
     canteen_id: str
     name: str
+    image: str = ""
 
 
 class DishCreate(BaseModel):
     stall_id: str
     name: str
     price: int = Field(default=0, ge=0, description="单位：分")
+    image: str = ""
 
 
 class CanteenReviewCreate(BaseModel):
@@ -34,6 +37,7 @@ class DishOut(BaseModel):
     stall_id: str
     name: str
     price: int
+    image: str
 
     model_config = {"from_attributes": True}
 
@@ -42,6 +46,7 @@ class StallOut(BaseModel):
     id: UUID
     canteen_id: str
     name: str
+    image: str
     dishes: List[DishOut] = []
 
     model_config = {"from_attributes": True}
@@ -51,6 +56,7 @@ class CanteenOut(BaseModel):
     id: UUID
     name: str
     location: str
+    image: str
     stalls: List[StallOut] = []
 
     model_config = {"from_attributes": True}

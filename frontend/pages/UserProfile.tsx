@@ -50,9 +50,9 @@ const UserProfile: React.FC = () => {
       setNickname(user.nickname || '');
       setAvatar(user.avatar || '');
       setBio(user.bio || '');
-      setCampus(user.campus || '主校区');
-      setMajor(user.major || '计算机科学与技术');
-      setGrade(user.grade || '2023级');
+      setCampus(user.campus || '');
+      setMajor(user.school_major || '');
+      setGrade(user.grade ? String(user.grade) : '');
       setContactWx(user.contact_wx || '');
     }
   }, [user]);
@@ -77,8 +77,8 @@ const UserProfile: React.FC = () => {
       avatar: avatar.trim(),
       bio: bio.trim(),
       campus: campus.trim(),
-      major: major.trim(),
-      grade: grade.trim(),
+      school_major: major.trim(),
+      grade: grade ? Number(grade) : undefined,
       contact_wx: contactWx.trim()
     });
     setSaving(false);
@@ -283,14 +283,17 @@ const UserProfile: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">入学年级</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-bold text-slate-700">入学年份</label>
+                <select
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  placeholder="例如: 2023级 本科"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
-                />
+                >
+                  <option value="">请选择入学年份</option>
+                  {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                    <option key={y} value={y}>{y} 级</option>
+                  ))}
+                </select>
               </div>
             </div>
 

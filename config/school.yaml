@@ -51,11 +51,31 @@ report_policy:
   # 单个工单处理时限（小时），超时自动升级
   escalate_hours: 48
 
-# 二手物品发布审核（可在后台 /api/admin/items/review-config 动态覆盖）
+# 二手物品（可在后台 /api/admin/items/categories 与 /items/review-config 动态覆盖）
 items:
   review:
     # 是否启用"发布后审核再上架"：false=发布即上架；true=进入待审核(PENDING)
     enabled: false
+  # 二手交易分类（后台可动态配置；"全部"为前端筛选用，不存入此列表）
+  categories:
+    - 电子产品
+    - 书籍资料
+    - 日用百货
+    - 交通工具
+    - 运动户外
+    - 美妆服饰
+    - 其他
+
+# 课程评价（可在后台 /api/admin/courses/departments 动态覆盖）
+courses:
+  # 开课院系列表（后台可动态配置；课程发布时从该列表选择）
+  departments:
+    - 计算机学院
+    - 软件学院
+    - 数学科学学院
+    - 经济管理学院
+    - 外国语学院
+    - 通识教育中心
 
 # AI 智能助手（Gemini）—— 可在后台 /api/admin/ai/config 动态覆盖开关与模型
 ai:

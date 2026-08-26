@@ -53,6 +53,18 @@ class ItemReviewConfig(BaseModel):
     enabled: bool = False
 
 
+class ItemCategoriesConfig(BaseModel):
+    """二手交易分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
+
+    categories: List[str] = []
+
+
+class CourseDepartmentsConfig(BaseModel):
+    """课程开课院系列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
+
+    departments: List[str] = []
+
+
 class AiFeatureConfig(BaseModel):
     """AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。
 

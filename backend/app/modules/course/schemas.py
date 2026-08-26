@@ -14,6 +14,7 @@ class CourseCreate(BaseModel):
     teacher: str = ""
     credits: int = 0
     semester: str = ""
+    department: str = ""
 
 
 class CourseOut(BaseModel):
@@ -23,6 +24,7 @@ class CourseOut(BaseModel):
     teacher: str
     credits: int
     semester: str
+    department: str
 
     model_config = {"from_attributes": True}
 

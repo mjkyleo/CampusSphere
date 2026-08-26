@@ -12,6 +12,7 @@ from app.common.enums import ItemStatus, UserStatus
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
+from app.core.storage import storage_client
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -20,7 +21,8 @@ from app.core.security import (
 )
 from app.modules.admin.models import AdminUser, AppConfig, Permission, Role
 from app.modules.auth.models import User
-from app.modules.item.models import Item
+from app.modules.canteen.models import Canteen, Dish, Stall
+from app.modules.item.models import Item, ItemImage
 from app.modules.item.schemas import ItemUpdate
 from app.modules.item.statemachine import validate_transition
 from app.modules.report.models import Report
@@ -166,6 +168,148 @@ async def update_item_review_config(db: AsyncSession, data: dict) -> dict:
     await db.commit()
     _logger.info("admin_update_item_review", config=payload)
     return payload
+
+
+_ITEM_CATEGORIES_KEY = "item.categories"
+
+# 兜底分类（school.yaml 与 DB 均未配置时的最小集合）
+_DEFAULT_ITEM_CATEGORIES = ["电子产品", "书籍资料", "日用百货", "交通工具", "运动户外", "美妆服饰", "其他"]
+
+
+async def get_item_categories(db: AsyncSession) -> list[str]:
+    """读取二手交易分类：DB（后台配置）优先，缺省回退 school.yaml。"""
+    default = [str(c) for c in ((settings.items or {}).get("categories") or _DEFAULT_ITEM_CATEGORIES)]
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
+    )
+    if not cfg:
+        return default
+    return [str(c) for c in (cfg.value.get("categories") or [])] or default
+
+
+_CONFIG_TAG_MAX_LEN = 20
+_CONFIG_TAG_MAX_COUNT = 30
+
+
+def _clean_config_tags(tags: list[str], name: str, max_len: int) -> list[str]:
+    """清洗并校验后台标签类配置（去重、长度、数量限制），非法输入抛 40000。"""
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for raw in tags or []:
+        tag = str(raw).strip()
+        if not tag:
+            continue
+        if tag in seen:
+            continue
+        if len(tag) > max_len:
+            raise BizError(ErrorCode.BAD_REQUEST, f"{name}「{tag}」名称过长（最多 {max_len} 个字符）")
+        seen.add(tag)
+        cleaned.append(tag)
+    if len(cleaned) > _CONFIG_TAG_MAX_COUNT:
+        raise BizError(ErrorCode.BAD_REQUEST, f"{name}数量过多（最多 {_CONFIG_TAG_MAX_COUNT} 个）")
+    return cleaned
+
+
+async def update_item_categories(db: AsyncSession, categories: list[str]) -> list[str]:
+    """后台更新二手交易分类（写 DB，实时生效）。"""
+    cleaned = _clean_config_tags(categories, "分类", _CONFIG_TAG_MAX_LEN)
+    payload = {"categories": cleaned}
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
+    )
+    if cfg:
+        cfg.value = payload
+    else:
+        db.add(AppConfig(key=_ITEM_CATEGORIES_KEY, value=payload))
+    await db.commit()
+    _logger.info("admin_update_item_categories", categories=cleaned)
+    return cleaned
+
+
+_COURSE_DEPARTMENTS_KEY = "course.departments"
+
+# 兜底院系（school.yaml 与 DB 均未配置时的最小集合）
+_DEFAULT_COURSE_DEPARTMENTS = [
+    "计算机学院", "软件学院", "数学科学学院", "经济管理学院", "外国语学院", "通识教育中心",
+]
+
+
+async def get_course_departments(db: AsyncSession) -> list[str]:
+    """读取课程院系列表：DB（后台配置）优先，缺省回退 school.yaml。"""
+    default = [str(d) for d in ((settings.courses or {}).get("departments") or _DEFAULT_COURSE_DEPARTMENTS)]
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
+    )
+    if not cfg:
+        return default
+    return [str(d) for d in (cfg.value.get("departments") or [])] or default
+
+
+async def update_course_departments(db: AsyncSession, departments: list[str]) -> list[str]:
+    """后台更新课程院系列表（写 DB，实时生效）。"""
+    cleaned = _clean_config_tags(departments, "院系", 30)
+    payload = {"departments": cleaned}
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
+    )
+    if cfg:
+        cfg.value = payload
+    else:
+        db.add(AppConfig(key=_COURSE_DEPARTMENTS_KEY, value=payload))
+    await db.commit()
+    _logger.info("admin_update_course_departments", departments=cleaned)
+    return cleaned
+
+
+# ------------------------------------------------------------------
+# 孤儿文件扫描与清理
+# ------------------------------------------------------------------
+
+
+async def _collect_image_refs(db: AsyncSession) -> list[str]:
+    """收集所有业务记录引用的图片字符串（object_key 或含 object_key 的 URL）。"""
+    refs: list[str] = []
+    stmts = [
+        select(ItemImage.object_key),
+        select(Canteen.image),
+        select(Stall.image),
+        select(Dish.image),
+    ]
+    for stmt in stmts:
+        rows = await db.execute(stmt)
+        for (val,) in rows.all():
+            if val:
+                refs.append(str(val))
+    return refs
+
+
+async def list_orphan_files(db: AsyncSession) -> dict:
+    """扫描存储中未被任何业务记录引用的孤儿文件（只列出，不删除）。"""
+    keys = storage_client.list_keys()
+    if not keys:
+        return {"files": [], "total": 0}
+    refs = await _collect_image_refs(db)
+    orphans = [
+        {"key": f["key"], "size": f["size"]}
+        for f in keys
+        if not any(f["key"] in ref for ref in refs)
+    ]
+    _logger.info("admin_list_orphan_files", scanned=len(keys), orphan=len(orphans))
+    return {"files": orphans, "total": len(orphans)}
+
+
+async def cleanup_orphan_files(db: AsyncSession) -> dict:
+    """删除全部孤儿文件，返回实际删除数量（单文件失败不中断，记 warning 日志）。"""
+    data = await list_orphan_files(db)
+    removed = 0
+    for f in data["files"]:
+        try:
+            storage_client.remove_key(f["key"])
+            removed += 1
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("orphan_remove_failed", key=f["key"], error=str(exc))
+    _logger.info("admin_cleanup_orphan_files", removed=removed)
+    return {"removed": removed}
 
 
 async def dashboard(db: AsyncSession) -> dict:

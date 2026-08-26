@@ -6,7 +6,8 @@ import { ItemOut, ItemStatus } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 
-const categories = ['全部', '电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
+// 兜底分类：后端 /api/items/categories 不可达时的默认值
+const FALLBACK_CATEGORIES = ['全部', '电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
 
 const MarketList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +16,7 @@ const MarketList: React.FC = () => {
   const { success, error } = useToast();
 
   const [search, setSearch] = useState(searchParams.get('keyword') || '');
+  const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES);
   const [selectedCat, setSelectedCat] = useState(searchParams.get('category') || '全部');
   const [selectedStatus, setSelectedStatus] = useState<number | undefined>(ItemStatus.OnSale);
   const [items, setItems] = useState<ItemOut[]>([]);
@@ -41,6 +43,17 @@ const MarketList: React.FC = () => {
   useEffect(() => {
     fetchItems();
   }, [selectedCat, selectedStatus]);
+
+  // 动态拉取后台配置的分类（含 school.yaml 兜底）
+  useEffect(() => {
+    api.items.categories()
+      .then((res) => {
+        if (res.code === 0 && res.data?.categories?.length) {
+          setCategories(['全部', ...res.data.categories]);
+        }
+      })
+      .catch(() => { /* 后端不可达时使用兜底分类 */ });
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -18,11 +18,15 @@ from app.modules.course.schemas import (
 )
 
 
-async def list_courses(db: AsyncSession, keyword: str = "", page: int = 1, page_size: int = 20) -> dict:
+async def list_courses(
+    db: AsyncSession, keyword: str = "", department: str = "", page: int = 1, page_size: int = 20
+) -> dict:
     stmt = select(Course)
     if keyword:
         like = f"%{keyword}%"
         stmt = stmt.where(Course.name.ilike(like) | Course.code.ilike(like))
+    if department:
+        stmt = stmt.where(Course.department == department)
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = (await db.scalars(stmt.order_by(Course.created_at.desc()).offset((page - 1) * page_size).limit(page_size))).all()
     return {

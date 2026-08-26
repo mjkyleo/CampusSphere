@@ -19,6 +19,8 @@ class UserProfile(Base, PKMixin, TimestampMixin):
     )
     bio: Mapped[str] = mapped_column(String(512), default="")
     school_major: Mapped[str] = mapped_column(String(64), default="")
+    campus: Mapped[str] = mapped_column(String(64), default="")
+    contact_wx: Mapped[str] = mapped_column(String(64), default="")
     grade: Mapped[int] = mapped_column(Integer, default=0)
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
 

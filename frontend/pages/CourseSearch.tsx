@@ -5,11 +5,13 @@ import { api } from '../services/api.ts';
 import { CourseOut } from '../types.ts';
 import { useToast } from '../context/ToastContext.tsx';
 
-const departments = ['全部院系', '计算机学院', '软件学院', '数学科学学院', '经济管理学院', '外国语学院', '通识教育中心'];
+// 兜底院系：后端 /api/courses/departments 不可达时的默认值
+const FALLBACK_DEPARTMENTS = ['计算机学院', '软件学院', '数学科学学院', '经济管理学院', '外国语学院', '通识教育中心'];
 
 const CourseSearch: React.FC = () => {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
+  const [departments, setDepartments] = useState<string[]>(FALLBACK_DEPARTMENTS);
   const [selectedDept, setSelectedDept] = useState('全部院系');
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,13 +19,9 @@ const CourseSearch: React.FC = () => {
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      const res = await api.courses.list(keyword.trim(), 1, 20);
+      const res = await api.courses.list(keyword.trim(), 1, 20, selectedDept === '全部院系' ? '' : selectedDept);
       if (res.code === 0 && res.data) {
-        let items = res.data.items || [];
-        if (selectedDept !== '全部院系') {
-          items = items.filter((c) => c.department === selectedDept || c.code.includes(selectedDept.slice(0, 2)));
-        }
-        setCourses(items);
+        setCourses(res.data.items || []);
       }
     } catch {
       // Mock fallback
@@ -31,6 +29,17 @@ const CourseSearch: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 动态拉取后台配置的院系列表（含 school.yaml 兜底）
+  useEffect(() => {
+    api.courses.departments()
+      .then((res) => {
+        if (res.code === 0 && res.data?.departments?.length) {
+          setDepartments(res.data.departments);
+        }
+      })
+      .catch(() => { /* 后端不可达时使用兜底院系 */ });
+  }, []);
 
   useEffect(() => {
     fetchCourses();
@@ -84,7 +93,7 @@ const CourseSearch: React.FC = () => {
 
         {/* Department Pills */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-          {departments.map((dept) => (
+          {['全部院系', ...departments].map((dept) => (
             <button
               key={dept}
               onClick={() => setSelectedDept(dept)}

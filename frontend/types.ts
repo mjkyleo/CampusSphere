@@ -294,6 +294,7 @@ export interface StallOut {
   description?: string;
   popular_dish?: string;
   rating?: number;
+  image?: string;
   dishes?: any[];
 }
 
@@ -306,6 +307,7 @@ export interface CanteenOut {
   opening_hours?: string;
   description?: string;
   rating?: number;
+  image?: string;
   status?: string;
   stalls?: StallOut[];
 }

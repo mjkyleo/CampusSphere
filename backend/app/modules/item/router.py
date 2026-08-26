@@ -69,6 +69,15 @@ async def search(
     return ApiResponse.ok(data=result["items"])
 
 
+# NOTE: 必须声明在 /{item_id} 之前，否则 "categories" 会被当作 item_id 匹配
+@router.get("/categories", response_model=ApiResponse[dict])
+async def categories(db: AsyncSession = Depends(get_db)):
+    """公开读取二手交易分类（后台配置，含 school.yaml 兜底）。"""
+    from app.modules.admin.service import get_item_categories
+
+    return ApiResponse.ok(data={"categories": await get_item_categories(db)})
+
+
 @router.get("/{item_id}", response_model=ApiResponse[ItemOut])
 async def detail(
     item_id: str,

@@ -94,14 +94,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setIsAuthenticated(false);
       }
+      // 非关键请求（绑定信息/未读数）失败时降级处理，不打断登录态
       const bRes = await api.auth.getBindings();
-      if (bRes.code === 0 && bRes.data) {
-        setBindings(bRes.data);
-      }
+      setBindings(
+        bRes.code === 0 && bRes.data
+          ? bRes.data
+          : { username: '', email: null, phone: null, wechat_bound: false, qq_bound: false, oauth: [] }
+      );
       const uRes = await api.messages.unread();
-      if (uRes.code === 0 && uRes.data) {
-        setUnreadCount(uRes.data.unread_count);
-      }
+      setUnreadCount(uRes.code === 0 && uRes.data ? uRes.data.unread_count : 0);
     } catch {
       setUser(null);
       setIsAuthenticated(false);

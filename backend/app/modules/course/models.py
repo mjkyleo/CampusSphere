@@ -18,6 +18,8 @@ class Course(Base, PKMixin, TimestampMixin):
     teacher: Mapped[str] = mapped_column(String(64), default="")
     credits: Mapped[int] = mapped_column(Integer, default=0)
     semester: Mapped[str] = mapped_column(String(32), default="")
+    # 开课院系（对应 /api/courses/departments 后台配置列表）
+    department: Mapped[str] = mapped_column(String(64), default="", index=True)
 
     reviews: Mapped[list["CourseReview"]] = relationship(
         back_populates="course", cascade="all, delete-orphan", lazy="selectin"
