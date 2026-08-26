@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     report_policy: Dict[str, Any] = Field(default_factory=dict)
     auth: Dict[str, Any] = Field(default_factory=dict)
     items: Dict[str, Any] = Field(default_factory=dict)
+    courses: Dict[str, Any] = Field(default_factory=dict)
     ai: Dict[str, Any] = Field(default_factory=dict)
 
     # ----- 基础设施（可由 .env 覆盖，缺省取 school.yaml）-----
@@ -109,7 +110,7 @@ class Settings(BaseSettings):
         for key in ("school_name", "school_domain"):
             if data.get(key):
                 setattr(self, key, data[key])
-        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "ai"):
+        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "courses", "ai"):
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
 

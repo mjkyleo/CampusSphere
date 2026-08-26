@@ -19,6 +19,7 @@ where npm >nul 2>&1 || (echo [ERROR] npm not found in PATH & exit /b 1)
 echo [2/4] Stopping stale processes on ports 8000 / 5173 ...
 call :kill_port 8000
 call :kill_port 5173
+call :kill_log_holders
 ping -n 2 127.0.0.1 >nul
 
 echo [3/4] Starting backend + frontend (logs: backend\uvicorn.log / frontend\vite.log)...
@@ -58,4 +59,12 @@ for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%port% " ^| findstr "LISTEN
   echo   Killing stale PID %%p on port %port%
   taskkill /F /PID %%p >nul 2>&1
 )
+exit /b 0
+
+::kill_log_holders
+rem Kill stale wrapper cmd/python processes that still hold uvicorn.log / vite.log handles.
+set "PS1=%TEMP%\cs_kill_log_holders.ps1"
+> "%PS1%" echo $p = Get-CimInstance Win32_Process ^| Where-Object { $_.Name -in 'cmd.exe','python.exe' -and $_.CommandLine -match 'uvicorn\.log|vite\.log' } ^| ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%" >nul 2>&1
+del "%PS1%" >nul 2>&1
 exit /b 0

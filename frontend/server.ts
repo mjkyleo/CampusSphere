@@ -12,6 +12,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  // 统一访问主机名为 localhost：将 127.0.0.1 的请求 302 重定向到 localhost（保留路径/查询串）。
+  // 原因：http://localhost:5173 与 http://127.0.0.1:5173 是两个不同的 origin，
+  // localStorage 与 Cookie 互相隔离，混用会导致登录态、页面显示不一致。
+  app.use((req, res, next) => {
+    const host = req.headers.host || "";
+    if (host.startsWith("127.0.0.1")) {
+      return res.redirect(302, `http://localhost:${PORT}${req.originalUrl || "/"}`);
+    }
+    next();
+  });
+
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -71,8 +82,11 @@ async function startServer() {
     });
   }
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  // 不指定 host（Node 默认监听 :: 双栈，IPv4/IPv6 均可达）：
+  // Windows 上 localhost 优先解析为 ::1，若只绑 0.0.0.0（IPv4），
+  // 浏览器的 fetch/WebSocket 会连 ::1 失败报 ERR_CONNECTION_REFUSED（页面导航有 happy-eyeballs 回退故能加载）。
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT} (IPv4+IPv6)`);
     console.log(`API proxy target: ${BACKEND_URL}`);
   });
 

@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
-from app.modules.admin.models import Admin
+from app.modules.admin.models import AdminUser
 from app.modules.admin.service import get_admin
 
 
-async def get_current_admin(request: Request, db: AsyncSession = Depends(get_db)) -> Admin:
+async def get_current_admin(request: Request, db: AsyncSession = Depends(get_db)) -> AdminUser:
     admin_id = getattr(request.state, "user_id", None)
     if not admin_id:
         raise BizError(ErrorCode.UNAUTHORIZED, "管理员未认证")

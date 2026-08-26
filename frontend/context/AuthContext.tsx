@@ -93,6 +93,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        // 未登录/会话已失效：无需再请求绑定信息与未读数（softAuth 降级值本就为 空/0），
+        // 提前返回可避免产生两条无意义的 401 请求（控制台噪音）。
+        return;
       }
       // 非关键请求（绑定信息/未读数）失败时降级处理，不打断登录态
       const bRes = await api.auth.getBindings();
@@ -133,14 +136,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const userToken = getStoredAccessToken();
     const adminToken = getStoredAdminAccessToken();
+    // 普通用户/管理员 token 各自独立解除 loading：
+    // 否则"仅登录普通账号"时 loadAdminData 不会执行，adminLoading 永远为 true，
+    // 配合 App 的 loading 门（loading || adminLoading）会导致页面一直卡在加载界面。
     if (userToken) {
       loadUserData();
+    } else {
+      setLoading(false);
     }
     if (adminToken) {
       loadAdminData();
-    }
-    if (!userToken && !adminToken) {
-      setLoading(false);
+    } else {
       setAdminLoading(false);
     }
   }, [loadUserData, loadAdminData]);
