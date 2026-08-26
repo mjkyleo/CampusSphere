@@ -107,7 +107,9 @@ async def send_verification_code(data: SendCodeRequest):
     便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
     """
     code = await send_code(data.target, data.purpose)
-    debug_code = code if settings.debug else None
+    # 开发模式或尚未配置邮件/短信发送通道时，响应中直接返回验证码，便于测试联调；
+    # 生产环境接入 SMTP 后 debug_code 恒为 null，验证码仅通过邮件送达。
+    debug_code = code if (settings.debug or not settings.smtp_host) else None
     return ApiResponse.ok(
         message="验证码已发送" + ("（测试模式：见响应 debug_code）" if debug_code else ""),
         data=SendCodeOut(debug_code=debug_code),

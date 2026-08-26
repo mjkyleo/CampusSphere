@@ -22,8 +22,8 @@ call :kill_port 5173
 ping -n 2 127.0.0.1 >nul
 
 echo [3/4] Starting backend + frontend (logs: backend\uvicorn.log / frontend\vite.log)...
-start "campus-backend" /b cmd /c "cd /d "%BACKEND_DIR%" && python -m uvicorn app.asgi:app --host 127.0.0.1 --port 8000 >> uvicorn.log 2>&1"
-start "campus-frontend" /b cmd /c "cd /d "%FRONTEND_DIR%" && npm run dev >> vite.log 2>&1"
+start "campus-backend" /b cmd /c "cd /d %BACKEND_DIR% && python -m uvicorn app.asgi:app --host 127.0.0.1 --port 8000 >> uvicorn.log 2>&1"
+start "campus-frontend" /b cmd /c "cd /d %FRONTEND_DIR% && npm run dev >> vite.log 2>&1"
 
 echo [4/4] Waiting for services to become healthy...
 set /a tries=0
