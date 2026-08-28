@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import UUID, Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models import Base, PKMixin, TimestampMixin

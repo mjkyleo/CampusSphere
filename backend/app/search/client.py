@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import List
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -72,7 +72,6 @@ class SearchClient:
         except Exception as exc:  # noqa: BLE001
             _logger.warning("meili_search_failed", error=str(exc))
             return []
-
 
 # 全局单例（导入即初始化；无 Meilisearch 时自动降级）
 search_client: SearchClient = SearchClient()

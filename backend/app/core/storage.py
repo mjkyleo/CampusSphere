@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Optional
 
 import urllib3
 
@@ -150,7 +149,6 @@ class StorageClient:
         path = os.path.join(self.local_root, object_key.replace("/", "_"))
         if os.path.isfile(path):
             os.remove(path)
-
 
 # 全局单例（导入即创建，但不在导入时连接网络）
 storage_client = StorageClient()

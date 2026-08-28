@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
 from app.modules.admin.deps import get_current_admin, require_admin
 from app.modules.admin.gateway import gateway_enforced, issue_gateway_token, require_admin_gateway
@@ -33,7 +32,6 @@ from app.modules.admin.service import (
     ban_user,
     cleanup_orphan_files,
     dashboard,
-    ensure_seed,
     get_course_departments,
     get_email_register_config,
     get_item_categories,
@@ -68,7 +66,6 @@ from app.modules.item.schemas import ItemOut, ItemUpdate
 from app.modules.report.service import list_reports
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-
 
 
 @router.post("/discover", response_model=ApiResponse[dict])
@@ -164,7 +161,6 @@ async def reports(
     data = await list_reports(db, status=status if status is not None else None, page=page, page_size=page_size)
     return ApiResponse.ok(data=data)
 
-
 # ------------------------------------------------------------------
 # Admin item management (bypasses owner checks)
 # ------------------------------------------------------------------
@@ -181,7 +177,6 @@ async def admin_list_items(
     """List all items (any user's) with optional status filter and pagination."""
     data = await list_all_items(db, status=status if status is not None else None, page=page, page_size=page_size)
     return ApiResponse.ok(data=data)
-
 
 # NOTE: 静态路径 /items/review-config 必须先于动态路径 /items/{item_id} 声明，
 # 否则 "review-config" 会被当作 item_id 匹配。
@@ -227,7 +222,6 @@ async def admin_put_course_departments(
     payload = await update_course_departments(db, data.departments)
     return ApiResponse.ok(data=CourseDepartmentsConfig(departments=payload))
 
-
 # ------------------------------------------------------------------
 # AI 智能助手功能开关（复用 ai 模块的配置读写，与 review-config 同一模式）
 # ------------------------------------------------------------------
@@ -252,7 +246,6 @@ async def admin_put_ai_config(
 
     payload = await update_ai_feature_config(db, data.model_dump())
     return ApiResponse.ok(data=AiFeatureConfig(**payload))
-
 
 # ------------------------------------------------------------------
 # Canteen management (admin CRUD: canteens / stalls / dishes)

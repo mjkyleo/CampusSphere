@@ -17,9 +17,9 @@ from starlette.responses import JSONResponse, Response
 
 from app.core.exceptions import ErrorCode
 from app.core.logging import bind_request, clear_request, get_logger
-from app.core.redis import redis_get, redis_incr
+from app.core.redis import redis_incr
 from app.core.response import ApiResponse
-from app.core.security import decode_token, get_token_jti, is_token_revoked
+from app.core.security import decode_token, is_token_revoked
 
 _logger = get_logger("gateway")
 

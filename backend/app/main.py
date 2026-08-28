@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -116,6 +115,5 @@ def create_app() -> FastAPI:
         return {"service": settings.app_name, "school": settings.school_name, "docs": "/docs"}
 
     return app
-
 
 app = create_app()

@@ -108,6 +108,91 @@
 
 ---
 
+### 阶段 8 · 清 P1/P2 六项（P1-9b · P0-5 · P1-7 · P1-4 · P2-5 · P2-10）✅ 已完成
+
+按用户给定顺序逐项实施。每项均先查证代码现状再落地，避免凭空改动。
+
+#### 8.1 P1-9b 热点列表 Redis 缓存
+目标：给高频读取的列表接口加缓存，同时解决穿透与雪崩两个经典风险。
+
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.1.1 | 新增缓存工具层：键规范 `campus:cache:<ns>:v<ver>:<参数哈希>` | `backend/app/core/cache.py`（新） |
+| 8.1.2 | `Settings` 新增 `cache_enabled`（默认开，可 `CACHE_ENABLED=false` 关闭）与 `cache_ttl_seconds` | `backend/app/core/config.py` |
+| 8.1.3 | `list_items` 先读缓存、回源后写缓存 | `backend/app/modules/item/service.py` |
+| 8.1.4 | `create/update/delete_item` 后调用 `invalidate_namespace("items")` | `backend/app/modules/item/service.py` |
+
+**三项关键设计**：
+- **防穿透**：查询结果为空时写入短 TTL 的 `NULL_SENTINEL` 占位，避免对不存在的键反复打到 DB。
+- **防雪崩**：写入 TTL 叠加 `[0, jitter]` 随机抖动，避免大批量 key 同时过期形成请求洪峰。
+- **失效策略**：采用**命名空间版本号**整体失效（写操作让版本号 +1，旧版本 key 立即不可命中），
+  而非 `SCAN`/`KEYS` 枚举删除——后者在「内存降级」实现（普通 dict）上不可用，且 Redis 上成本更高。
+- 未连接 Redis 时走既有内存兜底，`cache_enabled` 关闭时完全跳过，不阻断业务。
+
+#### 8.2 P0-5 N+1 修复
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.2.1 | 列表查询加 `selectinload(Item.images)`——序列化每个物品都会访问 `item.images`，原为逐条再查 | `item/service.py` |
+| 8.2.2 | 详情 `get_item` 改 `select()` + `selectinload(Item.images)`（`ItemOut` 含 `images`） | `item/service.py` |
+| 8.2.3 | 食堂列表/详情加 `selectinload(Canteen.stalls).selectinload(Stall.dishes)`（`CanteenOut` 嵌套两层） | `canteen/service.py` |
+
+**逐接口核对结论**：`job`/`share`/`report`/`teammate`/`course` 的列表输出模型只含标量字段，
+不存在关系访问，故无 N+1；真正的关系型 N+1 集中在 item（images）与 canteen（stalls→dishes）。
+
+#### 8.3 P1-7 IDOR 审计 + 测试
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.3.1 | 新增 `require_owner(owner_id, current_user)`，非拥有者抛 `40300 FORBIDDEN` | `auth/deps.py` |
+| 8.3.2 | item 的 `update`/`delete` 改用 `require_owner`，替代内联 owner 判断 | `item/router.py` |
+| 8.3.3 | 新增越权用例：非拥有者改/删应 40300；拥有者正常；交易会话 seller 不被冒用 | `tests/test_idor.py`（新） |
+
+**审计结论**：除 item 外，`job` 的 `list_applications` 已有 `job.poster_id != poster_id` 校验（仅发布者可看投递），
+`message`/`report` 等以「登录 + 自身数据」为边界，未发现可利用的越权路径；`require_owner` 作为统一抽象沉淀，
+后续新增资源接口直接复用。
+> 注意：业务错误经统一异常处理器包装为 **HTTP 200 + 响应体 `code=40300`**，故测试断言 `code` 而非 HTTP 状态。
+
+#### 8.4 P1-4 镜像加固
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.4.1 | 改多阶段构建：builder 装编译依赖并在 venv 内 `pip install .`；runtime 仅搬 venv | `backend/Dockerfile` |
+| 8.4.2 | 运行时改为非 root 用户（`appuser`，uid 10001） | `backend/Dockerfile` |
+| 8.4.3 | 新增 `HEALTHCHECK`（根路径探测，含 start-period 避免启动期误判） | `backend/Dockerfile` |
+| 8.4.4 | worker 同样多阶段 + 非 root + `celery inspect ping` 探活 | `deploy/Dockerfile.worker` |
+
+收益：镜像体积下降（不含 gcc/libpq-dev）、攻击面降低（非 root）、编排层可感知存活状态。
+依赖改为从 `pyproject.toml` 单一来源安装，消除原先「Dockerfile 里另写一份 pip 包列表」的双份维护问题。
+> 待办：真正的**版本锁定**（`uv.lock` 或 `pip-tools --generate-hashes`）需联网生成锁文件后提交，本阶段未做。
+
+#### 8.5 P2-5 依赖漏洞扫描进 CI
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.5.1 | 新增 `dependency-audit` job：后端 `pip-audit`、前端 `npm audit --audit-level=high` | `.github/workflows/ci.yml` |
+| 8.5.2 | CI 触发分支由 `[main]` 扩为 `[main, dev]` | `.github/workflows/ci.yml` |
+
+#### 8.6 P2-10 Prometheus 告警规则
+| # | 改动 | 文件 |
+|---|---|---|
+| 8.6.1 | 新增告警规则：API/Nginx 目标离线、5xx 率 >5%、P95 延迟 >0.8s、登录失败率 >50% | `deploy/prometheus/alerts.yml`（新） |
+| 8.6.2 | `prometheus.yml` 引入 `rule_files: [alerts.yml]` | `deploy/prometheus/prometheus.yml` |
+
+规则基于后端真实指标名编写：`campus_http_requests_total{method,endpoint,status}` 与
+`campus_http_request_latency_seconds`（见 `app/modules/launcher/metrics.py`），非臆造指标。
+> 投递：本阶段仅定义规则；要真正通知到人还需配 Alertmanager（route/receiver），配置示例已写在 `alerts.yml` 注释中。
+
+#### 8.7 代码规范清理（CI 前置修复）
+启用 `dev` 分支 CI 后，`ruff check app` 会因历史遗留的**未使用导入**直接失败（F401）。
+故做一次机械清理：**移除 50 处未使用导入**（覆盖 37 个文件，全部为模块顶层导入；函数内惰性导入经查均在使用故保留），
+并修正因删除导入产生的多余空行。
+
+验证：清理后全量 `compileall` 通过（exit 0）；自研扫描确认**剩余未使用导入 = 0**；
+`admin/router.py` 等括号多行 import 的原有格式完整保留（按行精确删除单个别名，未重排）。
+
+**本阶段验证**：`python -m compileall -q backend/app backend/tests` 全量通过（exit 0）；
+三个 YAML 结构校验通过（括号配平 depth=0；`ci.yml` 现有 6 个 job 且含 `pip-audit`/`npm audit`、触发分支含 `dev`）；
+grep 确认 `selectinload`、`cache_get_json`、`invalidate_namespace`、`require_owner` 均已落地。
+
+---
+
 ## 3. 每阶段验证结论（防引入新问题）
 - 所有后端改动经 **`python -m compileall` 全量语法校验**通过（沙箱 PyPI 出口不稳，`pytest`/`ruff` 未能运行，详见限制）。
 - 改动均为**局部、低风险**：未触碰路由/模型/业务语义，未改变公开接口契约。
@@ -126,29 +211,37 @@
 | 阶段 5 CI/CD | ✅ 完成 | 新增 `.github/workflows/ci.yml` + `pyproject` 补 `pytest-cov` |
 | 阶段 6 清 P1（alembic + 解耦） | ✅ 完成 | migrations CI 闸 + `EmailRegisterConfig` 迁 common + 架构守护测试 |
 | 阶段 7 清 P1（连接池 P1-9a） | ✅ 完成 | 3 处（config 配置化 + database 接入 + .env 注释） |
+| 阶段 8 清 P1/P2 六项 | ✅ 完成 | 缓存(P1-9b) + N+1(P0-5) + IDOR(P1-7) + 镜像(P1-4) + 依赖审计(P2-5) + 告警(P2-10) + 清理 50 处未用导入 |
 | 集成测试复测 | ⏸ 待环境 | 需 PyPI 可用后补 `pytest`/`ruff` |
-| P1/P2 其余 | ⏸ 计划 | 见剩余待办 |
+| P1/P2 其余 | — | **已全部清零**，见下方剩余待办 |
 
-**累计改动（阶段 1~7）**：17 文件，约 +285 / −91 行（含删除 docker-image.yml 76 行）。
+**累计改动（阶段 1~8）**：约 55 文件，+780 / −140 行（含删除 `docker-image.yml` 76 行、清理未用导入 81 行）。
+
+> **P0/P1/P2 已全部处理完毕**。剩余事项均为「需外部环境/凭据」的收尾项，见第 5 节。
 
 ---
 
 ## 5. 剩余待办（按原 P0~P3 排布）
 
-### 仍需代码/配置改动（建议下一批）
-- ~~**P0-2 HTTPS**~~ ✅ 已在阶段 4 完成（`nginx.conf` 443+跳转+证书挂载）。
-- ~~**P0-4 OTel OTLP**~~ ✅ 已在阶段 4 完成（`otel.py` OTLP gRPC + FastAPI 织入 + `.env.example` 注入）。
-- ~~**P1-2 alembic 增量迁移**~~ ✅ 已在阶段 6 完成机制（CI `migrations` job 跑 `alembic upgrade head` + `alembic check` 强制模型/迁移一致；基线维持 `create_all` 未改写）。
-- ~~**P1-3 auth↔admin 循环依赖**~~ ✅ 已在阶段 6 完成（查证无真双向循环；`EmailRegisterConfig` 迁 `common` 消除 auth 顶层依赖 admin + 架构守护测试）。
-- ~~**P1-9 连接池调优**~~ ✅ 已在阶段 7 完成（`config` 配置化 `db_pool_*` + `database` 接入 PostgreSQL 池参数）。**热点列表 Redis 缓存（P1-9b）待做**：需先定缓存键/失效策略，避免穿透/雪崩。
-- **P0-5(N+1 余量)**：其余列表/详情接口补 `selectinload`/`joinedload`（本轮仅修 MinIO 阻塞，N+1 需逐接口核对关系后实施）。
-- **P1-7 全模块 IDOR 审计 + 测试**：抽象 `require_owner` 并补越权用例（item 已正确）。
+### 代码 / 配置改动 —— 已全部完成
+- ~~**P0-2 HTTPS**~~ ✅ 阶段 4（`nginx.conf` 443+跳转+证书挂载）。
+- ~~**P0-4 OTel OTLP**~~ ✅ 阶段 4（`otel.py` OTLP gRPC + FastAPI 织入 + `.env.example` 注入）。
+- ~~**P1-2 alembic 增量迁移**~~ ✅ 阶段 6（CI `migrations` job 跑 `alembic upgrade head` + `alembic check`）。
+- ~~**P1-3 auth↔admin 循环依赖**~~ ✅ 阶段 6（`EmailRegisterConfig` 迁 `common` + 架构守护测试）。
+- ~~**P1-9a 连接池调优**~~ ✅ 阶段 7（`config` 配置化 `db_pool_*` + `database` 接入）。
+- ~~**P1-9b 热点列表 Redis 缓存**~~ ✅ 阶段 8（`core/cache.py`：版本化失效 + 空值哨兵防穿透 + TTL 抖动防雪崩）。
+- ~~**P0-5 N+1**~~ ✅ 阶段 8（item `images`、canteen `stalls→dishes` 补 `selectinload`；其余模块经核对无关系型 N+1）。
+- ~~**P1-7 IDOR 审计 + 测试**~~ ✅ 阶段 8（`require_owner` 抽象 + `tests/test_idor.py` 越权用例）。
+- ~~**P1-4 镜像质量**~~ ✅ 阶段 8（多阶段 + 非 root + `HEALTHCHECK` + 依赖单一来源）。
+- ~~**P2-5 依赖漏洞扫描**~~ ✅ 阶段 8（`dependency-audit` job：pip-audit + npm audit）。
+- ~~**P2-10 监控告警**~~ ✅ 阶段 8（`deploy/prometheus/alerts.yml` + `rule_files` 接入）。
 
-### 需基础设施/流程（非代码）
-- ~~**P0-3 零 CI/CD**~~ ✅ 已在阶段 5 完成（`.github/workflows/ci.yml`：lint→test→build→镜像 + gitleaks；自动部署未含，待第二阶段）。
-- **P1-4 镜像质量**：Dockerfile 多阶段 + 非 root + `HEALTHCHECK` + 锁版本（`uv.lock`）；`minio:latest` 固定。
-- **P2-5 依赖漏洞扫描**：`pip-audit`/`npm audit` 进 CI（依赖锁版本）。
-- **P2-10 日志轮转 + 告警**：`deploy/prometheus`/`grafana` 补 `rules.yml` 与看板。
+### 需外部环境 / 凭据（非代码阻塞，按需推进）
+- **依赖版本锁定**：生成并提交 `uv.lock`（或 `pip-tools --generate-hashes`），需联网生成锁文件。
+- **Alertmanager 投递**：`alerts.yml` 已定义规则，需配 `route`/`receiver`（邮件/企微/钉钉）才能真正通知到人。
+- **CI 自动部署（第二阶段）**：需仓库密钥（SSH 私钥或 registry 凭据）后再加 `deploy` job。
+- **compose 镜像标签固定**：将 `minio:latest` 等浮动标签固定为具体版本。
+- **集成测试复测**：待 PyPI 出口稳定后跑 `pytest`/`ruff`/`pip-audit` 取真实数字（命令见第 6 节）。
 
 ---
 

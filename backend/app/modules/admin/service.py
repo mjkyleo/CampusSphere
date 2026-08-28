@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import secrets
 import string
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -148,7 +147,6 @@ async def unban_user(db: AsyncSession, user_id: str) -> User:
     await db.commit()
     return user
 
-
 _EMAIL_REGISTER_KEY = "auth.email_register"
 
 
@@ -188,7 +186,6 @@ async def update_email_register_config(db: AsyncSession, data: dict) -> dict:
     _logger.info("admin_update_email_register", config=payload)
     return payload
 
-
 _ITEM_REVIEW_KEY = "item.review"
 
 
@@ -220,7 +217,6 @@ async def update_item_review_config(db: AsyncSession, data: dict) -> dict:
     _logger.info("admin_update_item_review", config=payload)
     return payload
 
-
 _ITEM_CATEGORIES_KEY = "item.categories"
 
 # 兜底分类（school.yaml 与 DB 均未配置时的最小集合）
@@ -236,7 +232,6 @@ async def get_item_categories(db: AsyncSession) -> list[str]:
     if not cfg:
         return default
     return [str(c) for c in (cfg.value.get("categories") or [])] or default
-
 
 _CONFIG_TAG_MAX_LEN = 20
 _CONFIG_TAG_MAX_COUNT = 30
@@ -276,7 +271,6 @@ async def update_item_categories(db: AsyncSession, categories: list[str]) -> lis
     _logger.info("admin_update_item_categories", categories=cleaned)
     return cleaned
 
-
 _COURSE_DEPARTMENTS_KEY = "course.departments"
 
 # 兜底院系（school.yaml 与 DB 均未配置时的最小集合）
@@ -310,7 +304,6 @@ async def update_course_departments(db: AsyncSession, departments: list[str]) ->
     await db.commit()
     _logger.info("admin_update_course_departments", departments=cleaned)
     return cleaned
-
 
 # ------------------------------------------------------------------
 # 孤儿文件扫描与清理
@@ -378,7 +371,6 @@ async def dashboard(db: AsyncSession) -> dict:
         "pending_reports": int(pending_report or 0),
         "banned_users": int(banned or 0),
     }
-
 
 # ------------------------------------------------------------------
 # Admin item management (bypasses owner checks)

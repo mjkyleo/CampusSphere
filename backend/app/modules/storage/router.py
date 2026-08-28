@@ -11,9 +11,7 @@ import os
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.response import ApiResponse
 from app.core.storage import storage_client
 from app.modules.auth.deps import get_current_user

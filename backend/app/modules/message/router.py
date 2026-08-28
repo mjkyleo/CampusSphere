@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,12 +9,11 @@ from app.core.database import get_db
 from app.core.response import ApiResponse
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
-from app.modules.message.schemas import ReadRequest, SendMessageRequest
+from app.modules.message.schemas import ReadRequest
 from app.modules.message.service import (
     get_messages,
     list_conversations,
     mark_read,
-    send_message,
     unread_total,
 )
 

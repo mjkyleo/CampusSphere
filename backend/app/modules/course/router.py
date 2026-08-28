@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
@@ -35,7 +32,6 @@ async def list_all(
     return ApiResponse.ok(
         data=await list_courses(db, keyword=keyword, department=department, page=page, page_size=page_size)
     )
-
 
 # NOTE: 必须声明在 /{course_id} 之前，否则 "departments" 会被当作 course_id 匹配
 @router.get("/departments", response_model=ApiResponse[dict])

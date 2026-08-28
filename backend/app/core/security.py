@@ -15,11 +15,10 @@ import bcrypt
 import jwt
 
 from app.core.config import settings
-from app.core.redis import redis_delete, redis_get, redis_set
+from app.core.redis import redis_get, redis_set
 from app.core.logging import get_logger
 
 _logger = get_logger("core.security")
-
 
 # ---------- 密码 ----------
 def hash_password(password: str) -> str:
@@ -33,7 +32,6 @@ def verify_password(password: str, hashed: str) -> bool:
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
     except (ValueError, TypeError):
         return False
-
 
 # ---------- JWT ----------
 def _now() -> datetime:
@@ -85,7 +83,6 @@ def get_token_jti(token: str) -> Optional[str]:
         return decode_token(token).get("jti")
     except jwt.PyJWTError:
         return None
-
 
 # ---------- 黑名单 ----------
 _BLACKLIST_PREFIX = "jwt:blacklist:"

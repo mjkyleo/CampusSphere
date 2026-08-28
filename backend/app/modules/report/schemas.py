@@ -7,8 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.common.enums import ReportTargetType
-
 
 class ReportCreate(BaseModel):
     target_type: str = Field(description="user/item/message/comment/share")

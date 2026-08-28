@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,7 +65,6 @@ async def search(
         return ApiResponse.ok(data=hits)
     result = await list_items(db, keyword=q, page_size=limit)
     return ApiResponse.ok(data=result["items"])
-
 
 # NOTE: 必须声明在 /{item_id} 之前，否则 "categories" 会被当作 item_id 匹配
 @router.get("/categories", response_model=ApiResponse[dict])
