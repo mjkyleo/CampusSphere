@@ -77,13 +77,13 @@ def create_app() -> FastAPI:
     # 统一异常处理
     register_exception_handlers(app)
 
-    # CORS
+    # CORS：生产应显式白名单，避免 credentials=True 时放行任意源/方法/头。
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Admin-Gateway"],
     )
 
     # 网关中间件（鉴权/限流/请求ID）

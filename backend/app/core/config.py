@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
+        # 收紧为 ignore：禁止任意环境变量随意注入配置，降低攻击面与误配风险（原 allow）。
+        extra="ignore",
         case_sensitive=False,
     )
 
@@ -218,4 +219,19 @@ def validate_admin_security(strict: Optional[bool] = None) -> None:
             raise SystemExit(
                 f"[SECURITY] admin.bootstrap.password must be >= {s.admin_bootstrap_min_length} chars in production.\n"
                 "         Update config/school.yaml admin.bootstrap.password, or set DEBUG=true for dev."
+            )
+
+    # 生产环境拒绝已知默认/占位基础设施密钥（MinIO / Meili / 数据库），避免带病上线。
+    # 与 admin 网关密钥同理：仅在生产强校验路径（非 debug 且网关强制）触发。
+    _infra_defaults = {
+        "MEILI_API_KEY": s.meili_api_key,
+        "MINIO_ACCESS_KEY": s.minio_access_key,
+        "MINIO_SECRET_KEY": s.minio_secret_key,
+    }
+    _known_weak = {"", "masterKey", "minioadmin", "change-me", "change-me-to-a-long-random-string-in-prod"}
+    for _name, _val in _infra_defaults.items():
+        if _val in _known_weak:
+            raise SystemExit(
+                f"[SECURITY] {_name} is a known default/placeholder value.\n"
+                f"         Set a strong value in backend/.env before production startup."
             )

@@ -93,6 +93,29 @@ class GatewayMiddleware(BaseHTTPMiddleware):
         except Exception:  # noqa: BLE001
             pass  # 限流失败不阻断业务
 
+        # 认证/验证码接口独立严格限流（防爆破与刷接口），每 IP 每分钟 10 次。
+        _auth_strict_paths = {
+            "/api/auth/login",
+            "/api/auth/phone-login",
+            "/api/auth/email-register",
+            "/api/auth/send-code",
+            "/api/auth/verify-email",
+        }
+        if request.url.path in _auth_strict_paths:
+            auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"
+            try:
+                acount = await redis_incr(auth_limit_key, ttl=60)
+                if acount and acount > 10:
+                    return JSONResponse(
+                        status_code=429,
+                        content=ApiResponse(
+                            code=ErrorCode.TOO_MANY_REQUESTS,
+                            message="操作过于频繁，请稍后再试",
+                        ).model_dump(),
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+
         # 管理端网关隐藏：/api/admin/*（discover 除外）未携带有效网关令牌时一律 404，
         # 让未授权探测者看起来像接口不存在（先于鉴权执行，避免泄露 401）。
         _path = request.url.path

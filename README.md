@@ -25,7 +25,7 @@
 
 ## 技术栈
 
-- **后端**：Python 3.11+ / FastAPI / SQLAlchemy 2（async）/ pydantic-settings / alembic / Celery / Redis / structlog
+- **后端**：Python 3.12+ / FastAPI / SQLAlchemy 2（async）/ pydantic-settings / alembic / Celery / Redis / structlog
 - **前端**：React 19 / TypeScript / Vite 6 / Tailwind CSS / Express 5（代理层）/ http-proxy-middleware / @google/genai
 - **基础设施**：PostgreSQL 16 / Redis 7 / MinIO / Meilisearch / Nginx
 - **可观测**：OpenTelemetry（OTLP）、`/metrics` 指标端点
@@ -73,7 +73,7 @@ campusLifePlatform-py/
 
 ## 快速开始（开发环境）
 
-前置要求：Python 3.11+、Node.js 18+。
+前置要求：Python 3.12+、Node.js 18+。
 
 ### 1. 启动后端（零外部依赖）
 

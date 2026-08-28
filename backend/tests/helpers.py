@@ -28,6 +28,32 @@ def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def seed_admin(session_factory):
+    """用配置中的引导账号在测试库创建管理员（不启动 lifespan 时手动调用）。"""
+    from app.modules.admin.service import ensure_seed
+
+    async def _seed():
+        async with session_factory() as s:
+            await ensure_seed(s)
+
+    run_async(_seed())
+
+
+def admin_login(client: TestClient) -> dict:
+    """以配置引导账号登录管理后台，返回 Bearer 头字典。"""
+    from app.core.config import settings
+
+    r = client.post(
+        "/api/admin/login",
+        json={
+            "username": settings.admin_bootstrap_username,
+            "password": settings.admin_bootstrap_password or "admin123",
+        },
+    )
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['data']['access_token']}"}
+
+
 def run_async(coro):
     """在同步测试中运行一个协程（用于直接调用 service 层）。"""
     return asyncio.run(coro)

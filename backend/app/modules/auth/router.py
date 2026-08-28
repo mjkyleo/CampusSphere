@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.modules.admin.schemas import EmailRegisterConfig
+from app.common.schemas import EmailRegisterConfig
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.oauth import (
@@ -25,6 +25,7 @@ from app.modules.auth.schemas import (
     BindOAuthRequest,
     BindPhoneRequest,
     EmailRegisterRequest,
+    EmailRegisterResponse,
     LoginRequest,
     PhoneLoginRequest,
     RefreshRequest,
@@ -164,12 +165,15 @@ async def qq_callback(
     return ApiResponse.ok(data=TokenResponse(**tokens))
 
 
-@router.post("/email-register", response_model=ApiResponse[TokenResponse])
+@router.post("/email-register", response_model=ApiResponse[EmailRegisterResponse])
 async def email_register(data: EmailRegisterRequest, db: AsyncSession = Depends(get_db)):
     """邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号并签发令牌（注册即登录）。"""
     user = await register_by_email(db, data)
     tokens = await issue_tokens(db, user)
-    return ApiResponse.ok(message="注册成功，已自动登录", data=TokenResponse(**tokens))
+    return ApiResponse.ok(
+        message="注册成功，已自动登录",
+        data=EmailRegisterResponse(email=user.email, username=user.username, **tokens),
+    )
 
 
 @router.get("/bindings", response_model=ApiResponse[BindingsOut])

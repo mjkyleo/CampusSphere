@@ -51,12 +51,9 @@ class BanRequest(BaseModel):
     reason: str = ""
 
 
-class EmailRegisterConfig(BaseModel):
-    """邮箱注册规则（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
-
-    enabled: bool = True
-    domains: List[str] = []
-    pattern: str = ""
+# EmailRegisterConfig 已迁移至 app.common.schemas（被 auth 与 admin 共同引用，
+# 放入公共层可避免 auth 顶层依赖 admin）。此处重新导出以保持 admin 内部导入兼容。
+from app.common.schemas import EmailRegisterConfig
 
 
 class ItemReviewConfig(BaseModel):

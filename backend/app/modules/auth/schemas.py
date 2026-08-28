@@ -71,6 +71,13 @@ class OAuthCallbackResponse(TokenResponse):
     is_new: bool = False
 
 
+class EmailRegisterResponse(TokenResponse):
+    """邮箱注册响应：在令牌基础上附带新生成的账号信息，便于前端直接展示。"""
+
+    email: Optional[str] = None
+    username: str
+
+
 class UserOut(BaseModel):
     id: UUID
     username: str

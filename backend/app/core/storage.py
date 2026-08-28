@@ -14,6 +14,8 @@ from typing import Optional
 
 import urllib3
 
+from starlette.concurrency import run_in_threadpool
+
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -83,8 +85,14 @@ class StorageClient:
         if self._client is not None:
             from io import BytesIO
 
-            self._client.put_object(
-                self.bucket, object_key, BytesIO(data), length=len(data), content_type=content_type
+            # 同步 MinIO 客户端会阻塞 asyncio 事件循环，投入线程池执行。
+            await run_in_threadpool(
+                self._client.put_object,
+                self.bucket,
+                object_key,
+                BytesIO(data),
+                length=len(data),
+                content_type=content_type,
             )
         else:
             self._ensure_local()
@@ -95,14 +103,19 @@ class StorageClient:
     async def presigned_upload_url(self, object_key: str, expires: int = 600) -> str:
         self._ensure_minio()
         if self._client is not None:
-            return self._client.presigned_put_object(self.bucket, object_key, expires=expires)
+            # 同步客户端调用投入线程池，避免阻塞事件循环。
+            return await run_in_threadpool(
+                self._client.presigned_put_object, self.bucket, object_key, expires=expires
+            )
         # 本地降级：返回内部上传地址
         return f"/api/files/upload?key={object_key}"
 
     async def presigned_download_url(self, object_key: str, expires: int = 600) -> str:
         self._ensure_minio()
         if self._client is not None:
-            return self._client.presigned_get_object(self.bucket, object_key, expires=expires)
+            return await run_in_threadpool(
+                self._client.presigned_get_object, self.bucket, object_key, expires=expires
+            )
         return f"/api/files/raw?key={object_key}"
 
     def list_keys(self) -> list[dict]:
