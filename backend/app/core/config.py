@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     # ----- Redis -----
     redis_url: str = "redis://localhost:6379/0"
 
+    # ----- 热点缓存（对应审计 P1-9b）-----
+    # 默认开启；测试/本地无 Redis 时自动降级为内存字典，不会阻断业务。
+    # 关闭：设置 CACHE_ENABLED=false（如离线单测避免跨用例污染）。
+    cache_enabled: bool = True
+    # 热点列表缓存基础 TTL（秒）；实际写入会叠加随机抖动以规避雪崩（见 app/core/cache.py）。
+    cache_ttl_seconds: int = 60
+
     # ----- 安全 / JWT -----
     secret_key: str = "change-me-to-a-long-random-string-in-prod"
     jwt_algorithm: str = "HS256"

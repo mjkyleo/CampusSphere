@@ -1,0 +1,67 @@
+# CampusSphere Prometheus 告警规则
+#
+# 指标来源：backend 暴露的 /metrics（app/modules/launcher/metrics.py）
+#   - campus_http_requests_total{method,endpoint,status}
+#   - campus_http_request_latency_seconds{endpoint}（Histogram，自动产生 _bucket/_sum/_count）
+# 抓取目标与 job 名见同目录 prometheus.yml：campus-api、nginx。
+#
+# 投递说明：本文件仅定义规则。要让告警真正通知到人，还需配置 Alertmanager
+# （route + receiver：邮件/企业微信/钉钉等），并在 prometheus.yml 中加
+#   alerting:
+#     alertmanagers:
+#       - static_configs: [{ targets: ['alertmanager:9093'] }]
+
+groups:
+  - name: campus-availability
+    rules:
+      - alert: ApiTargetDown
+        expr: up{job="campus-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "校园平台 API 不可达"
+          description: "campus-api 抓取目标已离线 >1 分钟 (instance {{ $labels.instance }})."
+
+      - alert: NginxTargetDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Nginx 反向代理不可达"
+          description: "nginx 抓取目标离线 (instance {{ $labels.instance }})."
+
+  - name: campus-error-budget
+    rules:
+      - alert: HighHttp5xxRate
+        expr: |
+          sum(rate(campus_http_requests_total{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(campus_http_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx 错误率过高"
+          description: "近 5 分钟 5xx 占比 > 5% (当前 {{ $value | humanizePercentage }})."
+
+      - alert: HighRequestLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(campus_http_request_latency_seconds_bucket[5m])) by (le)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API P95 延迟过高"
+          description: "近 5 分钟 P95 延迟 > 0.8s (当前 {{ $value }}s)."
+
+      - alert: HighAuthFailureRate
+        expr: |
+          sum(rate(campus_http_requests_total{endpoint="/api/auth/login",status=~"4.."}[5m]))
+          / clamp_min(sum(rate(campus_http_requests_total{endpoint="/api/auth/login"}[5m])), 1) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "登录失败率偏高（疑似撞库/爆破）"
+          description: "近 10 分钟登录 4xx 占比 > 50%. 配合 P1-3 认证限流策略评估。"

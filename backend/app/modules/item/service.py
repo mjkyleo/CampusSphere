@@ -6,8 +6,10 @@ import uuid
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.common.enums import ItemStatus, TradeStatus
+from app.core.cache import NULL_SENTINEL, cache_get_json, cache_set_json, invalidate_namespace
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
@@ -49,6 +51,8 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
     db.add(item)
     await db.commit()
     await db.refresh(item)
+    # 写操作：整体失效「物品列表」缓存，避免新发布不立即可见
+    await invalidate_namespace("items")
     _logger.info("item_created", item_id=str(item.id), owner=str(owner.id))
     return item
 
@@ -63,6 +67,21 @@ async def list_items(
     page: int = 1,
     page_size: int = 20,
 ) -> dict:
+    # 热点列表：先查缓存（防穿透/雪崩策略见 app/core/cache.py）
+    cached = await cache_get_json(
+        "items",
+        keyword=keyword,
+        category=category,
+        status=status,
+        owner_id=owner_id,
+        page=page,
+        page_size=page_size,
+    )
+    if cached is not None:
+        if cached is NULL_SENTINEL:
+            return {"items": [], "total": 0, "page": page, "page_size": page_size}
+        return cached
+
     stmt = select(Item).where(Item.deleted_at.is_(None))
     if keyword:
         stmt = stmt.where(Item.title.ilike(f"%{keyword}%"))
@@ -79,9 +98,11 @@ async def list_items(
     total = await db.scalar(
         select(func.count()).select_from(stmt.subquery())
     )
+    # N+1 修复：列表序列化会访问 item.images（逐物品再查一次）-> 一次性 selectinload 加载
     rows = (
         await db.scalars(
             stmt.order_by(Item.created_at.desc())
+            .options(selectinload(Item.images))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -100,12 +121,29 @@ async def list_items(
         }
         for i in rows
     ]
-    return {"items": items, "total": total or 0, "page": page, "page_size": page_size}
+    result = {"items": items, "total": total or 0, "page": page, "page_size": page_size}
+    await cache_set_json(
+        "items",
+        result,
+        keyword=keyword,
+        category=category,
+        status=status,
+        owner_id=owner_id,
+        page=page,
+        page_size=page_size,
+    )
+    return result
 
 
 async def get_item(db: AsyncSession, item_id: str) -> Item:
-    item = await db.get(Item, item_id)
-    if not item or item.deleted_at is not None:
+    # N+1 修复：详情序列化 ItemOut 含 images 关系，避免访问时再发一次查询
+    stmt = (
+        select(Item)
+        .where(Item.id == item_id, Item.deleted_at.is_(None))
+        .options(selectinload(Item.images))
+    )
+    item = (await db.scalars(stmt)).first()
+    if not item:
         raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
     return item
 
@@ -124,12 +162,16 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
         item.status = data.status
     await db.commit()
     await db.refresh(item)
+    # 写操作：失效物品列表缓存（状态/标题变更会影响广场展示）
+    await invalidate_namespace("items")
     return item
 
 
 async def delete_item(db: AsyncSession, item: Item) -> None:
     await db.delete(item)
     await db.commit()
+    # 写操作：失效物品列表缓存
+    await invalidate_namespace("items")
 
 
 async def create_trade_session(

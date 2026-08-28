@@ -6,6 +6,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import BizError, ErrorCode
 from app.modules.auth.models import User
@@ -26,7 +27,14 @@ from app.modules.canteen.schemas import (
 
 
 async def list_canteens(db: AsyncSession) -> list:
-    rows = (await db.scalars(select(Canteen).order_by(Canteen.created_at.desc()))).all()
+    # N+1 修复：CanteenOut 嵌套 stalls->dishes，一次性 selectinload 加载，避免逐层再查
+    rows = (
+        await db.scalars(
+            select(Canteen)
+            .options(selectinload(Canteen.stalls).selectinload(Stall.dishes))
+            .order_by(Canteen.created_at.desc())
+        )
+    ).all()
     return [CanteenOut.model_validate(c).model_dump() for c in rows]
 
 
@@ -39,7 +47,13 @@ async def create_canteen(db: AsyncSession, data: CanteenCreate) -> Canteen:
 
 
 async def get_canteen(db: AsyncSession, canteen_id: str) -> Canteen:
-    c = await db.get(Canteen, canteen_id)
+    # N+1 修复：详情序列化含 stalls->dishes，预加载避免逐层查询
+    stmt = (
+        select(Canteen)
+        .where(Canteen.id == canteen_id)
+        .options(selectinload(Canteen.stalls).selectinload(Stall.dishes))
+    )
+    c = (await db.scalars(stmt)).first()
     if not c:
         raise BizError(ErrorCode.NOT_FOUND, "食堂不存在")
     return c

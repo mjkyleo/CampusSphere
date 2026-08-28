@@ -20,6 +20,10 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# 单测环境关闭热点缓存：避免内存降级字典在用例间残留造成列表查询命中旧数据。
+# 缓存逻辑本身由后端单元/集成测试单独覆盖，这里只保证业务用例互不影响。
+os.environ.setdefault("CACHE_ENABLED", "false")
+
 # 将 backend/ 与 backend/tests/ 加入 sys.path，确保 ``import app`` 与 ``import helpers`` 可用
 _BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _BACKEND_ROOT not in sys.path:

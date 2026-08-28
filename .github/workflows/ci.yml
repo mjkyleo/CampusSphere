@@ -11,9 +11,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 # 同一分支只保留最新一次运行，节省算力
 concurrency:
@@ -133,6 +133,41 @@ jobs:
 
       - name: Verify models match migrations (alembic check)
         run: alembic check
+
+  # ---------------- 依赖漏洞扫描（对应审计 P2-5） ----------------
+  # 后端用 pip-audit 审计已安装依赖（含传递依赖）；前端用 npm audit。
+  # 发现高危漏洞时本 job 失败，作为合并前的安全闸门。
+  dependency-audit:
+    name: Dependency audit (pip-audit · npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: pip-audit (backend)
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pip-audit
+          pip-audit
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (frontend)
+        working-directory: frontend
+        run: npm ci && npm audit --audit-level=high
 
   # ---------------- 密钥扫描（附加，对应审计 P0-3） ----------------
   secret-scan:

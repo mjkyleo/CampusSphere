@@ -1,21 +1,49 @@
-# Celery Worker 镜像
-FROM python:3.12-slim
+# Celery Worker 镜像 —— 多阶段构建 + 非 root + 健康检查
+#
+# 阶段划分与后端一致：builder 编译依赖并打包 app，runtime 仅携带 venv 与 alembic 配置，
+# 以非 root 用户运行。worker 依赖全部来自 pyproject 的运行时依赖（celery/redis/sqlalchemy/...），
+# 因此同样用 `pip install .` 统一安装，保证与后端依赖单一可信源。
 
-ENV PYTHONUNBUFFERED=1 \
+# ---------------- 构建阶段 ----------------
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-WORKDIR /app
+WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install celery redis sqlalchemy aiosqlite pydantic \
-    httpx meilisearch structlog psycopg2-binary
-
 COPY app ./app
+
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install .
+
+# ---------------- 运行阶段 ----------------
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 appuser
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
+
+USER appuser
+
+# Worker 健康检查：向 Broker 探活自身（依赖 Redis 可达；不可达即判定不健康）。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD celery -A app.tasks.celery_app.celery_app inspect ping || exit 1
 
 # 启动 Celery Worker（邮件/通知/搜索同步队列）
 CMD ["celery", "-A", "app.tasks.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "email,notify,search,default"]
