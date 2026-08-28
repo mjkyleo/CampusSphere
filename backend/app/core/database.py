@@ -19,19 +19,29 @@ from app.core.logging import get_logger
 
 _logger = get_logger("core.database")
 
-# 创建异步引擎；SQLite 下禁用 pool_pre_ping（不支持）
+# 创建异步引擎。
+# - SQLite 无连接池概念，仅设 check_same_thread=False（线程安全检查放宽）。
+# - PostgreSQL/MySQL 等启用连接池调优 + pool_pre_ping，避免连接耗尽与静默断连。
 _connect_args: dict = {}
 if settings.db_url.startswith("sqlite"):
     _connect_args = {"check_same_thread": False}
+    engine = create_async_engine(
+        settings.db_url,
+        echo=settings.debug,
+        future=True,
+        connect_args=_connect_args,
+    )
 else:
-    _connect_args = {"pool_pre_ping": True}
-
-engine = create_async_engine(
-    settings.db_url,
-    echo=settings.debug,
-    future=True,
-    connect_args=_connect_args,
-)
+    engine = create_async_engine(
+        settings.db_url,
+        echo=settings.debug,
+        future=True,
+        pool_pre_ping=True,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_recycle=settings.db_pool_recycle,
+        pool_timeout=settings.db_pool_timeout,
+    )
 
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,

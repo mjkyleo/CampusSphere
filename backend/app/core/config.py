@@ -40,6 +40,12 @@ class Settings(BaseSettings):
 
     # ----- 数据库 -----
     db_url: str = "sqlite+aiosqlite:///./dev.db"
+    # 连接池（仅对 PostgreSQL/MySQL 等带池驱动生效；SQLite 忽略）。
+    # 生产高并发时按负载上调，避免连接耗尽导致 5xx。
+    db_pool_size: int = 10            # 常驻连接数
+    db_max_overflow: int = 20         # 超出 pool_size 后允许临时创建的最大连接数
+    db_pool_recycle: int = 1800       # 秒：回收空闲连接，规避中间件静默断连（如 PG 的 idle_timeout）
+    db_pool_timeout: int = 30         # 秒：等待连接池可用的最大阻塞时间
 
     # ----- Redis -----
     redis_url: str = "redis://localhost:6379/0"

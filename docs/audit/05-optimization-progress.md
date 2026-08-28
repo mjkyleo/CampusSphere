@@ -93,6 +93,19 @@
 
 验证：`python -m compileall` 对新增/改动的 4 个 py 文件通过（exit 0）；grep 确认 `auth/router.py` 已无 `app.modules.admin.schemas` 导入；CI YAML 结构校验通过（括号配平 depth=0、5 job + 2 触发、`alembic upgrade head`/`check` 均存在）。
 
+### 阶段 7 · 清 P1：连接池调优（P1-9a）✅ 已完成
+目标：为异步引擎配置生产级连接池参数，规避高并发下连接耗尽与中间件静默断连；热点 Redis 缓存因涉及接口面较大、需先定缓存键/失效策略，留作 **P1-9b** 单独实施。
+
+| # | 改动 | 文件 | 预期目标 |
+|---|---|---|---|
+| 7.1 | `Settings` 新增 `db_pool_size`/`db_max_overflow`/`db_pool_recycle`/`db_pool_timeout`（带默认值，可经 `.env` 覆盖） | `backend/app/core/config.py` | 连接池参数配置化，符合 Phase 1 配置隔离原则 |
+| 7.2 | `create_async_engine` 分分支：SQLite 维持 `check_same_thread`；PostgreSQL/MySQL 启用 `pool_pre_ping` + 上述 4 项池参数 | `backend/app/core/database.py` | 生产连接池受控，避免 5xx 与 idle 断连 |
+| 7.3 | `.env.example` 增补 `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_RECYCLE`/`DB_POOL_TIMEOUT` 注释 | `deploy/.env.example` | 部署配置透明、可复用 |
+
+验证：`python -m compileall -q config.py database.py` 通过（exit 0）；grep 确认 `database.py` 非 SQLite 分支已引用 `pool_size`/`max_overflow`/`pool_recycle`/`pool_timeout`/`pool_pre_ping`，值来源为 `settings`。
+
+> 注：阶段 7 仅交付**连接池参数调优**；P1-9 的「热点列表 Redis 缓存」未做（避免缓存穿透/雪崩需先定键设计与失效策略，故单列 P1-9b）。
+
 ---
 
 ## 3. 每阶段验证结论（防引入新问题）
@@ -112,10 +125,11 @@
 | 阶段 4 HTTPS + OTel OTLP | ✅ 完成 | 6 项（nginx/compose/otel/env/ssl/ignore） |
 | 阶段 5 CI/CD | ✅ 完成 | 新增 `.github/workflows/ci.yml` + `pyproject` 补 `pytest-cov` |
 | 阶段 6 清 P1（alembic + 解耦） | ✅ 完成 | migrations CI 闸 + `EmailRegisterConfig` 迁 common + 架构守护测试 |
+| 阶段 7 清 P1（连接池 P1-9a） | ✅ 完成 | 3 处（config 配置化 + database 接入 + .env 注释） |
 | 集成测试复测 | ⏸ 待环境 | 需 PyPI 可用后补 `pytest`/`ruff` |
 | P1/P2 其余 | ⏸ 计划 | 见剩余待办 |
 
-**累计改动（阶段 1~6）**：15 文件，约 +250 / −15 行。
+**累计改动（阶段 1~7）**：17 文件，约 +285 / −91 行（含删除 docker-image.yml 76 行）。
 
 ---
 
@@ -126,7 +140,7 @@
 - ~~**P0-4 OTel OTLP**~~ ✅ 已在阶段 4 完成（`otel.py` OTLP gRPC + FastAPI 织入 + `.env.example` 注入）。
 - ~~**P1-2 alembic 增量迁移**~~ ✅ 已在阶段 6 完成机制（CI `migrations` job 跑 `alembic upgrade head` + `alembic check` 强制模型/迁移一致；基线维持 `create_all` 未改写）。
 - ~~**P1-3 auth↔admin 循环依赖**~~ ✅ 已在阶段 6 完成（查证无真双向循环；`EmailRegisterConfig` 迁 `common` 消除 auth 顶层依赖 admin + 架构守护测试）。
-- **P1-9 连接池与缓存**：`create_async_engine` 调 `pool_size`/`max_overflow`；热点列表加 Redis 缓存。
+- ~~**P1-9 连接池调优**~~ ✅ 已在阶段 7 完成（`config` 配置化 `db_pool_*` + `database` 接入 PostgreSQL 池参数）。**热点列表 Redis 缓存（P1-9b）待做**：需先定缓存键/失效策略，避免穿透/雪崩。
 - **P0-5(N+1 余量)**：其余列表/详情接口补 `selectinload`/`joinedload`（本轮仅修 MinIO 阻塞，N+1 需逐接口核对关系后实施）。
 - **P1-7 全模块 IDOR 审计 + 测试**：抽象 `require_owner` 并补越权用例（item 已正确）。
 
