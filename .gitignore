@@ -58,3 +58,18 @@ backend/uvicorn_audit.log
 
 # ---- TLS 证书（仅密钥/链文件忽略，README 保留） ----
 deploy/nginx/ssl/*.pem
+
+# ---- 测试产物（分层测试体系引入）----
+# 注意：.gitignore 不支持行尾注释，注释必须独占一行，否则整行会被当作匹配模式
+# Vitest 覆盖率报告
+frontend/coverage/
+# coverage.py 报告与交换格式（CI 上传用，不入版本库）
+backend/htmlcov/
+backend/coverage.xml
+# Playwright 报告与失败现场（截图/视频/trace）
+e2e/playwright-report/
+e2e/test-results/
+# E2E 专用数据库
+backend/e2e_test.db
+# 受限环境下 npm 的临时缓存目录
+npm-cache-tmp/

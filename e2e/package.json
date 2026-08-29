@@ -1,0 +1,20 @@
+{
+  "name": "campussphere-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CampusSphere 端到端测试（Playwright + 页面对象模式）",
+  "scripts": {
+    "install-browsers": "playwright install chromium --with-deps",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:register": "playwright test tests/register.spec.ts",
+    "report": "playwright show-report",
+    "reset-db": "node -e \"const fs=require('fs');for(const f of ['../backend/e2e_test.db']){if(fs.existsSync(f)){fs.unlinkSync(f);console.log('removed',f)}}\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2"
+  }
+}

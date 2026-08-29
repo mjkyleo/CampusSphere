@@ -174,6 +174,8 @@ POST /api/auth/send-code        → 携带票据才能真正发送
 | [docs/API_Reference.md](docs/API_Reference.md) | 88 个接口的字段级参考 |
 | [docs/部署手册.md](docs/部署手册.md) | 生产部署手册 |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 初次部署/启动配置清单：环境变量、配置文件、依赖服务、密钥凭证、数据库初始化与前置条件 |
+| [docs/TESTING.md](docs/TESTING.md) | **测试计划**：三层测试范围与工具选型、数据工厂与环境配置、运行方式、CI 门禁、已知缺陷清单 |
+| [e2e/README.md](e2e/README.md) | 端到端测试：8 个场景清单、页面对象模式、运行与调试方式 |
 | [docs/项目现状分析.md](docs/项目现状分析.md) | 项目现状与结构分析 |
 | [docs/后续开发计划.md](docs/后续开发计划.md) | 开发路线图 |
 
@@ -181,25 +183,52 @@ POST /api/auth/send-code        → 携带票据才能真正发送
 
 ## 测试
 
+采用**单元测试 / 集成测试 / 端到端测试**三层体系，共 **295 个后端用例 + 14 个前端组件用例 + 8 个端到端场景**。
+完整测试计划见 **[docs/TESTING.md](docs/TESTING.md)**。
+
 ```bash
-# 后端完整测试套件（零外部依赖：测试库为临时 SQLite，Redis/MinIO/Meili 走内存降级）
-cd backend && pytest -q
+# ── 后端（零外部依赖：临时 SQLite + Redis/MinIO/Meili 内存降级）──
+cd backend
+pytest tests/unit -q                     # 单元层：纯函数与模块逻辑，~3s
+pytest tests/integration -q              # 集成层：API + 数据库 + mock 外部服务，~3min
+pytest tests --ignore=tests/unit --ignore=tests/integration -q   # 既有回归用例，~3min
 
-# 只看生命周期与资源释放相关用例
-pytest tests/test_lifecycle.py tests/test_shutdown_resources.py -v
+# 覆盖率（用 coverage run --append 累加，避免并行数据文件的删除问题）
+coverage run -m pytest tests/unit -q
+coverage run --append -m pytest tests/integration -q
+coverage report --fail-under=70          # 当前实测 70%
 
-# 前端类型检查
-cd frontend && npm run lint        # tsc --noEmit
+# ── 前端组件测试（Vitest + React Testing Library）──
+cd frontend
+npm run test                             # 单次运行
+npm run test:coverage                    # 覆盖率报告
+
+# ── 端到端测试（Playwright，自动拉起前后端）──
+cd e2e
+npm install && npx playwright install chromium
+npm test                                 # 8 个核心用户旅程场景
 ```
 
-测试套件分层：
+> **建议按层分进程执行**：把全部后端用例放进同一个 pytest 进程时，
+> Windows 上偶发 `aiosqlite` 后台连接线程的原生 Abort（进程直接退出）。
+> 分层跑可彻底规避，详见 `docs/TESTING.md` §8.1。
 
-| 文件 | 覆盖内容 |
-| --- | --- |
-| `tests/test_lifecycle.py` | 应用启动 / 关闭全生命周期：健康检查、seed 幂等、DB 引擎释放、Redis 客户端关闭、WS 监听任务取消；边界含弱密钥拒绝启动、Redis 不可用降级启动、启动中途失败仍释放资源 |
-| `tests/test_shutdown_resources.py` | 关闭期资源释放专项：三类资源释放完整性、释放顺序（后台任务 → 外部连接 → 连接池）、单环节失败不阻断后续释放、幂等性与旧版 Redis 客户端兼容 |
-| `tests/test_e2e_flow.py` | 端到端主流程：注册登录 → 发布 → 浏览 → 议价会话 → 下架 → 删除，覆盖跨模块协作（item → message、课程 / 食堂）与越权拦截 |
-| 其余 `tests/test_*.py` | 按模块划分的用例：认证、用户、物品、发布审核、消息、WebSocket、管理端网关、架构约束等 |
+### 分层与目录
+
+| 层 | 位置 | 覆盖内容 |
+| --- | --- | --- |
+| **单元** | `backend/tests/unit/` | 滑块验证码（生成/反脚本/票据一次性）、安全工具（密码哈希、JWT 签发解析、jti 吊销）、通用工具（校验/脱敏/分页/类型转换） |
+| **单元** | `frontend/__tests__/` | `SliderCaptcha` 拖动交互与失败重试、`ProtectedRoute`/`PublicOnlyRoute`/`AdminRoute` 三个路由守卫的重定向行为 |
+| **集成** | `backend/tests/integration/test_auth/` | 邮箱注册全链路（滑块 → 验证码 → 注册即登录）、重复邮箱/域名白名单/错误码；登录双 Token、错误分支、刷新与注销吊销 |
+| **集成** | `.../test_items/` | 发布 → 列表可见 → 详情 → 下架 → 删除；议价会话创建与越权隔离 |
+| **集成** | `.../test_course/`、`test_canteen/` | 课程搜索与评价、食堂档口菜品评分，含跨课程/菜品的数据隔离 |
+| **集成** | `.../test_messaging/` | WebSocket 消息落库与越权拒绝 |
+| **集成** | `.../test_admin/` | 管理员登录、举报列表、封禁/解封 |
+| **集成** | `.../test_external/` | 邮件任务参数、AI（Gemini）mock 与降级、对象存储上传回读、搜索索引同步与降级 |
+| **端到端** | `e2e/tests/` | 首页浏览、注册、登录会话、未登录重定向、发布与议价、即时消息、管理后台、课程评价 |
+
+测试数据由 `backend/tests/factories.py`（factory_boy）生成，
+每个用例跑在 `drop_all + create_all` 重建的干净库上，无需手动回滚。
 
 生命周期测试通过 `conftest.lifecycle_env` 把全局 engine / SessionLocal 重定向到临时库，因此可以安全地跑完整 lifespan——而常规 `client` fixture 为提速刻意跳过了 lifespan。
 
