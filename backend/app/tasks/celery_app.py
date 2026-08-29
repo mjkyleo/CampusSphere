@@ -13,8 +13,8 @@ _logger = get_logger("tasks.celery")
 # kombu 的 redis transport 在 restore_visible 时使用 redis-py 的 Lock，
 # 其 release 默认通过 Lua 脚本（EVALSHA）做 token 校验删除；
 # fakeredis 不执行 Lua 脚本，这里替换为 WATCH/MULTI 事务实现。
-import redis as _redis_module
-from redis.lock import Lock as _RedisLock
+import redis as _redis_module  # noqa: E402 - 与下方兼容补丁同组，需置于 _logger 之后
+from redis.lock import Lock as _RedisLock  # noqa: E402
 
 
 def _compat_lock_release(self, expected_token=None):

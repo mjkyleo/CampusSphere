@@ -6,8 +6,6 @@ Redis 同时承担：热点缓存、限流计数、JWT 黑名单、WS 广播 Pub
 
 from __future__ import annotations
 
-from typing import Optional
-
 import redis.asyncio as aioredis
 
 from app.core.config import settings
@@ -15,12 +13,12 @@ from app.core.logging import get_logger
 
 _logger = get_logger("core.redis")
 
-_redis_pool: Optional[aioredis.Redis] = None
+_redis_pool: aioredis.Redis | None = None
 # 无 Redis 时的内存兜底
 _memory_fallback: dict = {}
 
 
-async def get_redis() -> Optional[aioredis.Redis]:
+async def get_redis() -> aioredis.Redis | None:
     """返回全局 Redis 客户端（懒连接）；不可用时返回 None。"""
     global _redis_pool
     if _redis_pool is not None:
@@ -35,7 +33,7 @@ async def get_redis() -> Optional[aioredis.Redis]:
         await _redis_pool.ping()
         _logger.info("redis_connected", url=settings.redis_url)
         return _redis_pool
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.warning("redis_unavailable_fallback_memory", error=str(exc))
         _redis_pool = None
         return None
@@ -59,11 +57,11 @@ async def close_redis() -> None:
         else:  # pragma: no cover - redis<5 兼容分支
             await client.close()
         _logger.info("redis_closed")
-    except Exception as exc:  # noqa: BLE001 - 关闭期异常不应阻断
+    except Exception as exc:
         _logger.warning("redis_close_failed", error=str(exc))
 
 
-async def redis_set(key: str, value: str, ttl: Optional[int] = None) -> None:
+async def redis_set(key: str, value: str, ttl: int | None = None) -> None:
     """写入键值，支持 TTL（秒）。"""
     client = await get_redis()
     if client is not None:
@@ -72,7 +70,7 @@ async def redis_set(key: str, value: str, ttl: Optional[int] = None) -> None:
         _memory_fallback[key] = value
 
 
-async def redis_get(key: str) -> Optional[str]:
+async def redis_get(key: str) -> str | None:
     """读取键值。"""
     client = await get_redis()
     if client is not None:
@@ -107,7 +105,7 @@ async def redis_subscribe(channel: str):
     return pubsub
 
 
-async def redis_incr(key: str, ttl: Optional[int] = None) -> int:
+async def redis_incr(key: str, ttl: int | None = None) -> int:
     """原子自增（限流计数）。"""
     client = await get_redis()
     if client is not None:

@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -32,19 +30,19 @@ class SearchClient:
                 self._ensure_index(self.INDEX_USERS, ["username", "nickname", "bio"])
                 self._ensure_index(self.INDEX_ITEMS, ["title", "description", "category"])
                 _logger.info("meili_connected", host=settings.meili_host)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("meili_unavailable", error=str(exc))
             self._client = None
             self.enabled = False
 
-    def _ensure_index(self, uid: str, searchable: List[str]) -> None:
+    def _ensure_index(self, uid: str, searchable: list[str]) -> None:
         if not self._client:
             return
         try:
             self._client.create_index(uid, {"primaryKey": "id"})
             index = self._client.index(uid)
             index.update_searchable_attributes(searchable)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     async def index_document(self, index: str, doc: dict) -> None:
@@ -52,7 +50,7 @@ class SearchClient:
             return
         try:
             self._client.index(index).add_documents([doc])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("meili_index_failed", error=str(exc))
 
     async def delete_document(self, index: str, doc_id: str) -> None:
@@ -60,16 +58,16 @@ class SearchClient:
             return
         try:
             self._client.index(index).delete_document(doc_id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
-    async def search(self, index: str, query: str, limit: int = 20) -> List[dict]:
+    async def search(self, index: str, query: str, limit: int = 20) -> list[dict]:
         if not self._client:
             return []
         try:
             res = self._client.index(index).search(query, {"limit": limit})
             return res.get("hits", [])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("meili_search_failed", error=str(exc))
             return []
 

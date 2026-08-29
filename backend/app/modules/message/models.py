@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,12 +17,12 @@ class Conversation(Base, PKMixin, TimestampMixin):
     __table_args__ = (UniqueConstraint("conv_type", "related_id", name="uq_conv_type_related"),)
 
     conv_type: Mapped[str] = mapped_column(String(16), default="direct", index=True)
-    related_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    related_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
-    participants: Mapped[list["Participant"]] = relationship(
+    participants: Mapped[list[Participant]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan", lazy="selectin"
     )
-    messages: Mapped[list["Message"]] = relationship(
+    messages: Mapped[list[Message]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -40,9 +39,9 @@ class Participant(Base, PKMixin, TimestampMixin):
         String(36), ForeignKey("conversations.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
-    last_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=None)
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="participants")
+    conversation: Mapped[Conversation] = relationship(back_populates="participants")
 
 
 class Message(Base, PKMixin, TimestampMixin):
@@ -58,4 +57,4 @@ class Message(Base, PKMixin, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, default="")
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")

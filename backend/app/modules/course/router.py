@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.response import ApiResponse
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
-from app.modules.course.schemas import CourseCreate, CourseReviewCreate, CourseOut, CourseReviewOut
+from app.modules.course.schemas import CourseCreate, CourseOut, CourseReviewCreate, CourseReviewOut
 from app.modules.course.service import (
     add_review,
     create_course,

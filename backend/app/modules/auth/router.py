@@ -5,11 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.schemas import EmailRegisterConfig
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.common.schemas import EmailRegisterConfig
 from app.modules.auth.captcha import consume_ticket, generate_slider, verify_slider
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User

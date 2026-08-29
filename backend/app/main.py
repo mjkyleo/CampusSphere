@@ -56,12 +56,12 @@ async def lifespan(app: FastAPI):
 
             try:
                 await ensure_seed(db)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("admin_seed_failed", error=str(exc))
         # 启动 WebSocket Redis 广播监听
         try:
             await manager.start_listener()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         yield
     finally:
@@ -69,11 +69,11 @@ async def lifespan(app: FastAPI):
         # 用 finally 保证运行期异常（或启动中途失败）时同样释放，避免句柄泄漏。
         try:
             await manager.stop_listener()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("ws_listener_stop_failed", error=str(exc))
         try:
             await close_redis()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("redis_close_failed", error=str(exc))
         await engine.dispose()
         _logger.info("app_shutdown")

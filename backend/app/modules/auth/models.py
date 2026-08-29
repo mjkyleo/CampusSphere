@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,15 +18,15 @@ class User(Base, PKMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
 
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    email: Mapped[Optional[str]] = mapped_column(String(128), unique=True, index=True, default=None)
-    phone: Mapped[Optional[str]] = mapped_column(String(20), unique=True, index=True, default=None)
+    email: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, default=None)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, default=None)
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     nickname: Mapped[str] = mapped_column(String(64), default="")
-    avatar: Mapped[Optional[str]] = mapped_column(String(255), default=None)
+    avatar: Mapped[str | None] = mapped_column(String(255), default=None)
     status: Mapped[int] = mapped_column(Integer, default=UserStatus.NORMAL.value, index=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
-    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
+    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -54,7 +53,7 @@ class OAuthAccount(Base, PKMixin, TimestampMixin):
     provider_openid: Mapped[str] = mapped_column(String(64), index=True)
     linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user: Mapped["User"] = relationship(back_populates="oauth_accounts")
+    user: Mapped[User] = relationship(back_populates="oauth_accounts")
 
 
 class RefreshToken(Base, PKMixin, TimestampMixin):

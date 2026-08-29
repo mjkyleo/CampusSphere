@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import Field
@@ -105,7 +105,7 @@ class Settings(BaseSettings):
 
     # ----- CORS -----
     # 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖
-    cors_origins: List[str] = Field(
+    cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
 
@@ -115,20 +115,20 @@ class Settings(BaseSettings):
     school_domain: str = "localhost"
 
     # 由 school.yaml 注入的嵌套配置
-    oauth: Dict[str, Any] = Field(default_factory=dict)
-    minio: Dict[str, Any] = Field(default_factory=dict)
-    meilisearch: Dict[str, Any] = Field(default_factory=dict)
-    report_policy: Dict[str, Any] = Field(default_factory=dict)
-    auth: Dict[str, Any] = Field(default_factory=dict)
-    items: Dict[str, Any] = Field(default_factory=dict)
-    courses: Dict[str, Any] = Field(default_factory=dict)
-    ai: Dict[str, Any] = Field(default_factory=dict)
-    admin: Dict[str, Any] = Field(default_factory=dict)
+    oauth: dict[str, Any] = Field(default_factory=dict)
+    minio: dict[str, Any] = Field(default_factory=dict)
+    meilisearch: dict[str, Any] = Field(default_factory=dict)
+    report_policy: dict[str, Any] = Field(default_factory=dict)
+    auth: dict[str, Any] = Field(default_factory=dict)
+    items: dict[str, Any] = Field(default_factory=dict)
+    courses: dict[str, Any] = Field(default_factory=dict)
+    ai: dict[str, Any] = Field(default_factory=dict)
+    admin: dict[str, Any] = Field(default_factory=dict)
 
     # ----- 基础设施（可由 .env 覆盖，缺省取 school.yaml）-----
-    minio_endpoint: Optional[str] = None
-    minio_access_key: Optional[str] = None
-    minio_secret_key: Optional[str] = None
+    minio_endpoint: str | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: str | None = None
     minio_secure: bool = False
     minio_bucket: str = "campus"
 
@@ -145,9 +145,9 @@ class Settings(BaseSettings):
             _logger.warning("school_config_not_found", path=path)
             return
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.error("school_config_parse_failed", error=str(exc))
             return
 
@@ -207,7 +207,7 @@ settings = get_settings()
 # 启动时校验的管理员安全开关。生产环境必须配置 ADMIN_GATEWAY_KEY + 强 bootstrap 密码，
 # 否则 init_logging 之后、lifespan 启动前 SystemExit(2)，避免带病上线。
 # DEBUG=true 时放过（开发模式继续可以用默认 siteadmin / 弱密码）。
-def validate_admin_security(strict: Optional[bool] = None) -> None:
+def validate_admin_security(strict: bool | None = None) -> None:
     """管理员安全配置校验：非 debug 模式下失败即抛 SystemExit。
 
     校验项：

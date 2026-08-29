@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -35,7 +34,7 @@ class ReportOut(BaseModel):
     target_id: str
     reason: str
     status: int
-    handled_by: Optional[str] = None
-    logs: List[ReportLogOut] = []
+    handled_by: str | None = None
+    logs: list[ReportLogOut] = []
 
     model_config = {"from_attributes": True}

@@ -90,6 +90,6 @@ async def search_users(db: AsyncSession, q: str, limit: int = 20):
         if search_client and search_client.enabled:
             hits = await search_client.search("users", q, limit=limit)
             return hits
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.warning("meili_search_fallback", error=str(exc))
     return (await list_users(db, q=q, page_size=limit))["items"]

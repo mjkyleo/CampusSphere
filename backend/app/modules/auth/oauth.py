@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import httpx
 from sqlalchemy import select
@@ -31,7 +30,7 @@ async def generate_oauth_state(provider: str) -> str:
     return state
 
 
-async def verify_oauth_state(provider: str, state: Optional[str]) -> bool:
+async def verify_oauth_state(provider: str, state: str | None) -> bool:
     if not state:
         return False
     key = f"{_STATE_PREFIX}{provider}:{state}"

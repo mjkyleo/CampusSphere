@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -23,6 +22,6 @@ class ShareOut(BaseModel):
     file_key: str
     category: str
     downloads: int
-    download_url: Optional[str] = None
+    download_url: str | None = None
 
     model_config = {"from_attributes": True}

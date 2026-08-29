@@ -21,7 +21,7 @@ class Report(Base, PKMixin, TimestampMixin):
     status: Mapped[int] = mapped_column(Integer, default=ReportStatus.PENDING.value, index=True)
     handled_by: Mapped[str] = mapped_column(String(36), nullable=True, default=None)
 
-    logs: Mapped[list["ReportLog"]] = relationship(
+    logs: Mapped[list[ReportLog]] = relationship(
         back_populates="report", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -36,4 +36,4 @@ class ReportLog(Base, PKMixin, TimestampMixin):
     action: Mapped[str] = mapped_column(String(32), default="")
     note: Mapped[str] = mapped_column(Text, default="")
 
-    report: Mapped["Report"] = relationship(back_populates="logs")
+    report: Mapped[Report] = relationship(back_populates="logs")

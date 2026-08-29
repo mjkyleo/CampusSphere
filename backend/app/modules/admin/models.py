@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, JSON, String
+from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models import Base, PKMixin, TimestampMixin
@@ -18,7 +18,7 @@ class AdminUser(Base, PKMixin, TimestampMixin):
     role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)
     disabled: Mapped[bool] = mapped_column(default=False)
 
-    role: Mapped["Role"] = relationship(back_populates="admins")
+    role: Mapped[Role] = relationship(back_populates="admins")
 
 
 class Role(Base, PKMixin, TimestampMixin):
@@ -30,7 +30,7 @@ class Role(Base, PKMixin, TimestampMixin):
     description: Mapped[str] = mapped_column(String(255), default="")
     permissions: Mapped[list] = mapped_column(JSON, default=list)  # 权限码列表
 
-    admins: Mapped[list["AdminUser"]] = relationship(back_populates="role")
+    admins: Mapped[list[AdminUser]] = relationship(back_populates="role")
 
 
 class Permission(Base, PKMixin, TimestampMixin):

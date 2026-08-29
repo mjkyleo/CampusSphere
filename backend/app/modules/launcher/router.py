@@ -23,7 +23,7 @@ async def health() -> dict:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception:  # noqa: BLE001
+    except Exception:
         db_ok = False
         status = "degraded"
     return {

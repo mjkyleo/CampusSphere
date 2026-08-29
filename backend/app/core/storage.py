@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import os
 import uuid
+from pathlib import Path
 
 import urllib3
-
 from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
@@ -24,7 +24,7 @@ try:
     from minio import Minio
 
     _MINIO_AVAILABLE = True
-except Exception:  # noqa: BLE001
+except Exception:
     Minio = None  # type: ignore
     _MINIO_AVAILABLE = False
 
@@ -60,7 +60,7 @@ class StorageClient:
                 if not self._client.bucket_exists(self.bucket):
                     self._client.make_bucket(self.bucket)
                 _logger.info("minio_connected", bucket=self.bucket)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("minio_unavailable_fallback_local", error=str(exc))
                 self._client = None
 
@@ -95,8 +95,9 @@ class StorageClient:
             )
         else:
             self._ensure_local()
-            with open(os.path.join(self.local_root, object_key.replace("/", "_")), "wb") as fh:
-                fh.write(data)
+            # 同步文件写会阻塞事件循环，与上面 MinIO 分支一致投入线程池
+            local_path = Path(self.local_root) / object_key.replace("/", "_")
+            await run_in_threadpool(local_path.write_bytes, data)
         return object_key
 
     async def presigned_upload_url(self, object_key: str, expires: int = 600) -> str:

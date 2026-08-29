@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -63,7 +63,7 @@ def make_list_key(namespace: str, version: int, **kwargs: Any) -> str:
     return f"{_PREFIX}{namespace}:v{version}:{_kwargs_hash(**kwargs)}"
 
 
-async def cache_get_json(namespace: str, **kwargs: Any) -> Optional[Any]:
+async def cache_get_json(namespace: str, **kwargs: Any) -> Any | None:
     """读取缓存。
 
     - 未命中返回 ``None``。

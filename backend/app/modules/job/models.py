@@ -22,7 +22,7 @@ class Job(Base, PKMixin, TimestampMixin):
     category: Mapped[str] = mapped_column(String(32), default="other")
     status: Mapped[int] = mapped_column(Integer, default=JobStatus.OPEN.value, index=True)
 
-    applications: Mapped[list["JobApplication"]] = relationship(
+    applications: Mapped[list[JobApplication]] = relationship(
         back_populates="job", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -37,4 +37,4 @@ class JobApplication(Base, PKMixin, TimestampMixin):
     status: Mapped[int] = mapped_column(Integer, default=ApplicationStatus.PENDING.value, index=True)
     note: Mapped[str] = mapped_column(Text, default="")
 
-    job: Mapped["Job"] = relationship(back_populates="applications")
+    job: Mapped[Job] = relationship(back_populates="applications")

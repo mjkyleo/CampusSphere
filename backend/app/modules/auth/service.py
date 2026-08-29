@@ -5,8 +5,7 @@ from __future__ import annotations
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,7 +67,7 @@ async def register(db: AsyncSession, data) -> User:
     return user
 
 
-async def authenticate(db: AsyncSession, account: str, password: str) -> Optional[User]:
+async def authenticate(db: AsyncSession, account: str, password: str) -> User | None:
     """统一账号校验：支持 自定义账号 / 邮箱 / 手机号 + 密码。"""
     account = (account or "").strip()
     if not account:
@@ -88,7 +87,7 @@ async def authenticate(db: AsyncSession, account: str, password: str) -> Optiona
 
 
 async def _store_refresh(db: AsyncSession, user_id: uuid.UUID, jti: str) -> None:
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    expires_at = datetime.now(UTC) + timedelta(
         days=settings.refresh_token_expire_days
     )
     rt = RefreshToken(
@@ -126,8 +125,9 @@ async def login(db: AsyncSession, account: str, password: str) -> dict:
 async def refresh_token(db: AsyncSession, refresh_token: str) -> dict:
     try:
         payload = decode_token(refresh_token)
-    except Exception:  # noqa: BLE001
-        raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 无效")
+    except Exception:
+        # from None：不把 JWT 解码的内部异常链进对外错误，避免泄露令牌细节
+        raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 无效") from None
     if payload.get("type") != "refresh":
         raise BizError(ErrorCode.UNAUTHORIZED, "令牌类型错误")
     jti = payload.get("jti")
@@ -246,8 +246,8 @@ async def create_email_verify_token(user: User) -> str:
 async def verify_email(db: AsyncSession, token: str) -> User:
     try:
         payload = decode_token(token)
-    except Exception:  # noqa: BLE001
-        raise BizError(ErrorCode.VALIDATION, "验证链接无效或已过期")
+    except Exception:
+        raise BizError(ErrorCode.VALIDATION, "验证链接无效或已过期") from None
     if payload.get("type") != "email_verify":
         raise BizError(ErrorCode.VALIDATION, "令牌类型错误")
     user = await db.get(User, payload["sub"])

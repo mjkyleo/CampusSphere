@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 
 
 class UserStatus(IntEnum):
@@ -90,7 +90,7 @@ class ReportStatus(IntEnum):
     REJECTED = 3
 
 
-class ReportTargetType(str, Enum):
+class ReportTargetType(StrEnum):
     """举报目标类型。"""
 
     USER = "user"
@@ -100,7 +100,7 @@ class ReportTargetType(str, Enum):
     SHARE = "share"
 
 
-class ConversationType(str, Enum):
+class ConversationType(StrEnum):
     """会话类型。"""
 
     DIRECT = "direct"

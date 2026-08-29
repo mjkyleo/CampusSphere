@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
-from typing import Dict, Set
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -34,7 +33,7 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         # user_id -> set(websocket)
-        self._connections: Dict[str, Set[WebSocket]] = {}
+        self._connections: dict[str, set[WebSocket]] = {}
         self._listener_task: asyncio.Task | None = None
 
     async def connect(self, user_id: str, ws: WebSocket) -> None:
@@ -53,7 +52,7 @@ class ConnectionManager:
         for ws in list(self._connections.get(user_id, set())):
             try:
                 await ws.send_json(payload)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self.disconnect(user_id, ws)
 
     async def publish(self, conversation_id: str, payload: dict) -> None:
@@ -91,7 +90,7 @@ class ConnectionManager:
             await task
         except asyncio.CancelledError:
             pass
-        except Exception as exc:  # noqa: BLE001 - 关闭期异常不应阻断
+        except Exception as exc:
             _logger.warning("ws_listener_stop_error", error=str(exc))
 
     async def _redis_listen(self) -> None:
@@ -105,12 +104,12 @@ class ConnectionManager:
                     continue
                 try:
                     payload = json.loads(message["data"])
-                except Exception:  # noqa: BLE001
+                except Exception:
                     continue
                 recipients = payload.get("recipients", [])
                 for uid in recipients:
                     await self.send_to_user(uid, payload)
-        except asyncio.CancelledError:  # noqa: BLE001
+        except asyncio.CancelledError:
             return
 
 
@@ -122,7 +121,7 @@ async def _authenticate(token: str | None) -> str | None:
         return None
     try:
         payload = decode_token(token)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     if payload.get("type") != "access" or await is_token_revoked(token):
         return None
@@ -176,7 +175,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = "", since: str =
             raw = await websocket.receive_text()
             try:
                 data = json.loads(raw)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 await websocket.send_json({"event": "error", "data": {"code": 42200, "message": "JSON 格式错误"}})
                 continue
             event = data.get("event")
@@ -235,6 +234,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = "", since: str =
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
         _logger.info("ws_disconnected", user_id=user_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.error("ws_error", error=str(exc))
         manager.disconnect(user_id, websocket)

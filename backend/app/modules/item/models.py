@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,13 +22,13 @@ class Item(Base, PKMixin, TimestampMixin, SoftDeleteMixin):
     category: Mapped[str] = mapped_column(String(32), index=True, default="other")
     status: Mapped[int] = mapped_column(Integer, default=0, index=True)  # ItemStatus
 
-    images: Mapped[list["ItemImage"]] = relationship(
+    images: Mapped[list[ItemImage]] = relationship(
         back_populates="item",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="ItemImage.sort_order",
     )
-    trade_sessions: Mapped[list["TradeSession"]] = relationship(
+    trade_sessions: Mapped[list[TradeSession]] = relationship(
         back_populates="item", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -46,7 +44,7 @@ class ItemImage(Base, PKMixin, TimestampMixin):
     object_key: Mapped[str] = mapped_column(String(255))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
-    item: Mapped["Item"] = relationship(back_populates="images")
+    item: Mapped[Item] = relationship(back_populates="images")
 
 
 class TradeSession(Base, PKMixin, TimestampMixin):
@@ -60,6 +58,6 @@ class TradeSession(Base, PKMixin, TimestampMixin):
     buyer_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     seller_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     status: Mapped[int] = mapped_column(Integer, default=0, index=True)  # TradeStatus
-    conversation_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
-    item: Mapped["Item"] = relationship(back_populates="trade_sessions")
+    item: Mapped[Item] = relationship(back_populates="trade_sessions")

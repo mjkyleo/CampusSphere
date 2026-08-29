@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class ProfileUpdateRequest(BaseModel):
-    nickname: Optional[str] = None
-    avatar: Optional[str] = None
-    bio: Optional[str] = None
-    school_major: Optional[str] = None
-    campus: Optional[str] = None
-    contact_wx: Optional[str] = None
-    grade: Optional[int] = None
+    nickname: str | None = None
+    avatar: str | None = None
+    bio: str | None = None
+    school_major: str | None = None
+    campus: str | None = None
+    contact_wx: str | None = None
+    grade: int | None = None
 
 
 class UserProfileOut(BaseModel):
@@ -23,14 +22,14 @@ class UserProfileOut(BaseModel):
     user_id: str
     username: str
     nickname: str
-    avatar: Optional[str] = None
+    avatar: str | None = None
     bio: str
     school_major: str
     campus: str
     contact_wx: str
     grade: int
     verified: bool
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
 
     model_config = {"from_attributes": True}

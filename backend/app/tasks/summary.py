@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -60,7 +60,7 @@ def generate_trade_summary(trade_id: str, force: bool = False) -> dict[str, Any]
     summary = _build_summary(trade_id)
     try:
         _run(redis_set(cache_key, json.dumps(summary, ensure_ascii=False), ttl=CACHE_TTL_SECONDS))
-    except Exception as exc:  # noqa: BLE001 - 缓存失败不应影响主流程
+    except Exception as exc:
         _logger.warning("写入摘要缓存失败（忽略）: %s", exc)
 
     _logger.info("交易会话摘要已生成: trade_id=%s cache_key=%s", trade_id, cache_key)
@@ -100,5 +100,5 @@ def _build_summary(trade_id: str) -> dict[str, Any]:
         "buyer_nickname": buyer.nickname if buyer else None,
         "conversation_id": str(trade.conversation_id) if trade.conversation_id else None,
         "message_count": msg_count or 0,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }

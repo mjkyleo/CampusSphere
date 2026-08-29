@@ -17,7 +17,7 @@ class Canteen(Base, PKMixin, TimestampMixin):
     location: Mapped[str] = mapped_column(String(128), default="")
     image: Mapped[str] = mapped_column(String(512), default="")
 
-    stalls: Mapped[list["Stall"]] = relationship(
+    stalls: Mapped[list[Stall]] = relationship(
         back_populates="canteen", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -33,8 +33,8 @@ class Stall(Base, PKMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(64))
     image: Mapped[str] = mapped_column(String(512), default="")
 
-    canteen: Mapped["Canteen"] = relationship(back_populates="stalls")
-    dishes: Mapped[list["Dish"]] = relationship(
+    canteen: Mapped[Canteen] = relationship(back_populates="stalls")
+    dishes: Mapped[list[Dish]] = relationship(
         back_populates="stall", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -51,8 +51,8 @@ class Dish(Base, PKMixin, TimestampMixin):
     price: Mapped[int] = mapped_column(Integer, default=0, comment="单位：分")
     image: Mapped[str] = mapped_column(String(512), default="")
 
-    stall: Mapped["Stall"] = relationship(back_populates="dishes")
-    reviews: Mapped[list["CanteenReview"]] = relationship(
+    stall: Mapped[Stall] = relationship(back_populates="dishes")
+    reviews: Mapped[list[CanteenReview]] = relationship(
         back_populates="dish", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -69,4 +69,4 @@ class CanteenReview(Base, PKMixin, TimestampMixin):
     rating: Mapped[int] = mapped_column(Integer, default=5)
     content: Mapped[str] = mapped_column(Text, default="")
 
-    dish: Mapped["Dish"] = relationship(back_populates="reviews")
+    dish: Mapped[Dish] = relationship(back_populates="reviews")

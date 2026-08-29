@@ -26,6 +26,6 @@ def send_notify(self, user_id: str, title: str, content: str, channel: str = "in
             asyncio.run(redis_publish(f"notify:{user_id}", json.dumps(payload, default=str)))
         _logger.info("notify_sent", user_id=user_id, channel=channel)
         return {"ok": True}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.error("notify_failed", error=str(exc))
-        raise self.retry(exc=exc, countdown=10)
+        raise self.retry(exc=exc, countdown=10) from exc

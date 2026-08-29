@@ -9,8 +9,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 from pydantic import BaseModel
 
 
@@ -18,5 +16,5 @@ class EmailRegisterConfig(BaseModel):
     """邮箱注册规则（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
 
     enabled: bool = True
-    domains: List[str] = []
+    domains: list[str] = []
     pattern: str = ""

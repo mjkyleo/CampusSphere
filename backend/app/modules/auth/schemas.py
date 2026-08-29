@@ -3,28 +3,27 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
 try:  # EmailStr 需要 email-validator，降级为 str
-    from pydantic import EmailStr  # noqa: F811
-except Exception:  # noqa
+    from pydantic import EmailStr
+except Exception:
     EmailStr = str  # type: ignore
 
 
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=6, max_length=128)
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    nickname: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
+    nickname: str | None = None
 
 
 class LoginRequest(BaseModel):
-    username: Optional[str] = None
-    account: Optional[str] = None  # 统一账号：邮箱 / 手机号 / 自定义账号
+    username: str | None = None
+    account: str | None = None  # 统一账号：邮箱 / 手机号 / 自定义账号
     password: str
 
 
@@ -52,7 +51,7 @@ class SendCodeOut(BaseModel):
     """发送验证码响应。开发/测试模式（debug=true）返回 debug_code 便于本地验证；
     生产环境 debug_code 恒为 null，验证码只能通过邮件/短信真实送达。"""
 
-    debug_code: Optional[str] = None
+    debug_code: str | None = None
     expires_in: int = 300
 
 
@@ -115,17 +114,17 @@ class OAuthCallbackResponse(TokenResponse):
 class EmailRegisterResponse(TokenResponse):
     """邮箱注册响应：在令牌基础上附带新生成的账号信息，便于前端直接展示。"""
 
-    email: Optional[str] = None
+    email: str | None = None
     username: str
 
 
 class UserOut(BaseModel):
     id: UUID
     username: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
     nickname: str
-    avatar: Optional[str] = None
+    avatar: str | None = None
     status: int
     created_at: datetime
 
@@ -135,7 +134,7 @@ class UserOut(BaseModel):
 class EmailRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
-    nickname: Optional[str] = Field(default=None, max_length=32)
+    nickname: str | None = Field(default=None, max_length=32)
     code: str = Field(description="邮箱验证码（purpose=register）")
 
 
@@ -153,7 +152,7 @@ class BindOAuthRequest(BaseModel):
     provider: str = Field(description="wechat/qq")
     code: str
     redirect_uri: str = ""
-    state: Optional[str] = Field(default=None, description="OAuth state（防 CSRF）")
+    state: str | None = Field(default=None, description="OAuth state（防 CSRF）")
 
 
 class UnbindOAuthRequest(BaseModel):
@@ -162,6 +161,6 @@ class UnbindOAuthRequest(BaseModel):
 
 class BindingsOut(BaseModel):
     username: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
     oauth: list[str] = []

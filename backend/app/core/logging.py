@@ -8,10 +8,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import structlog
-
 
 _configured = False
 
@@ -45,7 +43,7 @@ def get_logger(name: str):
     return structlog.get_logger(f"campus.{name}")
 
 
-def bind_request(request_id: str, user_id: Optional[str] = None) -> None:
+def bind_request(request_id: str, user_id: str | None = None) -> None:
     """在请求中间件中绑定上下文变量。"""
     structlog.contextvars.bind_contextvars(request_id=request_id)
     if user_id:

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+
+# EmailRegisterConfig 为**有意的再导出**：admin.router 从本模块导入它，
+# 而实现已上移到 app.common.schemas（auth 与 admin 共用，避免 auth 顶层依赖 admin）。
+# noqa: F401 标记导出意图，防止被当作"未使用导入"自动删除。
+from app.common.schemas import EmailRegisterConfig  # noqa: F401
 
 
 class AdminLoginRequest(BaseModel):
@@ -34,9 +38,9 @@ class AdminTokenResponse(BaseModel):
 class AdminOut(BaseModel):
     id: UUID
     username: str
-    role_id: Optional[str] = None
+    role_id: str | None = None
     disabled: bool = False
-    permissions: List[str] = []
+    permissions: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -44,16 +48,11 @@ class AdminOut(BaseModel):
 class RoleCreate(BaseModel):
     name: str
     description: str = ""
-    permissions: List[str] = []
+    permissions: list[str] = []
 
 
 class BanRequest(BaseModel):
     reason: str = ""
-
-
-# EmailRegisterConfig 已迁移至 app.common.schemas（被 auth 与 admin 共同引用，
-# 放入公共层可避免 auth 顶层依赖 admin）。此处重新导出以保持 admin 内部导入兼容。
-from app.common.schemas import EmailRegisterConfig
 
 
 class ItemReviewConfig(BaseModel):
@@ -65,13 +64,13 @@ class ItemReviewConfig(BaseModel):
 class ItemCategoriesConfig(BaseModel):
     """二手交易分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
 
-    categories: List[str] = []
+    categories: list[str] = []
 
 
 class CourseDepartmentsConfig(BaseModel):
     """课程开课院系列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
 
-    departments: List[str] = []
+    departments: list[str] = []
 
 
 class AiFeatureConfig(BaseModel):

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -47,7 +46,7 @@ class StallOut(BaseModel):
     canteen_id: str
     name: str
     image: str
-    dishes: List[DishOut] = []
+    dishes: list[DishOut] = []
 
     model_config = {"from_attributes": True}
 
@@ -57,7 +56,7 @@ class CanteenOut(BaseModel):
     name: str
     location: str
     image: str
-    stalls: List[StallOut] = []
+    stalls: list[StallOut] = []
 
     model_config = {"from_attributes": True}
 

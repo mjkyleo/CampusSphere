@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -22,7 +21,7 @@ class MessageOut(BaseModel):
 
 class ParticipantOut(BaseModel):
     user_id: str
-    last_read_at: Optional[str] = None
+    last_read_at: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -30,9 +29,9 @@ class ParticipantOut(BaseModel):
 class ConversationOut(BaseModel):
     id: UUID
     conv_type: str
-    related_id: Optional[str] = None
-    participants: List[ParticipantOut] = []
-    last_message: Optional[MessageOut] = None
+    related_id: str | None = None
+    participants: list[ParticipantOut] = []
+    last_message: MessageOut | None = None
     unread_count: int = 0
 
     model_config = {"from_attributes": True}
@@ -44,4 +43,4 @@ class SendMessageRequest(BaseModel):
 
 
 class ReadRequest(BaseModel):
-    last_read_message_id: Optional[str] = None
+    last_read_message_id: str | None = None

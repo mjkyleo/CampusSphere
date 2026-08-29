@@ -14,7 +14,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
-from typing import Optional
 
 from fastapi import Header, HTTPException, Request
 
@@ -38,7 +37,7 @@ def _current_slot(rotate_seconds: int) -> int:
 
 
 def _sign(slot: int) -> str:
-    msg = f"admin-gateway:{slot}".encode("utf-8")
+    msg = f"admin-gateway:{slot}".encode()
     return hmac.new(_derive_secret().encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
@@ -47,7 +46,7 @@ def issue_gateway_token() -> str:
     return _sign(_current_slot(settings.admin_gateway_rotate_seconds))
 
 
-def verify_gateway_token(token: Optional[str]) -> bool:
+def verify_gateway_token(token: str | None) -> bool:
     """校验网关令牌：本地放宽时直通；否则要求与当前/前一时间槽签名一致。"""
     if not gateway_enforced():
         return True
@@ -60,7 +59,7 @@ def verify_gateway_token(token: Optional[str]) -> bool:
 
 async def require_admin_gateway(
     request: Request,
-    x_admin_gateway: Optional[str] = Header(default=None, alias=GATEWAY_HEADER),
+    x_admin_gateway: str | None = Header(default=None, alias=GATEWAY_HEADER),
 ) -> None:
     """依赖：未携带有效网关令牌时一律 404，让端点对外"不存在"。"""
     if not verify_gateway_token(x_admin_gateway):

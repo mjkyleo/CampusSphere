@@ -24,4 +24,4 @@ class UserProfile(Base, PKMixin, TimestampMixin):
     grade: Mapped[int] = mapped_column(Integer, default=0)
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    user: Mapped["User"] = relationship()
+    user: Mapped[User] = relationship()

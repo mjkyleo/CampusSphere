@@ -8,9 +8,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 
 from app.core.response import ApiResponse
 from app.core.storage import storage_client
@@ -85,20 +87,14 @@ async def upload(
 async def raw(key: str = Query(...)):
     """本地降级模式下载文件。"""
     if storage_client.enabled:
-        from fastapi.responses import JSONResponse
-
         return JSONResponse(
             ApiResponse(code=40000, message="使用签名 URL 下载", data=None).model_dump(), status_code=400
         )
-    local_path = os.path.join(storage_client.local_root, key.replace("/", "_"))
-    if not os.path.isfile(local_path):
-        from fastapi.responses import JSONResponse
-
+    local_path = Path(storage_client.local_root) / key.replace("/", "_")
+    # 同步文件 IO 会阻塞事件循环，投入线程池执行
+    if not await run_in_threadpool(local_path.is_file):
         return JSONResponse(
             ApiResponse(code=40400, message="文件不存在", data=None).model_dump(), status_code=404
         )
-    with open(local_path, "rb") as fh:
-        content = fh.read()
-    from fastapi.responses import Response
-
+    content = await run_in_threadpool(local_path.read_bytes)
     return Response(content=content, media_type="application/octet-stream")

@@ -8,15 +8,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
 
 from app.core.config import settings
-from app.core.redis import redis_get, redis_set
 from app.core.logging import get_logger
+from app.core.redis import redis_get, redis_set
 
 _logger = get_logger("core.security")
 
@@ -35,11 +34,11 @@ def verify_password(password: str, hashed: str) -> bool:
 
 # ---------- JWT ----------
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _create_token(
-    user_id: str, token_type: str, expires_delta: timedelta, jti: Optional[str] = None
+    user_id: str, token_type: str, expires_delta: timedelta, jti: str | None = None
 ) -> str:
     jti = jti or uuid.uuid4().hex
     now = _now()
@@ -53,7 +52,7 @@ def _create_token(
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
-def create_access_token(user_id: str, jti: Optional[str] = None) -> str:
+def create_access_token(user_id: str, jti: str | None = None) -> str:
     return _create_token(
         user_id,
         "access",
@@ -62,7 +61,7 @@ def create_access_token(user_id: str, jti: Optional[str] = None) -> str:
     )
 
 
-def create_refresh_token(user_id: str, jti: Optional[str] = None) -> str:
+def create_refresh_token(user_id: str, jti: str | None = None) -> str:
     return _create_token(
         user_id,
         "refresh",
@@ -78,7 +77,7 @@ def decode_token(token: str) -> dict:
     )
 
 
-def get_token_jti(token: str) -> Optional[str]:
+def get_token_jti(token: str) -> str | None:
     try:
         return decode_token(token).get("jti")
     except jwt.PyJWTError:

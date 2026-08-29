@@ -20,7 +20,7 @@ class Team(Base, PKMixin, TimestampMixin):
     required_roles: Mapped[str] = mapped_column(String(255), default="")
     status: Mapped[int] = mapped_column(Integer, default=TeamStatus.RECRUITING.value, index=True)
 
-    members: Mapped[list["TeamMember"]] = relationship(
+    members: Mapped[list[TeamMember]] = relationship(
         back_populates="team", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -35,4 +35,4 @@ class TeamMember(Base, PKMixin, TimestampMixin):
     role: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[int] = mapped_column(Integer, default=MemberStatus.PENDING.value, index=True)
 
-    team: Mapped["Team"] = relationship(back_populates="members")
+    team: Mapped[Team] = relationship(back_populates="members")

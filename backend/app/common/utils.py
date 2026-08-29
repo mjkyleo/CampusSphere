@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -22,7 +22,7 @@ def is_valid_email(value: str) -> bool:
     return bool(_EMAIL_RE.match(value or ""))
 
 
-def mask_phone(phone: Optional[str]) -> Optional[str]:
+def mask_phone(phone: str | None) -> str | None:
     """手机号脱敏：138****8000。"""
     if not phone:
         return phone
@@ -31,7 +31,7 @@ def mask_phone(phone: Optional[str]) -> Optional[str]:
     return f"{phone[:3]}***{phone[-2:]}"
 
 
-def mask_email(email: Optional[str]) -> Optional[str]:
+def mask_email(email: str | None) -> str | None:
     """邮箱脱敏：a***@example.com。"""
     if not email or "@" not in email:
         return email
@@ -61,7 +61,7 @@ class Page:
 class PageResult(Generic[T]):
     """分页结果封装。"""
 
-    items: List[T]
+    items: list[T]
     total: int
     page: int
     page_size: int
@@ -72,7 +72,7 @@ class PageResult(Generic[T]):
             return 0
         return (self.total + self.page_size - 1) // self.page_size
 
-    def to_dict(self, item_mapper=lambda x: x) -> Dict[str, Any]:
+    def to_dict(self, item_mapper=lambda x: x) -> dict[str, Any]:
         return {
             "items": [item_mapper(i) for i in self.items],
             "total": self.total,

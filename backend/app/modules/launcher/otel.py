@@ -29,10 +29,10 @@ def init_otel(app=None, service_name: str = "campus-life-platform") -> None:
         return
     try:
         from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.grpc import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from opentelemetry.exporter.otlp.proto.grpc import OTLPSpanExporter
 
         svc = os.environ.get("OTEL_SERVICE_NAME", service_name)
         endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -62,9 +62,9 @@ def init_otel(app=None, service_name: str = "campus-life-platform") -> None:
 
                 FastAPIInstrumentor.instrument_app(app)
                 _logger.info("otel_fastapi_instrumented")
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("otel_fastapi_instrument_failed", error=str(exc))
 
         _initialized = True
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _logger.info("otel_skipped", reason=str(exc))

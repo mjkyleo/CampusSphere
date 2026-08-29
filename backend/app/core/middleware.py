@@ -96,7 +96,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             return None, "缺少访问令牌"
         try:
             payload = decode_token(token)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("auth_failed", error=str(exc))
             return None, "令牌无效或已失效"
         if payload.get("type") != "access":
@@ -126,7 +126,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
                         message="请求过于频繁，请稍后再试",
                     ).model_dump(),
                 )
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass  # 限流失败不阻断业务
 
         # 认证/验证码接口独立严格限流（防爆破与刷接口），默认每 IP 每分钟 10 次。
@@ -153,7 +153,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
                             message="操作过于频繁，请稍后再试",
                         ).model_dump(),
                     )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
         # 管理端网关隐藏：/api/admin/*（discover 除外）未携带有效网关令牌时一律 404，

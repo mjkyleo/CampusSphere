@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -15,7 +14,7 @@ class TeamCreate(BaseModel):
 
 
 class TeamUpdate(BaseModel):
-    status: Optional[int] = None
+    status: int | None = None
 
 
 class TeamOut(BaseModel):

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, MetaData, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -56,6 +55,6 @@ class TimestampMixin:
 class SoftDeleteMixin:
     """逻辑删除 Mixin，NULL 表示未删除。"""
 
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+    deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None, nullable=True
     )

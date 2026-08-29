@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils import Page, PageResult
+from app.common.utils import PageResult
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
 from app.modules.message.models import Conversation, Message, Participant
@@ -21,8 +20,8 @@ async def create_conversation(
     *,
     conv_type: str = "direct",
     participant_ids: list[str],
-    related_id: Optional[str] = None,
-    creator_id: Optional[str] = None,
+    related_id: str | None = None,
+    creator_id: str | None = None,
 ) -> Conversation:
     """创建会话并添加参与者（去重）。"""
     if conv_type == "direct" and related_id is None and len(participant_ids) == 2:
@@ -87,7 +86,7 @@ async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
     return result
 
 
-def MessageOut_wrap(msg: Optional[Message]) -> Optional[dict]:
+def MessageOut_wrap(msg: Message | None) -> dict | None:
     if not msg:
         return None
     return {
@@ -135,7 +134,6 @@ async def get_messages(
         }
         for m in rows
     ]
-    page_obj = Page(page=page, page_size=page_size)
     return PageResult(items=items, total=total or 0, page=page, page_size=page_size).to_dict()
 
 
@@ -172,7 +170,7 @@ async def mark_read(
     *,
     conversation_id: str,
     user_id: str,
-    last_read_message_id: Optional[str] = None,
+    last_read_message_id: str | None = None,
 ) -> int:
     """标记某会话中发给自己的消息为已读，更新已读游标。返回标记数。"""
     part = await db.scalar(
@@ -196,7 +194,7 @@ async def mark_read(
     for m in rows:
         m.is_read = True
         count += 1
-    part.last_read_at = datetime.now(timezone.utc)
+    part.last_read_at = datetime.now(UTC)
     await db.commit()
     return count
 

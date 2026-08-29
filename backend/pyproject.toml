@@ -90,3 +90,60 @@ exclude_also = [
     "raise NotImplementedError",
     "@(abc\\.)?abstractmethod",
 ]
+
+# ---------------------------------------------------------------------------
+# Ruff 静态检查
+#
+# 为何要**显式列出**规则集：ruff 未配置时采用"当前版本的默认规则集"，
+# 而该默认集会随版本扩大（0.16 相比 0.5 新增了 UP*/S/ASYNC/BLE/RUF 等），
+# 导致 CI 在依赖解析到新版 ruff 时**突然变红**（历史代码 363 处报错）。
+# 显式 select 让门禁结果可预期，与 ruff 版本解耦。
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+# alembic 迁移脚本为自动生成，不参与 lint
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E4",     # pycodestyle：缩进 / 空白等真实错误
+    "E7",     # pycodestyle：语法类错误
+    "E9",     # pycodestyle：语法错误（SyntaxError / IndentationError）
+    "F",      # pyflakes：未用导入、重复定义、未用变量 —— 真实缺陷
+    "W",      # pycodestyle 警告
+    "I",      # isort：导入排序（可自动修复）
+    "B",      # flake8-bugbear：常见陷阱（B008 已对 FastAPI DI 加白名单）
+    "UP",     # pyupgrade：Python 3.12 现代语法（可自动修复）
+    "ASYNC",  # 异步陷阱：async 函数内的阻塞调用等
+    "RUF100", # 无用 noqa 指令（清理历史遗留）
+]
+ignore = [
+    "UP046",  # PEP 695 泛型类语法：改动面大且非缺陷，单独排期
+    "UP047",  # PEP 695 泛型函数语法：同上
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI 依赖注入**必须**写成参数默认值（Depends/Query/Path/...），
+# 这是框架惯例而不是"可变默认参数"陷阱，故加入不可变调用白名单。
+# 否则会误报 176 处 B008（占历史报错的近一半）。
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+    "fastapi.params.Depends",
+    "fastapi.params.Query",
+    "fastapi.params.Path",
+    "fastapi.params.Body",
+    "fastapi.params.Header",
+    "fastapi.params.Cookie",
+    "fastapi.params.Form",
+    "fastapi.params.File",
+    "fastapi.params.Security",
+]

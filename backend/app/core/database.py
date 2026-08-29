@@ -92,7 +92,7 @@ async def _run_sqlite_column_migrations(conn) -> None:
         try:
             result = await conn.exec_driver_sql(f"PRAGMA table_info({table})")
             existing = {row[1] for row in result.fetchall()}
-        except Exception:  # noqa: BLE001 - 表不存在则跳过
+        except Exception:
             continue
         for col, ddl in cols:
             if col not in existing:

@@ -242,20 +242,36 @@ Playwright 会通过 `webServer` **自动拉起**后端（uvicorn:8000）与前�
 
 ## 8. 已知环境风险与既有缺陷
 
-### 8.0 Ruff 版本漂移导致 lint 报错（既有问题，非本次引入）
+### 8.0 Ruff 规则集已显式固定（原为版本漂移风险，2026-08-29 已修复）
 
-CI 的 `Ruff lint` 步骤执行 `ruff check app`。本机安装的是 **ruff 0.16**，
-其默认规则集相比旧版扩展了不少（`B008` / `UP006` / `UP045` / `I001` / `S110` 等），
-因此会报出 **约 363 项**错误；若还原为经典规则集（`--select E4,E7,E9,F`）则只剩个位数。
+**根因**：`pyproject.toml` 原先**没有** `[tool.ruff]` 配置，ruff 会采用
+"当前版本的默认规则集"。该默认集随版本扩大（0.16 相比 0.5 新增 `UP*` / `S` /
+`ASYNC` / `BLE` / `RUF` 等），导致 CI 依赖解析到新版 ruff 时**突然变红**
+（历史代码 363 处报错），且**连续 5 次流水线失败**。
 
-- 本次改动只修改了 `captcha.py` 的**文档注释**，该文件单独检查结果为 `All checks passed!`，
-  即这 363 项**全部来自未被本次改动触碰的文件**，属历史遗留。
-- **风险**：CI 用 `pip install -e ".[dev]"`（ruff>=0.5）会拉到最新版，
-  lint 步骤很可能直接失败。
-- **建议**（二选一，均不在本次测试任务范围内）：
-  1. 在 `pyproject.toml` 显式固定规则集，例如
-     `[tool.ruff.lint] select = ["E4","E7","E9","F"]`，先收敛再逐步放开；
-  2. 或固定 ruff 版本（`ruff==0.5.x`）并跑一次 `--fix` 批量修复 159 项可自动修复项。
+**修复方式**（`backend/pyproject.toml`）：
+
+1. **显式列出规则集** `select = ["E4","E7","E9","F","W","I","B","UP","ASYNC","RUF100"]`，
+   让门禁结果与 ruff 版本解耦，不再随版本漂移。
+2. **`B008` 误报白名单**：FastAPI 依赖注入**必须**写成参数默认值
+   （`Depends` / `Query` / `Path` / ...），这不是"可变默认参数"陷阱。
+   通过 `flake8-bugbear.extend-immutable-calls` 加白名单后，
+   单此一项即消除 **176 处**误报（占原报错的近一半）。
+3. **批量自动修复** `ruff check app --fix`：246 处机械性问题
+   （`Optional[X]` → `X | None`、`List` → `list`、导入排序、失效 `noqa` 等）。
+4. **人工修复 12 处**自动修复无法处理的项，其中含 2 个真实缺陷：
+   - `admin/router.py`：`promote_user_to_admin` 被重复定义（F811）；
+   - `message/service.py`：`page_obj` 死变量（F841）；
+   - 另含 4 处补全异常链（B904）、3 处 async 阻塞 IO 改线程池（ASYNC230/240）。
+
+**当前状态**：`ruff check app` → **All checks passed!**（363 → 0）。
+
+**注意事项**：
+
+- `UP046` / `UP047`（PEP 695 泛型语法）已显式 `ignore`：改动面大且非缺陷，单独排期。
+- **自动修复会误删有意的再导出（re-export）**：`admin/schemas.py` 的
+  `EmailRegisterConfig` 原本带 `# noqa: F401` 标记导出意图，仍被删除并导致
+  测试 `ImportError`。已恢复该导入；**后续遇到"模块导入名消失"应优先怀疑此类误删**。
 
 ### 8.1 aiosqlite 原生崩溃（Windows，偶发）
 

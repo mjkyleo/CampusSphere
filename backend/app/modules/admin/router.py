@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.response import ApiResponse
 from app.modules.admin.deps import get_current_admin, require_admin
@@ -48,7 +49,6 @@ from app.modules.admin.service import (
     update_item_categories,
     update_item_review_config,
 )
-from app.core.config import settings
 from app.modules.canteen.schemas import CanteenCreate, CanteenOut, DishCreate, DishOut, StallCreate, StallOut
 from app.modules.canteen.service import (
     create_canteen,
@@ -131,7 +131,6 @@ async def promote(
     admin: AdminUser = Depends(require_admin),
 ):
     """将普通用户提升为管理员（设置其后台登录密码），并标记 User.is_admin。"""
-    from app.modules.admin.service import promote_user_to_admin
 
     user = await promote_user_to_admin(db, user_id, data.password, admin)
     return ApiResponse.ok(data={"id": str(user.id), "is_admin": user.is_admin})

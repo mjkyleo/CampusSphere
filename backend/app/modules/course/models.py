@@ -21,7 +21,7 @@ class Course(Base, PKMixin, TimestampMixin):
     # 开课院系（对应 /api/courses/departments 后台配置列表）
     department: Mapped[str] = mapped_column(String(64), default="", index=True)
 
-    reviews: Mapped[list["CourseReview"]] = relationship(
+    reviews: Mapped[list[CourseReview]] = relationship(
         back_populates="course", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -38,4 +38,4 @@ class CourseReview(Base, PKMixin, TimestampMixin):
     rating: Mapped[int] = mapped_column(Integer, default=5)
     content: Mapped[str] = mapped_column(Text, default="")
 
-    course: Mapped["Course"] = relationship(back_populates="reviews")
+    course: Mapped[Course] = relationship(back_populates="reviews")

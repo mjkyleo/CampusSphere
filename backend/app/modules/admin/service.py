@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,13 +13,13 @@ from app.common.enums import ItemStatus, UserStatus
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
-from app.core.storage import storage_client
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_password,
     verify_password,
 )
+from app.core.storage import storage_client
 from app.modules.admin.models import AdminUser, AppConfig, Permission, Role
 from app.modules.auth.models import User
 from app.modules.canteen.models import Canteen, Dish, Stall
@@ -350,7 +350,7 @@ async def cleanup_orphan_files(db: AsyncSession) -> dict:
         try:
             storage_client.remove_key(f["key"])
             removed += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("orphan_remove_failed", key=f["key"], error=str(exc))
     _logger.info("admin_cleanup_orphan_files", removed=removed)
     return {"removed": removed}
@@ -448,7 +448,7 @@ async def admin_delete_item(db: AsyncSession, item_id: str) -> None:
     item = await db.get(Item, item_id)
     if not item or item.deleted_at is not None:
         raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
-    item.deleted_at = datetime.now(timezone.utc)
+    item.deleted_at = datetime.now(UTC)
     await db.commit()
     _logger.warning("admin_delete_item", item_id=item_id)
 

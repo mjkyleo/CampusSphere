@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -19,15 +18,15 @@ class ItemCreate(BaseModel):
     description: str = ""
     price: int = Field(default=0, ge=0, description="单位：分")
     category: str = "other"
-    images: List[ItemImageIn] = []
+    images: list[ItemImageIn] = []
 
 
 class ItemUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    price: Optional[int] = None
-    category: Optional[str] = None
-    status: Optional[int] = Field(default=None, description="状态流转目标值")
+    title: str | None = None
+    description: str | None = None
+    price: int | None = None
+    category: str | None = None
+    status: int | None = Field(default=None, description="状态流转目标值")
 
 
 class ItemImageOut(BaseModel):
@@ -46,8 +45,8 @@ class ItemOut(BaseModel):
     price: int
     category: str
     status: int
-    images: List[ItemImageOut] = []
-    created_at: Optional[str] = None
+    images: list[ItemImageOut] = []
+    created_at: str | None = None
 
     @field_validator("created_at", mode="before")
     @classmethod
@@ -60,7 +59,7 @@ class ItemOut(BaseModel):
 
 
 class TradeSessionCreate(BaseModel):
-    buyer_id: Optional[str] = None  # 不传则取当前用户
+    buyer_id: str | None = None  # 不传则取当前用户
 
 
 class TradeSessionOut(BaseModel):
@@ -69,6 +68,6 @@ class TradeSessionOut(BaseModel):
     buyer_id: str
     seller_id: str
     status: int
-    conversation_id: Optional[str] = None
+    conversation_id: str | None = None
 
     model_config = {"from_attributes": True}
