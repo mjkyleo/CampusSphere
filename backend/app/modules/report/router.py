@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.response import ApiResponse
+from app.modules.admin.deps import require_admin
+from app.modules.admin.models import AdminUser
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.report.schemas import ReportCreate, ReportHandle, ReportOut
@@ -35,7 +37,7 @@ async def list_all(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: AdminUser = Depends(require_admin),
 ):
     return ApiResponse.ok(data=await list_reports(
         db, status=status if status is not None else None, page=page, page_size=page_size
@@ -43,6 +45,6 @@ async def list_all(
 
 
 @router.post("/{report_id}/handle", response_model=ApiResponse[ReportOut])
-async def handle(report_id: str, data: ReportHandle, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    report = await handle_report(db, report_id, user, data)
+async def handle(report_id: str, data: ReportHandle, db: AsyncSession = Depends(get_db), admin: AdminUser = Depends(require_admin)):
+    report = await handle_report(db, report_id, admin, data)
     return ApiResponse.ok(data=ReportOut.model_validate(report))

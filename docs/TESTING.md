@@ -272,8 +272,8 @@ CI 的 `Ruff lint` 步骤执行 `ruff check app`。本机安装的是 **ruff 0.1
 
 | 严重度 | 问题 | 位置 | 固化用例 |
 |---|---|---|---|
-| **P0** | `/api/reports/{id}/handle` 与 `GET /api/reports` **不校验管理员身份**：任意登录用户可查看全部举报工单，并用 `action=ban` 封禁任意用户（越权提权）。管理网关中间件只保护 `/api/admin/*` | `app/modules/report/router.py` | `test_admin/test_moderation.py::test_ordinary_user_cannot_handle_report` 等 |
-| **P0** | 同一批端点又依赖 `get_current_user`（查 `users` 表），而管理员令牌属于 `AdminUser` 表，导致**管理员反而无法处置工单**（报"用户不存在"） | 同上 | `test_admin_resolves_report`、`test_admin_rejects_report` |
+| **P0** ✅ **已修复 (2026-08-29)** | `/api/reports/{id}/handle` 与 `GET /api/reports` 原**不校验管理员身份**：任意登录用户可查看全部举报工单，并用 `action=ban` 封禁任意用户（越权提权）。已改用 `Depends(require_admin)`（与 `/api/admin/*` 一致）。 | `app/modules/report/router.py` | `test_admin/test_moderation.py::test_ordinary_user_cannot_handle_report` 等（已转正向断言） |
+| **P0** ✅ **已修复 (2026-08-29)** | 同一批端点原依赖 `get_current_user`（查 `users` 表），管理员令牌属 `AdminUser` 表导致**管理员无法处置工单**（报"用户不存在"）。改 `require_admin` 后管理员可正常处置/驳回。 | 同上 | `test_admin_resolves_report`、`test_admin_rejects_report`（xfail 已移除） |
 | **P1** | **验证码邮件从未真实派发**：`send_code` 只生成并入库，`smtp_*` 配置仅用于决定是否回传 `debug_code`。生产配置 SMTP 后，用户既收不到邮件也拿不到 `debug_code`，注册流程会断 | `app/modules/auth/service.py::send_code` | `test_external/test_email_task.py::test_send_code_dispatches_email` |
 | **P2** | `create_trade_session` 未校验 `buyer.id == item.owner_id`，**卖家可与自己议价**并生成自会话 | `app/modules/item/service.py` | `test_items/test_item_bargain.py::test_seller_cannot_trade_own_item` |
 | **P2** | `verify_password(pwd, None)` 抛 `AttributeError`（未捕获）。因 `password_hash` 为 NOT NULL 故当前不可达 | `app/core/security.py` | `test_unit/test_security_unit.py::test_verify_password_with_none_raises_attribute_error` |

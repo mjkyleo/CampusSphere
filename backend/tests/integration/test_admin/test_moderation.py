@@ -1,15 +1,12 @@
 """管理后台内容治理集成测试：**管理员登录 → 查看举报 → 处理工单 → 封禁**。
 
-已知缺陷（以 xfail 固化，见下方两条 ``xfail`` 用例）
-------------------------------------------------
-``/api/reports/*`` 仅依赖 ``get_current_user``，**未校验管理员身份**，
-而管理网关中间件只保护 ``/api/admin/*``。结果是任意登录用户都能：
-
-* 查看全部举报工单（信息泄露）；
-* 处置任意工单，包括用 ``action="ban"`` 封禁任意用户（**越权提权**）。
-
-修复方向：给 report 路由的 ``handle`` / ``list_all`` 加上
-``Depends(require_admin)``（该依赖已存在于 ``app.modules.admin.deps``）。
+权限边界（已修复，2026-08-29）
+-----------------------------
+``/api/reports/*`` 的 ``handle`` 与 ``list_all`` 端点已改用
+``Depends(require_admin)``（依赖 ``app.modules.admin.deps``），
+与 ``/api/admin/*`` 的网关/管理员身份校验保持一致。修复前任意登录用户
+均可查看全部举报工单、并用 ``action="ban"`` 封禁他人（P0 越权），现已
+固化为正向安全用例。
 """
 
 from __future__ import annotations
@@ -69,16 +66,8 @@ async def test_admin_can_filter_pending_reports(client, fx, admin_headers):
     assert report.id in [x["id"] for x in r.json()["data"]["items"]]
 
 
-@pytest.mark.xfail(
-    reason="已知缺陷 P0：举报处置链路双重失效 —— "
-    "(1) /api/reports/{id}/handle 依赖 get_current_user（查 users 表），"
-    "管理员令牌属于 AdminUser 表，反被判'用户不存在'，管理员无法处置工单；"
-    "(2) 该端点又完全不校验管理员身份，任意普通用户均可处置并封禁他人。"
-    "修复：改用 require_admin 依赖（见 docs/TESTING.md）",
-    strict=False,
-)
 async def test_admin_resolves_report(client, fx, admin_headers):
-    """管理员处理工单（旅程：处理工单）→ 状态变为已处理。"""
+    """管理员处理工单（旅程：处理工单）→ 状态变为已处理（require_admin 已生效）。"""
     reporter = register_login(client, "mod_reporter3")
     target = register_login(client, "mod_target3")
     report = await _seed_report(fx, reporter["user_id"], target["user_id"])
@@ -92,12 +81,8 @@ async def test_admin_resolves_report(client, fx, admin_headers):
     assert r.json()["data"]["status"] == ReportStatus.RESOLVED.value
 
 
-@pytest.mark.xfail(
-    reason="同 test_admin_resolves_report：处置端点身份体系错配，管理员令牌无法调用",
-    strict=False,
-)
 async def test_admin_rejects_report(client, fx, admin_headers):
-    """管理员可驳回工单 → 状态变为已驳回。"""
+    """管理员可驳回工单 → 状态变为已驳回（require_admin 已生效）。"""
     reporter = register_login(client, "mod_reporter4")
     target = register_login(client, "mod_target4")
     report = await _seed_report(fx, reporter["user_id"], target["user_id"])
@@ -169,15 +154,10 @@ async def test_ordinary_user_cannot_access_admin_reports(client):
 
 
 # ---------------------------------------------------------------------------
-# 已知缺陷（xfail：缺陷修复后会自动转为 XPASS 提示更新）
+# 权限边界（已修复：普通用户访问 /api/reports/* 应被拒绝）
 # ---------------------------------------------------------------------------
-@pytest.mark.xfail(
-    reason="安全缺陷 P0：/api/reports/{id}/handle 未校验管理员身份，"
-    "任意登录用户可处置工单并用 action=ban 封禁他人（见 docs/TESTING.md）",
-    strict=False,
-)
 async def test_ordinary_user_cannot_handle_report(client, fx, admin_headers):
-    """普通用户**不应**能处置举报工单（当前实现允许 → 越权）。"""
+    """普通用户**不能**处置举报工单（require_admin 生效）。"""
     reporter = register_login(client, "mod_reporter5")
     target = register_login(client, "mod_target5")
     attacker = register_login(client, "mod_attacker5")
@@ -191,12 +171,8 @@ async def test_ordinary_user_cannot_handle_report(client, fx, admin_headers):
     assert r.json()["code"] != 0, "普通用户成功处置了工单（应为越权失败）"
 
 
-@pytest.mark.xfail(
-    reason="安全缺陷 P0：GET /api/reports 未校验管理员身份，任意登录用户可查看全部举报",
-    strict=False,
-)
 async def test_ordinary_user_cannot_list_all_reports(client, fx, admin_headers):
-    """普通用户**不应**能查看全部举报工单（当前实现允许 → 信息泄露）。"""
+    """普通用户**不能**查看全部举报工单（require_admin 生效）。"""
     reporter = register_login(client, "mod_reporter6")
     target = register_login(client, "mod_target6")
     outsider = register_login(client, "mod_outsider6")
