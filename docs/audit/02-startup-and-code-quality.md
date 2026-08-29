@@ -20,7 +20,7 @@
 
 | 组件 | 开发（零依赖） | 生产 | 是否必需 |
 |---|---|---|---|
-| Python | 3.11+（README）/ `requires-python>=3.12`（pyproject）**⚠️ 不一致** | 3.12（镜像 `python:3.12-slim`） | 必需 |
+| Python | 3.12+（README/usage 已统一）/ `requires-python>=3.12`（pyproject） | 3.12（镜像 `python:3.12-slim`） | 必需 |
 | Node.js | 18+（README）| 22（构建期） | 前端必需 |
 | PostgreSQL | 不需要（默认 SQLite） | 16 | 生产必需 |
 | Redis | 不需要（内存兜底） | 7 | 推荐（限流/黑名单/WS 广播/Celery） |
@@ -29,7 +29,7 @@
 | SMTP | 不需要（返回 debug_code） | 必需（验证码邮件） | 注册验证码必需 |
 | Gemini API Key | 不需要（AI 入口隐藏） | 可选 | AI 功能必需 |
 
-**⚠️ 版本声明不一致**：`README.md` 写「Python 3.11+ / Node 18+」，`pyproject.toml` 写 `requires-python = ">=3.12"`，镜像用 `python:3.12-slim`。首次部署者易按 3.11 准备而踩 `requires-python` 失败。需统一。
+**版本声明已统一**：`README.md` 与 `usage.md` 现已统一为「Python 3.12+」，与 `pyproject.toml` 的 `requires-python>=3.12` 及镜像 `python:3.12-slim` 一致，首次部署者不会因版本错配踩坑。
 
 ---
 

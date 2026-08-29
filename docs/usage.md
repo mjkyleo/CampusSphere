@@ -18,7 +18,7 @@
 
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
-| Python | 3.11+ | 后端运行时 |
+| Python | 3.12+ | 后端运行时 |
 | Node.js | 18+ | 前端构建与代理层 |
 | npm | 9+ | 前端依赖管理 |
 | PostgreSQL | 16（可选） | 生产数据库；开发默认用 SQLite，零依赖 |
@@ -136,7 +136,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 | --- | --- | --- |
 | 管理员 | 由 `admin.bootstrap.username` 配置下发 | 由 `admin.bootstrap.password` 配置下发（另需网关密钥换取登录令牌） |
 
-普通用户：注册页面走邮箱验证码流程（开发模式 `AUTH_EMAIL_ENABLED` 开启时，任意符合规则的邮箱即可注册）。
+普通用户：注册页面走邮箱验证码流程（开发模式未配置 SMTP 时，`POST /api/auth/send-code` 会直接返回 `debug_code` 便于联调，前端自动填入；注册邮箱需符合 `config/school.yaml` 的 `auth.email_register` 白名单规则）。
 
 ## 6. 功能模块使用
 
@@ -187,7 +187,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 ## 7. API 与接口文档
 
 - **在线文档**：启动后端后访问 <http://localhost:8000/docs>（Swagger UI）；
-- **离线参考**：[docs/API_Reference.md](API_Reference.md)（73 个接口字段级说明）；机器可读：`docs/openapi.json`；
+- **离线参考**：[docs/API_Reference.md](API_Reference.md)（88 个接口字段级说明）；机器可读：`docs/openapi.json`；
 - **健康检查**：`GET /api/health`（前端层）/ `GET /health`（后端）/ `GET /metrics`（指标）。
 
 **接口约定**：业务错误统一返回 **HTTP 200**，错误码在响应体 `code` 字段：

@@ -65,9 +65,10 @@ campusLifePlatform-py/
     ├── usage.md             # 使用说明（安装 / 配置 / 启动 / 部署）
     ├── development.md       # 开发指南（架构 / 模块 / 规范 / 测试 / 贡献）
     ├── 部署手册.md
+    ├── DEPLOYMENT.md        # 初次部署/启动配置清单（环境变量/配置文件/依赖服务/密钥/数据库初始化）
     ├── 项目现状分析.md
     ├── 后续开发计划.md
-    ├── API_Reference.md     # 73 个接口文档
+    ├── API_Reference.md     # 88 个接口文档
     └── openapi.json
 ```
 
@@ -170,10 +171,13 @@ POST /api/auth/send-code        → 携带票据才能真正发送
 | --- | --- |
 | [docs/usage.md](docs/usage.md) | 使用说明：安装步骤、配置项、功能模块使用、生产部署 |
 | [docs/development.md](docs/development.md) | 开发指南：架构设计、模块说明、API 约定、测试与贡献 |
-| [docs/API_Reference.md](docs/API_Reference.md) | 73 个接口的字段级参考 |
+| [docs/API_Reference.md](docs/API_Reference.md) | 88 个接口的字段级参考 |
 | [docs/部署手册.md](docs/部署手册.md) | 生产部署手册 |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 初次部署/启动配置清单：环境变量、配置文件、依赖服务、密钥凭证、数据库初始化与前置条件 |
 | [docs/项目现状分析.md](docs/项目现状分析.md) | 项目现状与结构分析 |
 | [docs/后续开发计划.md](docs/后续开发计划.md) | 开发路线图 |
+
+> 文档与代码的一致性由 `scripts/doc_sync.py` 自动比对：运行后生成 `docs/_generated/PROJECT_STATUS.md`（项目状态快照）与 `DOC_DRIFT_REPORT.md`（漂移清单），`--check` 可作 CI 卡点，`--sync-env-example` 可自动补全 `backend/.env.example` 缺失的部署配置键。
 
 ## 测试
 
