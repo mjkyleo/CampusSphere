@@ -41,6 +41,28 @@ async def get_redis() -> Optional[aioredis.Redis]:
         return None
 
 
+async def close_redis() -> None:
+    """关闭全局 Redis 客户端并释放连接池与内存兜底（应用关闭期调用）。
+
+    幂等：重复调用安全。先摘掉全局句柄再关闭，避免关闭期间新请求复用到
+    正在关闭的连接。优先使用 redis-py 5.x 的 ``aclose()``，旧版本回退 ``close()``。
+    """
+    global _redis_pool
+    client, _redis_pool = _redis_pool, None
+    _memory_fallback.clear()
+    if client is None:
+        return
+    try:
+        aclose = getattr(client, "aclose", None)
+        if aclose is not None:
+            await aclose()
+        else:  # pragma: no cover - redis<5 兼容分支
+            await client.close()
+        _logger.info("redis_closed")
+    except Exception as exc:  # noqa: BLE001 - 关闭期异常不应阻断
+        _logger.warning("redis_close_failed", error=str(exc))
+
+
 async def redis_set(key: str, value: str, ttl: Optional[int] = None) -> None:
     """写入键值，支持 TTL（秒）。"""
     client = await get_redis()

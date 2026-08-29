@@ -11,7 +11,7 @@ import {
   ReportOut, ReportTargetType, ReportStatus,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
   AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
-  SendCodeOut
+  SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig
 } from '../types.ts';
 
 // Storage keys
@@ -1142,8 +1142,21 @@ export const api = {
     register: (params: { username: string; password: string; email?: string; phone?: string; nickname?: string }) =>
       request<UserOut>('/api/auth/register', { method: 'POST', body: JSON.stringify(params) }),
 
-    sendCode: (target: string, purpose: 'login' | 'register' | 'email' | 'bind_email' | 'bind_phone') =>
-      request<SendCodeOut>('/api/auth/send-code', { method: 'POST', body: JSON.stringify({ target, purpose }) }),
+    sendCode: (target: string, purpose: 'login' | 'register' | 'email' | 'bind_email' | 'bind_phone', captchaTicket?: string) =>
+      request<SendCodeOut>('/api/auth/send-code', { method: 'POST', body: JSON.stringify({ target, purpose, captcha_ticket: captchaTicket }) }),
+
+    // 滑块验证：开启后必须先通过滑块拿到票据，才能请求发送验证码
+    captchaConfig: () =>
+      request<CaptchaConfig>('/api/auth/captcha/config'),
+
+    captchaSlider: () =>
+      request<SliderCaptcha>('/api/auth/captcha/slider'),
+
+    captchaVerify: (token: string, offsetX: number, track: number[][], elapsedMs: number) =>
+      request<SliderVerifyResult>('/api/auth/captcha/verify', {
+        method: 'POST',
+        body: JSON.stringify({ token, offset_x: offsetX, track, elapsed_ms: elapsedMs }),
+      }),
 
     emailConfig: () =>
       request<EmailRegisterConfig>('/api/auth/email-config'),

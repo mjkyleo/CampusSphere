@@ -72,9 +72,27 @@ class ConnectionManager:
         await redis_publish(f"{_WS_CHANNEL}:{conversation_id}", json.dumps(payload, default=str))
 
     async def start_listener(self) -> None:
-        if self._listener_task is not None:
+        # 已结束的任务（如无 Redis 时立即返回）不阻塞重启，只有存活任务才跳过。
+        if self._listener_task is not None and not self._listener_task.done():
             return
         self._listener_task = asyncio.create_task(self._redis_listen())
+
+    async def stop_listener(self) -> None:
+        """取消 Redis 广播监听任务（应用关闭期调用）。
+
+        幂等：重复调用或从未启动均安全返回；取消过程中产生的
+        ``CancelledError`` 属预期，不上抛以免阻断关闭流程。
+        """
+        task, self._listener_task = self._listener_task, None
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:  # noqa: BLE001 - 关闭期异常不应阻断
+            _logger.warning("ws_listener_stop_error", error=str(exc))
 
     async def _redis_listen(self) -> None:
         pubsub = await redis_subscribe(f"{_WS_CHANNEL}:*")

@@ -167,13 +167,16 @@ def test_weak_config_fail_fast():
 
 
 def test_strong_config_passes_validation():
-    """强配置（足够长的网关密钥 + bootstrap 密码）应通过校验。"""
+    """强配置（网关密钥 + bootstrap 密码 + 非默认基础设施密钥）应通过校验。"""
     old = {
         "debug": settings.debug,
         "enforce": settings.admin_gateway_enforce,
         "key": settings.admin_gateway_key,
         "passwd": settings.admin_bootstrap_password,
         "min": settings.admin_bootstrap_min_length,
+        "meili": settings.meili_api_key,
+        "minio_access": settings.minio_access_key,
+        "minio_secret": settings.minio_secret_key,
     }
     try:
         settings.debug = False
@@ -181,6 +184,11 @@ def test_strong_config_passes_validation():
         settings.admin_gateway_key = "a-strong-gateway-key-1234567890"
         settings.admin_bootstrap_password = "a-strong-bootstrap-pass-123"
         settings.admin_bootstrap_min_length = 16
+        # 强校验同样覆盖基础设施密钥（Meili / MinIO）：.env 中的占位值
+        # （masterKey / minioadmin）会被判为带病上线，需一并替换为强值。
+        settings.meili_api_key = "a-strong-meili-key-1234567890"
+        settings.minio_access_key = "a-strong-minio-access-1234567890"
+        settings.minio_secret_key = "a-strong-minio-secret-1234567890"
         validate_admin_security()  # 不应抛异常
     finally:
         settings.debug = old["debug"]
@@ -188,3 +196,6 @@ def test_strong_config_passes_validation():
         settings.admin_gateway_key = old["key"]
         settings.admin_bootstrap_password = old["passwd"]
         settings.admin_bootstrap_min_length = old["min"]
+        settings.meili_api_key = old["meili"]
+        settings.minio_access_key = old["minio_access"]
+        settings.minio_secret_key = old["minio_secret"]

@@ -96,6 +96,27 @@ export interface SendCodeOut {
   expires_in?: number;
 }
 
+// 滑块验证（发送验证码前的人机校验）
+export interface SliderCaptcha {
+  token: string;
+  background: string; // 带缺口的背景图（data URI）
+  slider: string; // 拼图块（data URI）
+  width: number; // 画布宽度（px）
+  height: number; // 画布高度（px）
+  slider_size: number; // 滑块边长（px）
+  y: number; // 缺口纵坐标，滑块需保持同一水平线
+  expires_in: number;
+}
+
+export interface SliderVerifyResult {
+  ticket: string; // 一次性票据，发送验证码时回传
+  expires_in: number;
+}
+
+export interface CaptchaConfig {
+  enabled: boolean;
+}
+
 export interface UserOut {
   id: string;
   username: string;

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { api } from '../services/api.ts';
+import SliderCaptcha from '../components/SliderCaptcha.tsx';
 import type { EmailRegisterConfig } from '../types.ts';
 import {
   MessageSquare, MessageCircle, Mail, Phone, Lock,
@@ -53,12 +54,26 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   // Countdown timer for verification code
   const [countdown, setCountdown] = useState(0);
 
+  // 滑块验证：由后端开关控制；开启时，发送验证码前必须先通过验证换取票据
+  const [captchaEnabled, setCaptchaEnabled] = useState(false);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [pendingSend, setPendingSend] = useState<{ target: string; purpose: 'login' | 'register' } | null>(null);
+
   useEffect(() => {
     api.auth.emailConfig()
       .then((res) => {
         if (res.code === 0 && res.data) setEmailConfig(res.data);
       })
       .catch(() => { /* 后端不可达时保持默认提示 */ });
+  }, []);
+
+  // 滑块验证开关（后端可关闭，便于测试与内网环境）
+  useEffect(() => {
+    api.auth.captchaConfig()
+      .then((res) => {
+        if (res.code === 0 && res.data) setCaptchaEnabled(!!res.data.enabled);
+      })
+      .catch(() => { /* 后端不可达时保持关闭，沿用原有发送流程 */ });
   }, []);
 
   // 会话过期被重定向到登录页时给出明确提示
@@ -81,13 +96,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }, 1000);
   };
 
-  const handleSendCode = async (target: string, purpose: 'login' | 'register') => {
-    if (!target) {
-      error('请先输入手机号或校园邮箱');
-      return;
-    }
+  const doSendCode = async (target: string, purpose: 'login' | 'register', ticket?: string) => {
     try {
-      const res = await api.auth.sendCode(target, purpose);
+      const res = await api.auth.sendCode(target, purpose, ticket);
       if (res.code === 0) {
         const debugCode = res.data?.debug_code;
         if (debugCode) {
@@ -104,6 +115,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       }
     } catch {
       error('发送验证码异常，请确认后端服务已启动');
+    }
+  };
+
+  const handleSendCode = async (target: string, purpose: 'login' | 'register') => {
+    if (!target) {
+      error('请先输入手机号或校园邮箱');
+      return;
+    }
+    // 开启滑块验证时先弹验证，拿到票据后再真正发送，
+    // 避免脚本绕过滑块直接刷验证码。
+    if (captchaEnabled) {
+      setPendingSend({ target, purpose });
+      setCaptchaOpen(true);
+      return;
+    }
+    await doSendCode(target, purpose);
+  };
+
+  const handleCaptchaPass = (ticket: string) => {
+    setCaptchaOpen(false);
+    if (pendingSend) {
+      doSendCode(pendingSend.target, pendingSend.purpose, ticket);
+      setPendingSend(null);
     }
   };
 
@@ -610,6 +644,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <a href="/privacy" className="text-indigo-600 font-medium hover:underline">隐私保护协议</a>
         </div>
       </div>
+
+      {/* 滑块验证弹层：发送验证码前的人机校验 */}
+      {captchaOpen && (
+        <SliderCaptcha
+          onSuccess={handleCaptchaPass}
+          onClose={() => {
+            setCaptchaOpen(false);
+            setPendingSend(null);
+          }}
+        />
+      )}
     </div>
   );
 };

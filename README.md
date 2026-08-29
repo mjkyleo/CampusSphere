@@ -87,7 +87,18 @@ uvicorn app.asgi:app --reload --port 8000           # 自动建表 + 按 config/
 
 验证：<http://localhost:8000/health> 返回 `ok`，API 文档 <http://localhost:8000/docs>。
 
-**一键启动**（推荐）：运行 `deploy\start_dev.bat`，脚本会自动检测并关闭 8000 / 5173 端口的残留进程、释放端口后同时启动前后端，并等待健康检查通过。
+**一键启停**（推荐）：项目提供跨平台的 `scripts/devctl.py`，取代原先仅 Windows 可用的 `deploy\start_dev.bat`：
+
+```bash
+python scripts/devctl.py up          # 启动后端 + 前端，并等待健康检查通过
+python scripts/devctl.py status      # 查看各服务监听状态与 PID
+python scripts/devctl.py down        # 停止服务并校验端口已释放
+python scripts/devctl.py restart     # 先关再启
+```
+
+常用参数：`--backend-only` / `--frontend-only` 只操作其中一个；`--wait-timeout N` 调整健康检查等待秒数；`--force` 自动清理占用端口的残留进程；`--mode docker` 改用 `docker compose` 起停整依赖（Postgres / Redis / MinIO / Meili / Nginx）。Windows 下也可直接双击 `scripts\start.bat` / `scripts\stop.bat`。
+
+脚本会把 PID 写入 `.run/`、日志写入 `.run/logs/`（均已加入 .gitignore）。关闭采用「优雅终止 → 超时强杀 → 按端口兜底清理 → 校验端口释放」四步，避免残留进程继续占用 8000 / 5173；启动后若健康检查未通过，会自动回滚本次拉起的服务。
 
 ### 2. 启动前端
 
@@ -103,13 +114,55 @@ npm run dev                                         # http://localhost:5173
 
 ### 3. 登录与账号
 
-**普通用户**：登录页支持「账号密码登录」（用户名 / 邮箱 / 手机号 + 密码）与「邮箱验证码注册」（按后台配置的白名单校园邮箱，注册成功即自动登录）。微信 / QQ 授权登录需在后台配置应用凭据后开放。
+**普通用户**：登录页提供四种入口——
+
+| 入口 | 账号 | 说明 |
+| --- | --- | --- |
+| 账号密码登录 | 用户名 / 邮箱 / 手机号 + 密码 | 邮箱注册会自动生成用户名，**用户名与邮箱均可登录**；邮箱忽略大小写 |
+| 邮箱验证码注册 | 校园邮箱 + 验证码 | 需先通过滑块验证才能获取验证码；注册成功即自动登录 |
+| 手机号验证码登录 | 手机号 + 验证码 | 同上 |
+| 用户名注册 | 用户名 + 密码（邮箱选填） | 若填写邮箱，须同样遵守校园邮箱域名规则，不能绕过白名单 |
+
+**微信 / QQ 授权登录暂未开放**：后端已保留 `/api/auth/wechat/*`、`/api/auth/qq/*` 回调接口与绑定 / 解绑能力，待配置应用凭据（AppID / Secret）后即可启用；前端入口点击时仅给出提示，不发起请求。
 
 **管理员**：登录页底部「系统管理后台入口 → 管理员登录」，需依次输入**网关密钥 + 管理员账号 + 密码**（三者均通过 `config/school.yaml` 的 `admin` 段与 `.env` 配置下发，不再硬编码、不再对外暴露）方可进入 `/admin` 管理后台；后端未携带有效网关令牌时 `/api/admin/*` 一律返回 404，避免被探测。
 
 **页面权限分离**：前端按登录身份隔离路由——未登录只能浏览公开内容（首页 / 市场 / 课程 / 食堂 / 分享 / 兼职 / 组队列表，后端列表接口对 GET 开放）；发布、评价、消息、个人中心需普通用户登录（自动跳转 `/login`）；`/admin` 管理后台仅管理员账号可进入，普通用户 token 无法访问任何 `/api/admin/*` 接口。
 
 > **验证码说明**：当前默认未配置 SMTP 发送服务，`POST /api/auth/send-code` 的响应会直接返回 `debug_code`，前端注册页自动填入便于联调；生产环境在 `.env` 配置 `SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS` 后，验证码仅通过邮件送达，接口不再返回明文验证码。
+
+### 4. 滑块验证（发送验证码前的防滥用闸门）
+
+为防止脚本恶意刷取验证码、轰炸校园邮箱，请求发送验证码前必须完成一次**滑块拼图验证**：
+
+```
+GET  /api/auth/captcha/config   → 是否开启（前端据此决定是否弹窗）
+GET  /api/auth/captcha/slider   → 背景图 + 拼图块（base64）+ 令牌
+POST /api/auth/captcha/verify   → 校验拖动结果，通过后签发一次性票据
+POST /api/auth/send-code        → 携带票据才能真正发送
+```
+
+设计要点：
+
+* **缺口横坐标不下发**：只保存在服务端（Redis），响应仅含纵坐标，避免被直接解析绕过；
+* **令牌一次性**：校验无论成败立即作废，杜绝反复试探坐标；
+* **多重判定**：位置容差（默认 6px）+ 拖动耗时 + 轨迹形态（拦截匀速脚本）；
+* **票据一次性**：一次滑块只能换一次发码，防止「一次验证、反复刷码」；
+* 图像处理基于 **Pillow**（业界标准库），不依赖第三方验证服务，离线部署同样可用。
+
+可通过 `CAPTCHA_ENABLED=false` 关闭（测试与内网环境），关闭后 `send-code` 不再要求票据。
+
+### 5. 验证码与注册规则
+
+| 项 | 默认值 | 配置键 |
+| --- | --- | --- |
+| 验证码有效期 | 300 秒 | `CODE_TTL_SECONDS` |
+| 验证码最大校验次数 | 5 次（超出即作废，防暴力枚举） | `CODE_MAX_ATTEMPTS` |
+| 同一目标发码频率 | 60 秒 1 次 | — |
+| 邮箱域名白名单 / 正则 | 见 `config/school.yaml` | 管理后台 `/admin` 可动态覆盖 |
+| 滑块容差 / 有效期 / 尝试次数 | 6px / 300s / 3 次 | `CAPTCHA_TOLERANCE_PX`、`CAPTCHA_TTL_SECONDS`、`CAPTCHA_MAX_ATTEMPTS` |
+
+邮箱**统一以小写存储与比对**，用户输入含大写字母也不会出现「收不到验证码」或「登录失败」。
 
 ## 文档导航
 
@@ -125,12 +178,26 @@ npm run dev                                         # http://localhost:5173
 ## 测试
 
 ```bash
-# 后端 pytest 冒烟测试
+# 后端完整测试套件（零外部依赖：测试库为临时 SQLite，Redis/MinIO/Meili 走内存降级）
 cd backend && pytest -q
+
+# 只看生命周期与资源释放相关用例
+pytest tests/test_lifecycle.py tests/test_shutdown_resources.py -v
 
 # 前端类型检查
 cd frontend && npm run lint        # tsc --noEmit
 ```
+
+测试套件分层：
+
+| 文件 | 覆盖内容 |
+| --- | --- |
+| `tests/test_lifecycle.py` | 应用启动 / 关闭全生命周期：健康检查、seed 幂等、DB 引擎释放、Redis 客户端关闭、WS 监听任务取消；边界含弱密钥拒绝启动、Redis 不可用降级启动、启动中途失败仍释放资源 |
+| `tests/test_shutdown_resources.py` | 关闭期资源释放专项：三类资源释放完整性、释放顺序（后台任务 → 外部连接 → 连接池）、单环节失败不阻断后续释放、幂等性与旧版 Redis 客户端兼容 |
+| `tests/test_e2e_flow.py` | 端到端主流程：注册登录 → 发布 → 浏览 → 议价会话 → 下架 → 删除，覆盖跨模块协作（item → message、课程 / 食堂）与越权拦截 |
+| 其余 `tests/test_*.py` | 按模块划分的用例：认证、用户、物品、发布审核、消息、WebSocket、管理端网关、架构约束等 |
+
+生命周期测试通过 `conftest.lifecycle_env` 把全局 engine / SessionLocal 重定向到临时库，因此可以安全地跑完整 lifespan——而常规 `client` fixture 为提速刻意跳过了 lifespan。
 
 ## 生产部署
 

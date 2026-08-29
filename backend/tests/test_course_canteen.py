@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from helpers import auth_header, register_login
+from helpers import admin_login, auth_header, register_login, seed_admin
 
 
 def test_course_create_and_review(client):
@@ -30,20 +30,26 @@ def test_course_create_and_review(client):
     assert len(detail.json()["data"]["reviews"]) >= 1
 
 
-def test_canteen_stall_dish_review(client):
+def test_canteen_stall_dish_review(client, session_factory):
+    # 食堂 / 摊位 / 菜品由管理端维护，普通用户只能浏览与评价。
+    # （这些端点迁到 /api/admin/* 后，本用例曾因仍在公开路径创建而失败）
+    seed_admin(session_factory)
+    admin_h = admin_login(client)
     user = register_login(client, "canteenuser1")
     h = auth_header(user["access_token"])
 
     canteen = client.post(
-        "/api/canteens", json={"name": "一食堂", "location": "东区"}, headers=h
+        "/api/admin/canteens", json={"name": "一食堂", "location": "东区"}, headers=admin_h
     ).json()["data"]
     stall = client.post(
-        "/api/canteens/stalls", json={"canteen_id": canteen["id"], "name": "麻辣档"}, headers=h
+        "/api/admin/canteens/stalls",
+        json={"canteen_id": canteen["id"], "name": "麻辣档"},
+        headers=admin_h,
     ).json()["data"]
     dish = client.post(
-        "/api/canteens/dishes",
+        "/api/admin/canteens/dishes",
         json={"stall_id": stall["id"], "name": "麻辣烫", "price": 1500},
-        headers=h,
+        headers=admin_h,
     ).json()["data"]
 
     rev = client.post(
@@ -69,12 +75,24 @@ def test_course_list_endpoint(client):
     assert r.json()["data"]["total"] >= 1
 
 
-def test_canteen_list_and_dish_detail(client):
+def test_canteen_list_and_dish_detail(client, session_factory):
+    seed_admin(session_factory)
+    admin_h = admin_login(client)
     user = register_login(client, "canteenlist1")
     h = auth_header(user["access_token"])
-    canteen = client.post("/api/canteens", json={"name": "二食堂", "location": "西区"}, headers=h).json()["data"]
-    stall = client.post("/api/canteens/stalls", json={"canteen_id": canteen["id"], "name": "面档"}, headers=h).json()["data"]
-    dish = client.post("/api/canteens/dishes", json={"stall_id": stall["id"], "name": "牛肉面", "price": 1800}, headers=h).json()["data"]
+    canteen = client.post(
+        "/api/admin/canteens", json={"name": "二食堂", "location": "西区"}, headers=admin_h
+    ).json()["data"]
+    stall = client.post(
+        "/api/admin/canteens/stalls",
+        json={"canteen_id": canteen["id"], "name": "面档"},
+        headers=admin_h,
+    ).json()["data"]
+    dish = client.post(
+        "/api/admin/canteens/dishes",
+        json={"stall_id": stall["id"], "name": "牛肉面", "price": 1800},
+        headers=admin_h,
+    ).json()["data"]
 
     r = client.get("/api/canteens", headers=h)
     assert r.status_code == 200

@@ -57,3 +57,35 @@ def admin_login(client: TestClient) -> dict:
 def run_async(coro):
     """在同步测试中运行一个协程（用于直接调用 service 层）。"""
     return asyncio.run(coro)
+
+
+def run_lifespan(app) -> None:
+    """同步驱动一次完整的「启动 → 关闭」（ASGI lifespan）。
+
+    用于生命周期 / 资源释放测试：相比 ``TestClient`` 上下文管理器，
+    它不启动传输层，便于在启停前后精确断言资源状态。
+    """
+    async def _drive():
+        async with app.router.lifespan_context(app):
+            pass
+
+    asyncio.run(_drive())
+
+
+class DisposeSpy:
+    """包装 AsyncEngine，记录 dispose 调用并代理其余属性。
+
+    SQLAlchemy 2.0 的 ``AsyncEngine.dispose`` 是只读属性，无法直接
+    monkeypatch，因此改为替换 lifespan 的引用点（``app.main.engine``）。
+    """
+
+    def __init__(self, real_engine) -> None:
+        self._real = real_engine
+        self.calls = 0
+
+    async def dispose(self, *args, **kwargs):
+        self.calls += 1
+        return await self._real.dispose(*args, **kwargs)
+
+    def __getattr__(self, name: str):
+        return getattr(self._real, name)

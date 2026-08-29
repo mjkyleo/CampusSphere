@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import re
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-
-import re
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ from app.common.utils import generate_code, is_valid_email, is_valid_phone
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
-from app.core.redis import redis_get, redis_incr, redis_set
+from app.core.redis import redis_delete, redis_get, redis_incr, redis_set
 from app.core.security import (
     _create_token,
     create_access_token,
@@ -29,8 +29,9 @@ from app.modules.auth.models import OAuthAccount, RefreshToken, User
 
 _logger = get_logger("auth.service")
 
-_CODE_TTL = 300  # 验证码 5 分钟有效
+_CODE_TTL = settings.code_ttl_seconds  # 验证码有效期（可配置）
 _RATE_LIMIT_PREFIX = "vcode:limit:"
+_TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
 
 
 async def register(db: AsyncSession, data) -> User:
@@ -40,12 +41,17 @@ async def register(db: AsyncSession, data) -> User:
         raise BizError(ErrorCode.CONFLICT, "用户名已存在")
     user = User(username=data.username, nickname=data.nickname or data.username)
     if data.email:
-        if not is_valid_email(data.email):
+        email = (data.email or "").strip().lower()
+        if not is_valid_email(email):
             raise BizError(ErrorCode.VALIDATION, "邮箱格式不正确")
-        dup = await db.scalar(select(User).where(User.email == data.email))
+        # 与邮箱注册保持同一套规则：后台可配的域名白名单 / 正则，
+        # 避免「用户名注册」成为绕过校园邮箱限制的后门。
+        rule = await get_email_register_rule(db)
+        validate_email_rule(email, rule)
+        dup = await db.scalar(select(User).where(func.lower(User.email) == email))
         if dup:
             raise BizError(ErrorCode.CONFLICT, "邮箱已被注册")
-        user.email = data.email
+        user.email = email
     if data.phone:
         if not is_valid_phone(data.phone):
             raise BizError(ErrorCode.VALIDATION, "手机号格式不正确")
@@ -151,6 +157,11 @@ async def logout(db: AsyncSession, access_token: str, refresh_token: str) -> Non
 
 async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str:
     """生成并存储验证码；对同一 target 做发送频率限制（默认每分钟 1 次）。"""
+    target = (target or "").strip()
+    # 邮箱统一小写：注册/绑定时会以 lower(email) 读取验证码，
+    # 若此处不规范化，用户输入含大写字母就会取不到刚收到的验证码。
+    if is_valid_email(target):
+        target = target.lower()
     is_phone = is_valid_phone(target)
     is_mail = is_valid_email(target)
     if not (is_phone or is_mail):
@@ -162,16 +173,43 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
     code = generate_code(6)
     # 验证码存 Redis（带 TTL）；无 Redis 时降级为内存（仅开发）
     await redis_set(f"vcode:{purpose}:{target}", code, ttl=_CODE_TTL)
+    # 新验证码下发即清零尝试次数，避免上一轮的重试记录连坐新验证码
+    await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
     _logger.info("verification_code_sent", target=target, purpose=purpose)
     return code
 
 
 async def verify_code(target: str, code: str, purpose: str) -> bool:
-    stored = await redis_get(f"vcode:{purpose}:{target}")
-    if not stored or stored != code:
+    """校验验证码（成功即失效）。
+
+    6 位数字的组合空间只有 100 万，有效期内若不限制尝试次数可被暴力枚举，
+    因此累计错误次数达到上限就作废该验证码，迫使用户重新获取。
+    比较使用恒定时间算法，避免通过响应耗时逐位试探。
+    """
+    target = (target or "").strip()
+    # 与 send_code 保持同一套规范化规则，避免大小写导致取不到验证码
+    if is_valid_email(target):
+        target = target.lower()
+    key = f"vcode:{purpose}:{target}"
+    tries_key = f"{_TRIES_PREFIX}{purpose}:{target}"
+
+    stored = await redis_get(key)
+    if not stored:
         return False
-    # 校验成功即失效
-    await redis_set(f"vcode:{purpose}:{target}", "", ttl=1)
+
+    tries = await redis_incr(tries_key, ttl=_CODE_TTL)
+    if tries > settings.code_max_attempts:
+        await redis_set(key, "", ttl=1)
+        await redis_delete(tries_key)
+        _logger.warning("verification_code_locked", target=target, purpose=purpose)
+        return False
+
+    if not secrets.compare_digest(stored, code):
+        return False
+
+    # 校验成功：验证码与尝试计数一并清除
+    await redis_set(key, "", ttl=1)
+    await redis_delete(tries_key)
     return True
 
 

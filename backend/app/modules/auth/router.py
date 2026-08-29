@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
 from app.common.schemas import EmailRegisterConfig
+from app.modules.auth.captcha import consume_ticket, generate_slider, verify_slider
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.auth.oauth import (
@@ -32,6 +33,9 @@ from app.modules.auth.schemas import (
     RegisterRequest,
     SendCodeOut,
     SendCodeRequest,
+    SliderCaptchaOut,
+    SliderVerifyOut,
+    SliderVerifyRequest,
     TokenResponse,
     UnbindOAuthRequest,
     UserOut,
@@ -100,13 +104,51 @@ async def logout_user(
     return ApiResponse.ok(message="已注销")
 
 
+# ---------------------------------------------------------------------------
+# 滑块验证：发送验证码前的防滥用闸门
+# ---------------------------------------------------------------------------
+@router.get("/captcha/config", response_model=ApiResponse[dict])
+async def captcha_config():
+    """公开只读：滑块验证是否开启，供前端决定是否需要弹出滑块。"""
+    return ApiResponse.ok(data={"enabled": settings.captcha_enabled})
+
+
+@router.get("/captcha/slider", response_model=ApiResponse[SliderCaptchaOut])
+async def captcha_slider():
+    """获取一次滑块验证（背景图 + 拼图块）。
+
+    缺口的横坐标只保存在服务端，响应中仅包含纵坐标 y，
+    前端据此把拼图块放在同一水平线上。
+    """
+    return ApiResponse.ok(data=SliderCaptchaOut(**await generate_slider()))
+
+
+@router.post("/captcha/verify", response_model=ApiResponse[SliderVerifyOut])
+async def captcha_verify(data: SliderVerifyRequest):
+    """校验滑块拖动结果，通过则签发一次性票据（供 send-code 使用）。"""
+    ticket = await verify_slider(
+        data.token, data.offset_x, data.track, data.elapsed_ms
+    )
+    return ApiResponse.ok(
+        message="验证通过",
+        data=SliderVerifyOut(
+            ticket=ticket, expires_in=settings.captcha_ticket_ttl_seconds
+        ),
+    )
+
+
 @router.post("/send-code", response_model=ApiResponse[SendCodeOut])
 async def send_verification_code(data: SendCodeRequest):
     """发送验证码（邮箱/手机号，purpose 区分用途）。
 
+    开启滑块验证时，必须携带 ``/captcha/verify`` 签发的一次性票据，
+    否则拒绝发送——避免脚本绕过滑块直接刷验证码轰炸邮箱/手机。
+
     开发/测试模式（settings.debug=true）下响应中直接返回 debug_code，
     便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
     """
+    if settings.captcha_enabled and not await consume_ticket(data.captcha_ticket):
+        raise BizError(ErrorCode.VALIDATION, "请先完成滑块验证")
     code = await send_code(data.target, data.purpose)
     # 开发模式或尚未配置邮件/短信发送通道时，响应中直接返回验证码，便于测试联调；
     # 生产环境接入 SMTP 后 debug_code 恒为 null，验证码仅通过邮件送达。

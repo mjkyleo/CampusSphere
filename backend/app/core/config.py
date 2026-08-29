@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_pass: str = ""
 
+    # ----- 滑块验证（发送验证码前的防滥用闸门）-----
+    # 关闭后 /api/auth/send-code 不再要求票据（供测试与内网环境使用）。
+    captcha_enabled: bool = True
+    captcha_tolerance_px: int = 6  # 缺口对齐容差（像素），过小会伤及真实用户体验
+    captcha_ttl_seconds: int = 300  # 滑块令牌有效期
+    captcha_max_attempts: int = 3  # 同一滑块最多校验次数，超出即作废
+    captcha_min_track_points: int = 6  # 轨迹最少采样点，防脚本直传坐标
+    captcha_ticket_ttl_seconds: int = 120  # 校验通过签发的票据有效期
+
+    # ----- 验证码 -----
+    code_ttl_seconds: int = 300  # 验证码有效期
+    code_max_attempts: int = 5  # 同一验证码最多校验次数，超出即作废
+
     # ----- CORS -----
     # 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖
     cors_origins: List[str] = Field(

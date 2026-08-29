@@ -42,6 +42,10 @@ class RefreshRequest(BaseModel):
 class SendCodeRequest(BaseModel):
     target: str = Field(description="手机号或邮箱")
     purpose: str = Field(default="login", description="login/register/email")
+    captcha_ticket: str | None = Field(
+        default=None,
+        description="滑块验证票据（captcha_enabled 时必填，由 /captcha/verify 签发）",
+    )
 
 
 class SendCodeOut(BaseModel):
@@ -50,6 +54,43 @@ class SendCodeOut(BaseModel):
 
     debug_code: Optional[str] = None
     expires_in: int = 300
+
+
+# ---------------------------------------------------------------------------
+# 滑块验证
+# ---------------------------------------------------------------------------
+class SliderCaptchaOut(BaseModel):
+    """滑块验证载荷：两张 base64 图片 + 画布尺寸。
+
+    注意：缺口的**横坐标不会下发**（仅服务端保存），只有纵坐标 y 需要下发，
+    前端据此把滑块放在同一水平线上。
+    """
+
+    token: str = Field(description="本次验证令牌，校验时回传")
+    background: str = Field(description="带缺口的背景图（data URI）")
+    slider: str = Field(description="拼图块（data URI，透明 PNG）")
+    width: int = Field(description="画布宽度（px）")
+    height: int = Field(description="画布高度（px）")
+    slider_size: int = Field(description="滑块边长（px）")
+    y: int = Field(description="缺口纵坐标（px），滑块需保持同一水平线")
+    expires_in: int = Field(description="令牌有效期（秒）")
+
+
+class SliderVerifyRequest(BaseModel):
+    token: str = Field(description="generate_slider 返回的令牌")
+    offset_x: float = Field(description="滑块相对画布左边缘的位移（px）")
+    track: list[list[float]] = Field(
+        default_factory=list,
+        description="拖动轨迹 [[t_ms, x, y], ...]，用于识别脚本行为",
+    )
+    elapsed_ms: int = Field(default=0, description="从开始拖到松手的总耗时（毫秒）")
+
+
+class SliderVerifyOut(BaseModel):
+    """校验通过后的票据，需在调用 send-code 时回传（一次性）。"""
+
+    ticket: str
+    expires_in: int
 
 
 class VerifyCodeRequest(BaseModel):

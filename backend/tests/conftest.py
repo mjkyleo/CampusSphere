@@ -24,6 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 # 缓存逻辑本身由后端单元/集成测试单独覆盖，这里只保证业务用例互不影响。
 os.environ.setdefault("CACHE_ENABLED", "false")
 
+# 单测环境默认关闭滑块验证：send-code 强制校验票据会打断既有的邮箱注册用例。
+# 滑块自身的生成 / 校验 / 防绕过由 tests/test_captcha.py 显式开启后覆盖。
+os.environ.setdefault("CAPTCHA_ENABLED", "false")
+
 # 将 backend/ 与 backend/tests/ 加入 sys.path，确保 ``import app`` 与 ``import helpers`` 可用
 _BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _BACKEND_ROOT not in sys.path:
@@ -73,7 +77,8 @@ def _relax_rate_limit():
     """放宽测试环境限流阈值。
 
     限流按客户端 IP + 分钟窗口计数（Redis 禁用时走内存兜底），
-    完整测试套件在同一分钟窗口内会累计大量请求，默认 120 会误触发 429。
+    完整测试套件在同一分钟窗口内会累计大量请求，默认 120 会误触发 429；
+    登录等认证端点还有独立的 10 次/分钟限流，批量注册登录的用例同样会撞上。
     中间件栈在每次请求时基于 user_middleware 构建，此处修改 options 即可生效。
     """
     from app.core.middleware import GatewayMiddleware
@@ -81,6 +86,7 @@ def _relax_rate_limit():
     for mw in app.user_middleware:
         if mw.cls is GatewayMiddleware:
             mw.kwargs["rate_limit_per_minute"] = 100_000
+            mw.kwargs["auth_rate_limit_per_minute"] = 100_000
 
 
 @pytest.fixture(autouse=True)
@@ -137,6 +143,65 @@ def client(test_engine, session_factory):
     c = TestClient(app)
     yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def lifecycle_env(tmp_path, monkeypatch):
+    """为 lifespan（启动 / 关闭）测试准备隔离环境，避免污染 dev.db。
+
+    既有 ``client`` fixture 刻意跳过 lifespan，而生命周期测试需要真实跑完
+    启停流程。这里把全局 engine / SessionLocal 重定向到临时 SQLite 库。
+
+    注意：``app.main`` 在模块导入时已把 engine 绑定到自身命名空间，必须连同
+    ``app.core.database`` 一起替换，否则 lifespan 仍会操作真实库。
+
+    返回 ``SimpleNamespace(app, engine, factory, dispose_spy)``。
+    """
+    from types import SimpleNamespace
+
+    from helpers import DisposeSpy, run_async
+
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'lifecycle.db'}",
+        future=True,
+        connect_args={"check_same_thread": False},
+    )
+    factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def _create_schema() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    run_async(_create_schema())
+
+    import app.core.database as db_module
+    import app.main as main_module
+    import app.modules.launcher.router as launcher_router
+
+    monkeypatch.setattr(db_module, "engine", engine)
+    monkeypatch.setattr(launcher_router, "engine", engine)
+    monkeypatch.setattr(main_module, "SessionLocal", factory)
+
+    # 默认就装上 dispose 探针：资源释放是本类测试的核心断言
+    spy = DisposeSpy(engine)
+    monkeypatch.setattr(main_module, "engine", spy)
+
+    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    # 无 Redis 时让 WS 广播监听安静退出，避免后台任务抛未被检索的异常干扰断言
+    async def _no_subscribe(_channel: str) -> None:  # 下划线参数：匹配签名但无需使用
+        return None
+
+    monkeypatch.setattr("app.modules.message.ws.redis_subscribe", _no_subscribe)
+
+    yield SimpleNamespace(app=app, engine=engine, factory=factory, dispose_spy=spy)
+
+    app.dependency_overrides.clear()
+    run_async(engine.dispose())
 
 
 @pytest.fixture

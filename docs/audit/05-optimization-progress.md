@@ -212,12 +212,64 @@ grep 确认 `selectinload`、`cache_get_json`、`invalidate_namespace`、`requir
 | 阶段 6 清 P1（alembic + 解耦） | ✅ 完成 | migrations CI 闸 + `EmailRegisterConfig` 迁 common + 架构守护测试 |
 | 阶段 7 清 P1（连接池 P1-9a） | ✅ 完成 | 3 处（config 配置化 + database 接入 + .env 注释） |
 | 阶段 8 清 P1/P2 六项 | ✅ 完成 | 缓存(P1-9b) + N+1(P0-5) + IDOR(P1-7) + 镜像(P1-4) + 依赖审计(P2-5) + 告警(P2-10) + 清理 50 处未用导入 |
-| 集成测试复测 | ⏸ 待环境 | 需 PyPI 可用后补 `pytest`/`ruff` |
+| 阶段 9 启停脚本 + 测试套件 | ✅ 完成 | 跨平台 `devctl.py` + 32 条生命周期/资源释放/端到端用例 + 4 处缺陷修复 |
+| 集成测试复测 | ✅ 完成 | 用系统 Python 3.11 跑通 `pytest`（88 passed）；`pip-audit`/`npm audit` 仍需联网 |
 | P1/P2 其余 | — | **已全部清零**，见下方剩余待办 |
 
 **累计改动（阶段 1~8）**：约 55 文件，+780 / −140 行（含删除 `docker-image.yml` 76 行、清理未用导入 81 行）。
 
 > **P0/P1/P2 已全部处理完毕**。剩余事项均为「需外部环境/凭据」的收尾项，见第 5 节。
+
+---
+
+## 4.x 阶段 9 · 一键启停脚本 + 生命周期测试套件 ✅ 已完成
+
+### 背景
+原先只有 Windows 专用的 `deploy\start_dev.bat`，**没有配套的关闭脚本**，开发结束后
+uvicorn / node 残留进程会继续占用 8000 / 5173。同时 `conftest.client` fixture 为提速
+刻意绕过 lifespan，导致「启动 / 关闭」两条路径零覆盖——关闭期漏掉的资源释放因此一直没被发现。
+
+### 1. 一键启停脚本 `scripts/devctl.py`
+跨平台（Windows / macOS / Linux），仅使用标准库：
+
+| 子命令 | 行为 |
+| --- | --- |
+| `up` | 启动后端（uvicorn）+ 前端（npm run dev），轮询 `/health` 与根路径直至就绪；失败自动回滚已拉起的服务 |
+| `down` | 优雅终止 → 超时强杀 → 按端口兜底清理 → **校验端口确实释放** |
+| `status` | 输出各服务监听状态、健康检查结论与 PID 存活情况 |
+| `restart` | 先 down 再 up |
+
+关键实现点：
+- **PID 与日志隔离**：写入 `.run/` 与 `.run/logs/`（已加入 .gitignore），不再散落在 `backend/uvicorn.log`。
+- **Windows 差异处理**：npm 入口是 `.cmd`，需 `shell=True` 启动；停止用 `taskkill /T` 覆盖进程树；进程存活检测改用 Win32 API（`OpenProcess` + `GetExitCodeProcess`），因为中文 Windows 下 `tasklist` 输出为 GBK，以 UTF-8 解码会抛 `UnicodeDecodeError` 并使 stdout 变成 `None`。
+- **解释器探测**：逐个候选（`.venv` → 当前解释器 → PATH）实际执行 `import uvicorn` 验证，避免选中只装了 pip 的空 venv。
+- 可选 `--mode docker` 走 `docker compose` 起停整套依赖。
+
+### 2. 测试套件（新增 32 条用例）
+
+| 文件 | 覆盖内容 |
+| --- | --- |
+| `tests/test_lifecycle.py`（13） | 启动后健康检查、根路径鉴权、seed 幂等；关闭后 DB 引擎 / Redis / WS 监听任务释放；边界：弱密钥拒绝启动、Redis 不可用降级启动、启动中途失败仍释放、连续启停稳定性 |
+| `tests/test_shutdown_resources.py`（9） | 释放完整性（三类资源归零）、释放顺序（任务 → 连接 → 池）、容错（单环节失败不阻断后续）、幂等、旧版 Redis 客户端兼容 |
+| `tests/test_e2e_flow.py`（10） | 端到端主流程：注册登录 → 发布 → 浏览 → 议价会话 → 下架 → 删除；跨模块（item → message、课程 / 食堂嵌套加载）协作；边界：未认证、无效令牌、资源不存在、非法分页、分页越界、重复注册、越权删除 |
+
+支撑设施：`conftest.lifecycle_env` 把全局 engine / SessionLocal 重定向到临时 SQLite，
+使完整 lifespan 可被安全驱动；`helpers.run_lifespan` 同步驱动启停，`helpers.DisposeSpy`
+绕过 `AsyncEngine.dispose` 只读限制来断言释放调用。
+
+### 3. 测试暴露并修复的缺陷（4 处，均为真实问题）
+1. **关闭期资源未释放**：`lifespan` 原先只 `engine.dispose()`，Redis 连接池与 WS 监听任务从未关闭。现补充 `close_redis()`（清空句柄 + `aclose()`，兼容旧版 `close()`）与 `ConnectionManager.stop_listener()`（取消 task 并清空句柄），并把 startup 一并纳入 `try/finally`，保证启动中途失败同样释放。
+2. **公开路径完全跳过令牌解析**：`GatewayMiddleware` 对 `PUBLIC_GET_PREFIXES`（含 `/api/items`）直接跳过鉴权，导致 `request.state.user_id` 从未写入——**开启发布审核后，发布者本人也看不到自己待审核(PENDING)的物品**。现改为公开路径仍尝试解析有效令牌（无效/缺失按匿名处理，不改变可访问性）。
+3. **认证限流阈值硬编码**：登录等端点 10 次/分钟写死在中间件内，测试环境批量登录必然 429，生产也无法调整。现提取为 `auth_rate_limit_per_minute` 构造参数（默认仍为 10）。
+4. **两处既有失败用例**：`test_course_canteen` 的食堂创建仍在公开路径（端点已迁至 `/api/admin/*`）；`test_strong_config_passes_validation` 未覆盖基础设施密钥校验（`.env` 中 `masterKey`/`minioadmin` 会被判为带病上线）。均已修正。
+
+### 4. 验证结果
+```
+cd backend && python -m pytest -q
+→ 88 passed（含新增 32 条），0 failed
+```
+启停脚本经实测闭环：启动→健康检查通过（`status=ok db=up`）→状态查询→关闭→端口释放；
+并额外验证了「健康检查超时自动回滚」「无 PID 记录时幂等关闭」两条边界路径。
 
 ---
 
@@ -241,17 +293,34 @@ grep 确认 `selectinload`、`cache_get_json`、`invalidate_namespace`、`requir
 - **Alertmanager 投递**：`alerts.yml` 已定义规则，需配 `route`/`receiver`（邮件/企微/钉钉）才能真正通知到人。
 - **CI 自动部署（第二阶段）**：需仓库密钥（SSH 私钥或 registry 凭据）后再加 `deploy` job。
 - **compose 镜像标签固定**：将 `minio:latest` 等浮动标签固定为具体版本。
-- **集成测试复测**：待 PyPI 出口稳定后跑 `pytest`/`ruff`/`pip-audit` 取真实数字（命令见第 6 节）。
+- **依赖漏洞扫描复测**：`pytest` 已用系统 Python 3.11 跑通（见第 6 节）；`pip-audit` 与前端 `npm audit` 仍需联网执行。
 
 ---
 
-## 6. 验证命令（环境就绪后补跑）
+## 6. 验证命令
+
+> **环境说明**：本环境 PyPI 出口不稳定，`backend/.venv` 未能装好依赖；
+> 但**系统 Python 3.11 已装齐全部依赖**，可直接跑测试与 lint：
+> `C:/Users/86132/AppData/Local/Programs/Python/Python311/python.exe`（下记作 `PY311`）。
+
 ```bash
-cd backend && .venv/Scripts/python.exe -m pip install -e ".[dev]"
-.venv/Scripts/python.exe -m pytest -q --cov=app --cov-report=term-missing
-.venv/Scripts/python.exe -m ruff check app
-.venv/Scripts/python.exe -m pip-audit
-cd ../frontend && npm install && npm run lint
+cd backend
+# 完整测试套件（零外部依赖：临时 SQLite + Redis/MinIO/Meili 内存降级）
+$PY311 -m pytest -q
+$PY311 -m pytest -q --cov=app --cov-report=term-missing      # 带覆盖率
+
+# 静态检查（CI 实际执行的是 ruff check app）
+$PY311 -m ruff check app
+
+# 一键启停（脚本本身跨平台，可用任意 Python 3.9+ 运行）
+python ../scripts/devctl.py up --backend-only
+python ../scripts/devctl.py status
+python ../scripts/devctl.py down --backend-only
+
+cd ../frontend && npm install && npm run lint                 # 前端类型检查
 ```
 
-> **限制说明**：本环境 PyPI 出口网络不稳定，`pip install` 反复中断，故 `pytest`/`ruff`/`pip-audit` 实时数字与前端 `npm audit` 未能补齐；所有已实施改动通过 `compileall` 语法校验与代码审查验证，行为正确性需在依赖就绪的集成环境中复测确认。
+**已跑通的结果**：`pytest -q` → **88 passed**（含阶段 9 新增的 32 条），0 failed。
+
+尚未补齐：`pip-audit`（需联网）、前端 `npm audit`（需 npm 网络）、
+覆盖率数字（需装 `pytest-cov`）。

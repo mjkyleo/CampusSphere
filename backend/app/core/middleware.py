@@ -32,6 +32,9 @@ PUBLIC_PATHS = {
     "/api/auth/send-code",
     "/api/auth/verify-email",
     "/api/auth/email-config",
+    "/api/auth/captcha/config",
+    "/api/auth/captcha/slider",
+    "/api/auth/captcha/verify",
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
@@ -65,9 +68,42 @@ def _extract_token(request: Request) -> str | None:
 class GatewayMiddleware(BaseHTTPMiddleware):
     """统一网关中间件。"""
 
-    def __init__(self, app, rate_limit_per_minute: int = 120) -> None:
+    def __init__(
+        self,
+        app,
+        rate_limit_per_minute: int = 120,
+        auth_rate_limit_per_minute: int = 10,
+    ) -> None:
+        """统一网关中间件。
+
+        ``auth_rate_limit_per_minute`` 针对登录 / 验证码等认证端点单独限流
+        （防爆破），默认 10 次/分钟。阈值做成构造参数而非硬编码，便于：
+        * 测试环境放宽——同一分钟内批量登录的用例否则会互相干扰；
+        * 生产按部署形态调整（如内网网关已限流时可放宽）。
+        """
         super().__init__(app)
         self.rate_limit_per_minute = rate_limit_per_minute
+        self.auth_rate_limit_per_minute = auth_rate_limit_per_minute
+
+    async def _try_resolve_user(self, request: Request) -> tuple[str | None, str | None]:
+        """尝试解析 Authorization 中的 access token。
+
+        返回 ``(user_id, error)``：成功时 error 为 None；失败时 user_id 为 None
+        并给出可读原因，便于公开路径与受保护路径复用同一套解析逻辑。
+        """
+        token = _extract_token(request)
+        if not token:
+            return None, "缺少访问令牌"
+        try:
+            payload = decode_token(token)
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("auth_failed", error=str(exc))
+            return None, "令牌无效或已失效"
+        if payload.get("type") != "access":
+            return None, "令牌无效或已失效"
+        if await is_token_revoked(token):
+            return None, "令牌已失效"
+        return payload["sub"], None
 
     async def dispatch(self, request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
@@ -93,19 +129,23 @@ class GatewayMiddleware(BaseHTTPMiddleware):
         except Exception:  # noqa: BLE001
             pass  # 限流失败不阻断业务
 
-        # 认证/验证码接口独立严格限流（防爆破与刷接口），每 IP 每分钟 10 次。
+        # 认证/验证码接口独立严格限流（防爆破与刷接口），默认每 IP 每分钟 10 次。
         _auth_strict_paths = {
             "/api/auth/login",
             "/api/auth/phone-login",
             "/api/auth/email-register",
             "/api/auth/send-code",
             "/api/auth/verify-email",
+            # 滑块生成是 CPU 密集操作，且校验端点可能被用于暴力试探缺口位置，
+            # 因此同样纳入严格限流（10 次/分钟）。
+            "/api/auth/captcha/slider",
+            "/api/auth/captcha/verify",
         }
         if request.url.path in _auth_strict_paths:
             auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"
             try:
                 acount = await redis_incr(auth_limit_key, ttl=60)
-                if acount and acount > 10:
+                if acount and acount > self.auth_rate_limit_per_minute:
                     return JSONResponse(
                         status_code=429,
                         content=ApiResponse(
@@ -137,33 +177,27 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             or path.startswith("/ws")
             or (request.method == "GET" and any(path.startswith(prefix) for prefix in PUBLIC_GET_PREFIXES))
         )
-        if not is_public:
-            token = _extract_token(request)
-            if not token:
-                clear_request()
-                return JSONResponse(
-                    status_code=401,
-                    content=ApiResponse(
-                        code=ErrorCode.UNAUTHORIZED, message="缺少访问令牌"
-                    ).model_dump(),
-                )
-            try:
-                payload = decode_token(token)
-                if payload.get("type") != "access":
-                    raise ValueError("not access token")
-                if await is_token_revoked(token):
-                    raise ValueError("revoked")
-                request.state.user_id = payload["sub"]
-                bind_request(request_id, user_id=payload["sub"])
-            except Exception as exc:  # noqa: BLE001
-                _logger.warning("auth_failed", error=str(exc))
-                clear_request()
-                return JSONResponse(
-                    status_code=401,
-                    content=ApiResponse(
-                        code=ErrorCode.UNAUTHORIZED, message="令牌无效或已失效"
-                    ).model_dump(),
-                )
+        user_id, error = await self._try_resolve_user(request)
+        if is_public:
+            # 公开路径允许匿名访问，但携带有效令牌时仍要识别出用户：
+            # 下游 get_current_user_optional 依赖 request.state.user_id 做
+            # 「待审核物品本人可见」等个性化判断。此前这里完全跳过解析，
+            # 导致发布者本人也看不到自己待审核的物品。
+            # 令牌缺失或无效时按匿名处理，不阻断访问。
+            if user_id:
+                request.state.user_id = user_id
+                bind_request(request_id, user_id=user_id)
+        elif not user_id:
+            clear_request()
+            return JSONResponse(
+                status_code=401,
+                content=ApiResponse(
+                    code=ErrorCode.UNAUTHORIZED, message=error or "令牌无效或已失效"
+                ).model_dump(),
+            )
+        else:
+            request.state.user_id = user_id
+            bind_request(request_id, user_id=user_id)
 
         start = time.time()
         response = await call_next(request)

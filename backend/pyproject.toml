@@ -37,6 +37,8 @@ dependencies = [
     "structlog>=24.1",
     # HTTP 客户端（OAuth 调用）
     "httpx>=0.27",
+    # 滑块验证（服务端生成拼图；Pillow 为业界标准图像处理库）
+    "Pillow>=10.0",
     # YAML 配置
     "pyyaml>=6.0",
 ]

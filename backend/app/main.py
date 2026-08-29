@@ -12,6 +12,7 @@ from app.core.database import SessionLocal, engine, init_models
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import GatewayMiddleware
+from app.core.redis import close_redis
 from app.modules.admin.router import router as admin_router
 from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
@@ -34,34 +35,48 @@ _logger = get_logger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    configure_logging()
-    # 启动期管理员安全校验：生产环境（非 debug 且 admin_gateway_enforce）若网关密钥或 bootstrap
-    # 密码过弱/缺失，直接 SystemExit 拒绝带病上线（开发/测试放宽模式跳过）。
-    from app.core.config import validate_admin_security
-
-    validate_admin_security()
-    _logger.info("app_starting", school=settings.school_name)
-    # 开发模式（SQLite）自动建表，免去手动 alembic
-    if settings.db_url.startswith("sqlite"):
-        from app.common.models import Base
-
-        await init_models(Base)
-    # 初始化后台管理员
-    async with SessionLocal() as db:
-        from app.modules.admin.service import ensure_seed
-
-        try:
-            await ensure_seed(db)
-        except Exception as exc:  # noqa: BLE001
-            _logger.warning("admin_seed_failed", error=str(exc))
-    # 启动 WebSocket Redis 广播监听
+    # 启动逻辑一并放进 try：启动中途失败（如 init_models 异常）也会走 finally 释放，
+    # 避免"半启动"状态下残留已申请的连接与后台任务。
     try:
-        await manager.start_listener()
-    except Exception:  # noqa: BLE001
-        pass
-    yield
-    await engine.dispose()
-    _logger.info("app_shutdown")
+        configure_logging()
+        # 启动期管理员安全校验：生产环境（非 debug 且 admin_gateway_enforce）若网关密钥或 bootstrap
+        # 密码过弱/缺失，直接 SystemExit 拒绝带病上线（开发/测试放宽模式跳过）。
+        from app.core.config import validate_admin_security
+
+        validate_admin_security()
+        _logger.info("app_starting", school=settings.school_name)
+        # 开发模式（SQLite）自动建表，免去手动 alembic
+        if settings.db_url.startswith("sqlite"):
+            from app.common.models import Base
+
+            await init_models(Base)
+        # 初始化后台管理员
+        async with SessionLocal() as db:
+            from app.modules.admin.service import ensure_seed
+
+            try:
+                await ensure_seed(db)
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("admin_seed_failed", error=str(exc))
+        # 启动 WebSocket Redis 广播监听
+        try:
+            await manager.start_listener()
+        except Exception:  # noqa: BLE001
+            pass
+        yield
+    finally:
+        # 关闭期资源释放顺序：后台任务 → 外部连接 → 数据库连接池。
+        # 用 finally 保证运行期异常（或启动中途失败）时同样释放，避免句柄泄漏。
+        try:
+            await manager.stop_listener()
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("ws_listener_stop_failed", error=str(exc))
+        try:
+            await close_redis()
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("redis_close_failed", error=str(exc))
+        await engine.dispose()
+        _logger.info("app_shutdown")
 
 
 def create_app() -> FastAPI:
