@@ -17,8 +17,18 @@
 # （如 uv.lock / pip-tools 的 requirements.txt --generate-hashes）并提交，以保证可复现构建。
 # 基础镜像固定到 python:3.12-slim（小版本漂移可控）。
 
+# 基础镜像可覆盖（在**所有 FROM 之前**声明，才能在 FROM 中引用）。
+#
+# 用途：registry-1.docker.io 在部分网络（国内家庭/校园网）不可达，
+# BuildKit 即便本地已有同名镜像，仍会去 registry 解析元数据并报
+# "failed to resolve source metadata ... dial tcp ... timed out"。
+# 此时可指向可用的公共加速镜像，例如：
+#   docker build --build-arg BASE_IMAGE=dockerproxy.net/library/python:3.12-slim ...
+# 或在 deploy/.env 中设置 BASE_IMAGE（compose 已接线）。默认保持官方镜像。
+ARG BASE_IMAGE=python:3.12-slim
+
 # ---------------- 构建阶段 ----------------
-FROM python:3.12-slim AS builder
+FROM ${BASE_IMAGE} AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
@@ -62,7 +72,10 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/python -c "from app.main import app; print('build smoke: app import OK')"
 
 # ---------------- 运行基础阶段（app / worker 共用）----------------
-FROM python:3.12-slim AS base
+# 重声明 ARG：ARG 的作用域止于每个 FROM，新的构建阶段需再次引入
+ARG BASE_IMAGE=python:3.12-slim
+
+FROM ${BASE_IMAGE} AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

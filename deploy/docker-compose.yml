@@ -115,6 +115,7 @@ services:
       args:
         APT_MIRROR: ${APT_MIRROR:-}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
     image: campusphere-backend:latest
     restart: unless-stopped
     depends_on:
@@ -143,6 +144,7 @@ services:
       args:
         APT_MIRROR: ${APT_MIRROR:-}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
     image: campusphere-worker:latest
     restart: unless-stopped
     depends_on:
