@@ -290,9 +290,43 @@ Playwright 会通过 `webServer` **自动拉起**后端（uvicorn:8000）与前�
 |---|---|---|---|
 | **P0** ✅ **已修复 (2026-08-29)** | `/api/reports/{id}/handle` 与 `GET /api/reports` 原**不校验管理员身份**：任意登录用户可查看全部举报工单，并用 `action=ban` 封禁任意用户（越权提权）。已改用 `Depends(require_admin)`（与 `/api/admin/*` 一致）。 | `app/modules/report/router.py` | `test_admin/test_moderation.py::test_ordinary_user_cannot_handle_report` 等（已转正向断言） |
 | **P0** ✅ **已修复 (2026-08-29)** | 同一批端点原依赖 `get_current_user`（查 `users` 表），管理员令牌属 `AdminUser` 表导致**管理员无法处置工单**（报"用户不存在"）。改 `require_admin` 后管理员可正常处置/驳回。 | 同上 | `test_admin_resolves_report`、`test_admin_rejects_report`（xfail 已移除） |
-| **P1** | **验证码邮件从未真实派发**：`send_code` 只生成并入库，`smtp_*` 配置仅用于决定是否回传 `debug_code`。生产配置 SMTP 后，用户既收不到邮件也拿不到 `debug_code`，注册流程会断 | `app/modules/auth/service.py::send_code` | `test_external/test_email_task.py::test_send_code_dispatches_email` |
+| **P1** ✅ **已修复 (2026-08-30)** | **验证码邮件从未真实派发**：`send_code` 只生成并入库，`smtp_*` 配置仅用于决定是否回传 `debug_code`。生产配置 SMTP 后，用户既收不到邮件也拿不到 `debug_code`，注册流程会断 | `app/modules/auth/service.py::send_code`、`app/tasks/email.py` | `test_external/test_email_task.py`（9 条，含真实 SMTP 投递与 465/587 加密分支） |
 | **P2** | `create_trade_session` 未校验 `buyer.id == item.owner_id`，**卖家可与自己议价**并生成自会话 | `app/modules/item/service.py` | `test_items/test_item_bargain.py::test_seller_cannot_trade_own_item` |
 | **P2** | `verify_password(pwd, None)` 抛 `AttributeError`（未捕获）。因 `password_hash` 为 NOT NULL 故当前不可达 | `app/core/security.py` | `test_unit/test_security_unit.py::test_verify_password_with_none_raises_attribute_error` |
 
 > 以上均以 `xfail(strict=False)` 固化：**不阻塞 CI，但在测试报告里始终可见**；
 > 一旦有人修复，用例会转为 XPASS 提醒同步更新标记。
+
+### 8.1.1 回传验证码：务必用 `EXPOSE_VERIFICATION_CODE`，不要用 `DEBUG`
+
+`send-code` 响应里的 `debug_code` 由**独立开关** `EXPOSE_VERIFICATION_CODE` 控制，
+**刻意没有**复用 `DEBUG`。原因：`DEBUG` 还连带控制管理员网关校验——
+`gateway_enforced() = admin_gateway_enforce and not settings.debug`。
+若为了让测试拿到验证码而全局开启 `DEBUG=true`，会**顺带把网关校验整个关掉**，
+`test_admin_gateway.py` 里"未带网关令牌应被拒"的断言将全部失效（实测教训）。
+
+因此各环境的正确配置：
+
+| 环境 | `EXPOSE_VERIFICATION_CODE` | `SMTP_HOST` | 行为 |
+|---|---|---|---|
+| 生产 | `false` | 必填 | 验证码仅经邮件送达，响应恒为 `null` |
+| 生产（邮件未配好） | `false` | 空 | `send-code` **直接报错**，不谎称"已发送" |
+| 本地联调 | `true` | 可选 | 回传验证码，无需邮件即可走通注册 |
+| 测试（conftest） | `true` | 强制置空 | 只回传、**绝不真实发信** |
+
+**测试环境的两条硬约束**（见 `backend/tests/conftest.py`）：
+
+1. `os.environ["SMTP_HOST"] = ""` —— 测试绝不能发真实邮件。
+   用赋值而非 `setdefault`：`os.environ` 优先级高于 `.env` 文件，
+   只 `setdefault` 挡不住 CI 环境变量带入真实 SMTP。
+2. `os.environ["EXPOSE_VERIFICATION_CODE"] = "true"` —— 让注册类用例能取到验证码。
+
+### 8.1.2 SMTP 配置缺失：告警而非拒绝启动
+
+启动校验（`validate_admin_security`）在 SMTP 未配置时**只记 CRITICAL 日志**，
+不抛 `SystemExit`。
+
+取舍理由：邮件配错只影响注册/找回密码，登录、浏览、交易、消息都还能用。
+用 `SystemExit` 拒绝启动会把"邮件没配好"放大成"全站不可用"，老用户一并被牵连
+（实测会让 `test_lifecycle.py`、`test_shutdown_resources.py` 共 16 条启动/关停用例全挂）。
+改为在**受影响的位置**暴露问题：`send-code` 显式报错 + 启动 CRITICAL 日志可接告警。

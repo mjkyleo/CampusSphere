@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import pytest
-
 from helpers import auth_header, register_login
 
 pytestmark = pytest.mark.integration

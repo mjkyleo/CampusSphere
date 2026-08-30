@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 # EmailRegisterConfig 为**有意的再导出**：admin.router 从本模块导入它，
 # 而实现已上移到 app.common.schemas（auth 与 admin 共用，避免 auth 顶层依赖 admin）。
-# noqa: F401 标记导出意图，防止被当作"未使用导入"自动删除。
 from app.common.schemas import EmailRegisterConfig  # noqa: F401
 
 

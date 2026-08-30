@@ -9,9 +9,9 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from helpers import auth_header, register_login
 
 from app.tasks.summary import generate_trade_summary
-from helpers import auth_header, register_login
 
 
 def _create_trade(client):

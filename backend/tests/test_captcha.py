@@ -12,10 +12,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from helpers import run_async
 
 from app.core.config import settings
 from app.modules.auth.service import send_code
-from helpers import run_async
 
 
 def _target_x(token: str) -> int:
@@ -298,7 +298,7 @@ def test_full_flow_slider_to_login(client, captcha_on):
     )
     assert sent.json()["code"] == 0, sent.text
     code = sent.json()["data"]["debug_code"]
-    assert code, "未配置 SMTP 时应返回 debug_code 便于联调"
+    assert code, "开启 EXPOSE_VERIFICATION_CODE 时应返回 debug_code 便于联调"
 
     reg = client.post(
         "/api/auth/email-register",

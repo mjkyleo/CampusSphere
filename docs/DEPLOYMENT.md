@@ -14,9 +14,13 @@ cp backend/.env.example backend/.env        # 默认 SQLite，无需任何中间
 python scripts/devctl.py up                 # 启动后端 + 前端，自动健康检查
 
 # 生产（Docker 一键）
-cp deploy/.env.example deploy/.env          # 改 SECRET_KEY / DB_URL / 管理员密钥 / MinIO / Meili
+cp deploy/.env.example deploy/.env          # 改 SECRET_KEY / DB_URL / 管理员密钥 / MinIO / Meili / SMTP
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 ```
+
+> ⚠️ **SMTP 是生产硬前置**：未配置 `SMTP_HOST` 时验证码发不出去，
+> 而生产又禁止回传验证码，注册/找回密码**完全不可用**。
+> 见 [§1 前置条件](#1-前置条件依赖服务)与[§3.6 邮件发送](#3-环境变量全集按分组)。
 
 ---
 
@@ -30,7 +34,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 | Redis | 7 | 不需要（内存兜底） | 7 | 推荐 | 缓存 / 限流 / 验证码 / 黑名单 / WS 广播 / Celery Broker |
 | MinIO | 最新 | 不需要（本地磁盘兜底） | 必需 | 对象存储（或用兼容 S3） | 图片 / 文件 |
 | Meilisearch | v1.11+ | 不需要（DB LIKE 兜底） | 推荐 | 全文搜索 | 物品 / 用户搜索 |
-| SMTP 服务 | — | 不需要（返回 debug_code） | 必需 | 注册验证码邮件 | 邮箱验证 |
+| SMTP 服务 | — | 可选（开启回传则无需） | **必需** | 注册验证码邮件 | 邮箱验证 |
 | Gemini API Key | — | 不需要（AI 入口隐藏） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
 
 > 开发模式（SQLite + 无 Redis/MinIO/Meili）**开箱即跑**；生产环境缺 Redis/Celery 会降级，但**验证码邮件、WS 广播、搜索**等依赖外部服务的特性将不可用。
@@ -209,11 +213,17 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 - [ ] `SECRET_KEY`：≥ 32 字节随机串，且**不是** `change-me-...`
 - [ ] `ADMIN_GATEWAY_KEY`：≥ 16 位随机串，且**不是** `change-me-admin-gateway-key`
 - [ ] `ADMIN_BOOTSTRAP_PASSWORD`：≥ `ADMIN_BOOTSTRAP_MIN_LENGTH`(16) 位
-- [ ] `SMTP_*`：已填真实邮件服务（注册验证码依赖）
+- [ ] `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS`：已填真实邮件服务
+      （未配置则注册/找回密码**彻底不可用**，启动时会打 CRITICAL 日志）
+- [ ] `EXPOSE_VERIFICATION_CODE=false`：**必须为 false**。
+      设为 true 会让任何人从响应里读到 6 位验证码，等于绕过邮箱验证
 - [ ] `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`：**不是** `minioadmin`
 - [ ] `MEILI_API_KEY`：**不是** `masterKey`
-- [ ] `CORS_ORIGINS`：已改为真实前端域名
+- [ ] `CORS_ORIGINS`：已改为真实前端域名（移除 `localhost` 与 `example` 占位）
 - [ ] `DB_URL`：生产指向 PostgreSQL
+- [ ] `MEILI_ENV=production`（默认已是，确认未被改回 `development`）
+- [ ] nginx 证书：`deploy/nginx/ssl/fullchain.pem` 与 `privkey.pem` 已就位
+      （缺证书 nginx 无法启动；可先用 `NGINX_CONF=./nginx/nginx.http-only.conf` 联调）
 - [ ] `school.yaml` 的 `oauth.*.secret`：如启用第三方登录需真实值
 
 > 网关密钥与管理员密码通过**安全渠道**告知管理员，**不写入前端源码**、不入库。后端未携带有效网关令牌时 `/api/admin/*` 一律返回 404，避免被探测。

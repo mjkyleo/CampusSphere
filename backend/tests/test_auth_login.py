@@ -10,8 +10,9 @@
 
 from __future__ import annotations
 
-from app.modules.auth.service import send_code
 from helpers import register_login, run_async
+
+from app.modules.auth.service import send_code
 
 
 def _code(target: str, purpose: str) -> str:

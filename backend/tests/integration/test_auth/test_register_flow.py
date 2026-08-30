@@ -85,7 +85,7 @@ def _send_code(client, email: str, ticket=None, purpose: str = "register") -> st
     r = client.post("/api/auth/send-code", json=payload)
     assert r.status_code == 200, r.text
     code = r.json()["data"]["debug_code"]
-    assert code, "测试环境未配置 SMTP，debug_code 应当回传验证码"
+    assert code, "测试环境开启 EXPOSE_VERIFICATION_CODE，debug_code 应当回传验证码"
     return code
 
 

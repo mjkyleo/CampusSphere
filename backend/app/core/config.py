@@ -65,6 +65,10 @@ class Settings(BaseSettings):
 
     # ----- 限流 -----
     rate_limit_per_minute: int = 120
+    # 登录 / 注册 / 验证码等认证端点单独限流（防爆破与刷接口）。
+    # 生产保持 10；测试环境需放宽，否则批量创建用户的用例会在同一分钟内互相
+    # 挤爆限额（中间件已把它做成构造参数，这里补上配置入口供 .env 覆盖）。
+    auth_rate_limit_per_minute: int = 10
 
     # ----- 管理员入口与安全 -----
     # 这些字段专门保护 /api/admin/* 的可达性，与普通用户账号无关。
@@ -83,12 +87,27 @@ class Settings(BaseSettings):
     admin_gateway_enforce: bool = True
 
     # ----- 邮件发送（验证码 / 通知）-----
-    # 未配置 SMTP 时，验证码接口会返回 debug_code 便于测试联调；
-    # 配置后验证码仅通过邮件送达，生产环境必须配置。
+    # 生产环境**必须**配置 smtp_host，否则验证码无法送达（启动校验会拒绝启动）。
     smtp_host: str = ""
+    # 是否在 ``send-code`` 响应里回传验证码（供本地联调与自动化测试读取）。
+    #
+    # 这是一个**独立开关**而非复用 DEBUG：DEBUG 还控制管理员网关校验开关
+    # （``gateway_enforced() = admin_gateway_enforce and not debug``）与启动期
+    # 安全强校验的严格度，若让"回传验证码"搭 DEBUG 的便车，测试环境为拿到
+    # 验证码而开启 DEBUG 会**连带关掉网关校验**，把安全测试的断言全部架空。
+    #
+    # 生产必须保持 false —— 否则任何人都能从响应里读到 6 位验证码，
+    # 无需拥有邮箱即可注册/改密，等于绕过邮箱验证。
+    expose_verification_code: bool = False
     smtp_port: int = 465
     smtp_user: str = ""
     smtp_pass: str = ""
+    # 发件人地址。留空时回退为 smtp_user（多数 SMTP 服务商要求两者一致）。
+    smtp_from: str = ""
+    # 连接/读超时（秒）。SMTP 为同步阻塞调用，必须设上限，避免 worker 被拖死。
+    smtp_timeout: int = 10
+    # True=强制 STARTTLS（587 等端口）；留为 None 时按端口推断：465 走 SSL，其余走 STARTTLS。
+    smtp_starttls: bool | None = None
 
     # ----- 滑块验证（发送验证码前的防滥用闸门）-----
     # 关闭后 /api/auth/send-code 不再要求票据（供测试与内网环境使用）。
@@ -102,6 +121,8 @@ class Settings(BaseSettings):
     # ----- 验证码 -----
     code_ttl_seconds: int = 300  # 验证码有效期
     code_max_attempts: int = 5  # 同一验证码最多校验次数，超出即作废
+    # 同一 target 每分钟最多发送次数（防轰炸邮箱/手机）；0 表示不限制。
+    code_send_limit_per_minute: int = 1
 
     # ----- CORS -----
     # 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖
@@ -158,20 +179,27 @@ class Settings(BaseSettings):
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
 
-        # admin：school.yaml 的 admin.bootstrap.{enabled,username,password,min_length} 可由 .env 覆盖
+        # admin：school.yaml 提供**默认值**，.env 可覆盖。
+        #
+        # 为何必须以 .env 优先：school.yaml 是**签入版本库**的学校配置模板，
+        # 而 .env 存放各环境密钥（不入库）。若让 school.yaml 无条件覆盖，
+        # 则 .env 里配置的强密码/网关密钥会被仓库里的占位值（如
+        # "change-me-deploy-with-strong-pw-16plus"）悄悄顶掉——
+        # 即"改了 .env 却不生效"，且生产会带着占位密码启动。
+        # 判定方式：.env 有值（非空）即保留 .env，为空才回落到 school.yaml。
         ad = self.admin or {}
         bs = ad.get("bootstrap") or {}
         if isinstance(bs, dict):
             self.admin_bootstrap_enabled = bool(bs.get("enabled", self.admin_bootstrap_enabled))
-            if bs.get("username"):
+            if not self.admin_bootstrap_username and bs.get("username"):
                 self.admin_bootstrap_username = str(bs["username"])
-            if bs.get("password"):
+            if not self.admin_bootstrap_password and bs.get("password"):
                 self.admin_bootstrap_password = str(bs["password"])
             if isinstance(bs.get("min_length"), int):
                 self.admin_bootstrap_min_length = bs["min_length"]
         gw = ad.get("gateway") or {}
         if isinstance(gw, dict):
-            if gw.get("key"):
+            if not self.admin_gateway_key and gw.get("key"):
                 self.admin_gateway_key = str(gw["key"])
             if isinstance(gw.get("rotate_seconds"), int):
                 self.admin_gateway_rotate_seconds = gw["rotate_seconds"]
@@ -215,10 +243,32 @@ def validate_admin_security(strict: bool | None = None) -> None:
     2. bootstrap password 长度 ≥ 配置的 ``admin_bootstrap_min_length``
     3. gateway key 长度 ≥ 16
 
+    邮件通道校验（SMTP_HOST）**独立于**网关开关：它决定验证码能否送达，
+    与管理员网关是否强制无关，故放在下面的 early-return 之前执行。
+
     测试环境通过 strict=False 跳过（conftest 不希望启动失败）。
     """
     s = settings
     is_strict = (not s.debug) if strict is None else strict
+
+    # 邮件通道校验：**只告警，不终止启动**。
+    #
+    # 未配置 SMTP_HOST 时注册链路不可用，但平台的其余能力（登录、浏览、
+    # 交易、消息）都还能正常服务。用 SystemExit 让整站起不来，等于把
+    # "邮件没配好"放大成"全站不可用"——老用户也会被牵连。
+    # 改为 CRITICAL 日志（可接入告警），取码端点本身再显式报错，
+    # 让"发不出验证码"这件事在**受影响的地方**暴露，而不是拖垮整站。
+    # 注意：此校验只取决于 debug，不受 admin_gateway_enforce 影响。
+    if not s.smtp_host:
+        _msg = (
+            "SMTP_HOST is not set — email verification codes cannot be delivered. "
+            "Registration/password-reset will fail. Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS."
+        )
+        if is_strict:
+            _logger.critical("smtp_unconfigured", detail=_msg)
+        else:
+            _logger.warning("smtp_unconfigured", detail=_msg)
+
     # 本地开发放宽（admin_gateway_enforce=false）时不强制，避免带病启动阻断联调
     if not s.admin_gateway_enforce:
         if not s.debug:

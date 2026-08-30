@@ -101,7 +101,11 @@ def create_app() -> FastAPI:
     )
 
     # 网关中间件（鉴权/限流/请求ID）
-    app.add_middleware(GatewayMiddleware, rate_limit_per_minute=settings.rate_limit_per_minute)
+    app.add_middleware(
+        GatewayMiddleware,
+        rate_limit_per_minute=settings.rate_limit_per_minute,
+        auth_rate_limit_per_minute=settings.auth_rate_limit_per_minute,
+    )
 
     # 业务路由
     app.include_router(auth_router)

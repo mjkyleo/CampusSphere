@@ -10,6 +10,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# 以**模块形式**导入，使调用点在运行时通过属性查找解析 send_email，
+# 便于测试用 monkeypatch 替换（直接 from ... import send_email 会绑定旧引用）。
+import app.tasks.email as email_tasks
 from app.common.enums import UserStatus
 from app.common.utils import generate_code, is_valid_email, is_valid_phone
 from app.core.config import settings
@@ -31,6 +34,51 @@ _logger = get_logger("auth.service")
 _CODE_TTL = settings.code_ttl_seconds  # 验证码有效期（可配置）
 _RATE_LIMIT_PREFIX = "vcode:limit:"
 _TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
+
+# 验证码用途 → 邮件文案
+_PURPOSE_LABELS = {
+    "register": "注册",
+    "login": "登录",
+    "reset": "重置密码",
+    "bind": "绑定",
+}
+
+
+def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
+    """把验证码投递到邮件队列。
+
+    取舍说明：
+    * ``SMTP_HOST`` 未配置 → 直接跳过（DEBUG 模式下验证码从响应回传，
+      不发信是预期行为），仅记 warning；
+    * 已配置但**派发失败** → 抛业务错误。此时验证码确实写进了 Redis，
+      但用户永远收不到，若返回"已发送"就是欺骗用户，宁可让前端报错重试。
+    """
+    if not settings.smtp_host:
+        # 已开启"回传验证码"（本地联调 / 自动化测试）：拿不到邮件也能走通链路，
+        # 此时跳过派发是预期行为。
+        if settings.expose_verification_code:
+            _logger.warning("code_email_skipped_smtp_unconfigured", target=target, purpose=purpose)
+            return
+        # 生产未配置邮件且又不回传验证码：验证码永远到不了用户手上。
+        # 必须显式报错，绝不能返回"已发送"——那是对用户的欺骗，
+        # 用户会一直等一封不存在的邮件。
+        _logger.error("code_email_blocked_smtp_unconfigured", target=target, purpose=purpose)
+        raise BizError(ErrorCode.INTERNAL, "邮件服务未配置，验证码无法送达，请联系管理员")
+
+    label = _PURPOSE_LABELS.get(purpose, purpose)
+    subject = f"【{settings.school_name}】{label}验证码"
+    body = (
+        f"您的{label}验证码是：{code}\n\n"
+        f"有效期 {_CODE_TTL // 60} 分钟，请勿告知他人。\n"
+        f"若非本人操作，请忽略此邮件。\n"
+    )
+    try:
+        email_tasks.send_email.delay(target, subject, body)
+    except Exception as exc:
+        _logger.error("code_email_dispatch_failed", target=target, purpose=purpose, error=str(exc))
+        raise BizError(ErrorCode.INTERNAL, "验证码发送失败，请稍后重试") from exc
+
+    _logger.info("code_email_dispatched", target=target, purpose=purpose)
 
 
 async def register(db: AsyncSession, data) -> User:
@@ -175,6 +223,9 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
     await redis_set(f"vcode:{purpose}:{target}", code, ttl=_CODE_TTL)
     # 新验证码下发即清零尝试次数，避免上一轮的重试记录连坐新验证码
     await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
+    # 入库存好之后再派发邮件：即使发信失败，重试也不会重复生成新码
+    if is_mail:
+        _dispatch_code_email(target, code, purpose)
     _logger.info("verification_code_sent", target=target, purpose=purpose)
     return code
 

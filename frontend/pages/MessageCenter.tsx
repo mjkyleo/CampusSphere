@@ -193,6 +193,9 @@ const MessageCenter: React.FC = () => {
                 return (
                   <button
                     key={conv.id}
+                    // E2E 定位锚点：列表项文案（昵称/标题）会随数据变化，
+                    // 用稳定标识避免选择器依赖展示文案
+                    data-testid="conversation-item"
                     onClick={() => setActiveConvId(conv.id)}
                     className={`w-full p-4 text-left flex items-start gap-3 transition-colors ${
                       isActive ? 'bg-indigo-50/80 border-r-4 border-indigo-600' : 'hover:bg-slate-50'

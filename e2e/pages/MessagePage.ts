@@ -29,9 +29,16 @@ export class MessagePage extends BasePage {
     await expect(this.messageInput).toBeEditable();
   }
 
-  /** 打开会话列表中的第一个会话。 */
+  /**
+   * 打开会话列表中的第一个会话。
+   *
+   * 用 ``data-testid="conversation-item"`` 定位（见 MessageCenter.tsx）：
+   * 列表项展示的是对方昵称与商品标题，随数据变化，不适合作为选择器；
+   * 而"与 X 的会话"是**选中后**才在右侧面板出现的标题，
+   * 用它去过滤左侧列表按钮必然匹配不到。
+   */
   async openFirstConversation(): Promise<void> {
-    await this.page.locator('button').filter({ hasText: /与 .+ 的会话/ }).first().click();
+    await this.page.getByTestId('conversation-item').first().click();
     await this.waitUntilConnected();
   }
 

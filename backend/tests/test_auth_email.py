@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
+from helpers import auth_header, register_login, run_async
+
 from app.core.config import settings
 from app.modules.auth import oauth as oauth_mod
 from app.modules.auth.service import send_code
-from helpers import auth_header, register_login, run_async
 
 
 def _code(target: str, purpose: str) -> str:

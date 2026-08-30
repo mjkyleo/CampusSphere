@@ -144,15 +144,19 @@ async def send_verification_code(data: SendCodeRequest):
     开启滑块验证时，必须携带 ``/captcha/verify`` 签发的一次性票据，
     否则拒绝发送——避免脚本绕过滑块直接刷验证码轰炸邮箱/手机。
 
-    开发/测试模式（settings.debug=true）下响应中直接返回 debug_code，
-    便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
+    默认**绝不**回传验证码（仅通过邮件送达）；
+    仅当开启 ``EXPOSE_VERIFICATION_CODE`` 时回传 debug_code，供本地联调与自动化测试使用。
     """
     if settings.captcha_enabled and not await consume_ticket(data.captcha_ticket):
         raise BizError(ErrorCode.VALIDATION, "请先完成滑块验证")
-    code = await send_code(data.target, data.purpose)
-    # 开发模式或尚未配置邮件/短信发送通道时，响应中直接返回验证码，便于测试联调；
-    # 生产环境接入 SMTP 后 debug_code 恒为 null，验证码仅通过邮件送达。
-    debug_code = code if (settings.debug or not settings.smtp_host) else None
+    code = await send_code(data.target, data.purpose, limit_per_minute=settings.code_send_limit_per_minute)
+    # 由独立的 ``EXPOSE_VERIFICATION_CODE`` 开关控制（默认 false）。
+    #
+    # 这里**不再**用 `not settings.smtp_host` 作为回传条件：那会让"未配置 SMTP
+    # 的生产环境"把 6 位验证码直接明文返回给调用方，任何人都能绕过邮箱验证
+    # 注册任意账号。
+    # 也不复用 DEBUG：DEBUG 会连带关闭管理员网关校验，用它会把安全测试架空。
+    debug_code = code if settings.expose_verification_code else None
     return ApiResponse.ok(
         message="验证码已发送" + ("（测试模式：见响应 debug_code）" if debug_code else ""),
         data=SendCodeOut(debug_code=debug_code),
