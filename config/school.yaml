@@ -1,6 +1,6 @@
 # 单校配置模板 —— 部署新校时复制本文件并修改字段即可（"改配置即上线"）
-school_name: "示例大学"
-school_domain: "campus.example.edu.cn"
+school_name: "武汉大学"
+school_domain: "www.campussphere.fun"
 
 # OAuth 第三方登录凭据（微信/QQ 开放平台）
 oauth:
@@ -19,9 +19,17 @@ auth:
     # 是否允许邮箱注册 / 绑定邮箱
     enabled: true
     # 允许注册的邮箱域名白名单（空列表表示不限制域名）
+    # 校内邮箱 + 主流公共邮箱：既保留校内站点定位，又不至于把校外访客
+    # 直接挡在门外。该列表可在后台 /api/admin/auth/email-config 动态覆盖，
+    # 无需改配置重启。
     domains:
-      - example.edu.cn
-      - example.com
+      - whu.edu.cn
+      - qq.com
+      - foxmail.com
+      - 163.com
+      - 126.com
+      - gmail.com
+      - outlook.com
     # 可选：额外的正则校验（如学号格式邮箱）；留空表示不校验
     pattern: ""
 
