@@ -1,0 +1,106 @@
+# 拓扑 B：外部 nginx（宝塔 / 系统 nginx）反向代理配置示例
+#
+# 适用：服务器已有 nginx 占用 80/443（如已装宝塔面板），
+#       此时 compose 不加 `--profile gateway`，后端只监听 127.0.0.1:8000。
+#
+# 使用步骤：
+#   1. 把本文件复制为站点配置，并替换 <...> 占位：
+#        server_name  -> 你的域名
+#        root         -> 前端产物目录（对应 compose 的 FRONTEND_DIST）
+#   2. 宝塔：网站 -> 对应站点 -> 配置文件，粘贴替换；或
+#      系统 nginx：放到 /etc/nginx/conf.d/campussphere.conf
+#   3. nginx -t && nginx -s reload
+#   4. 证书：宝塔可直接在站点设置里申请 Let's Encrypt，
+#      申请后**注释掉**下方 443 段里的 ssl_certificate 两行（宝塔会自动注入）。
+#
+# 前端产物目录需与 compose 的 FRONTEND_DIST 一致，例如：
+#   FRONTEND_DIST=/www/wwwroot/campussphere
+
+upstream campusphere_backend {
+    server 127.0.0.1:8000;
+    keepalive 32;
+}
+
+# ---------- HTTP：ACME 校验放行 + 其余跳转 HTTPS ----------
+server {
+    listen 80;
+    server_name <YOUR_DOMAIN>;
+
+    # Let's Encrypt 校验路径必须走明文，否则证书无法续期
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/wwwroot/campussphere;
+        default_type "text/plain";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---------- HTTPS ----------
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name <YOUR_DOMAIN>;
+
+    # 宝塔申请证书后会自行注入，可保留（路径一致）或注释掉交给面板管理
+    ssl_certificate     /www/server/panel/vhost/cert/<YOUR_DOMAIN>/fullchain.pem;
+    ssl_certificate_key /www/server/panel/vhost/cert/<YOUR_DOMAIN>/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    client_max_body_size 20m;
+
+    # ---------- 前端静态资源 ----------
+    root /www/wwwroot/campussphere;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 带 hash 的构建产物可长期缓存
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ---------- API ----------
+    location /api/ {
+        proxy_pass http://campusphere_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
+
+    # ---------- WebSocket ----------
+    location /ws {
+        proxy_pass http://campusphere_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 长连接：需大于后端心跳间隔，否则会被频繁断开
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # ---------- 可选：健康检查（建议仅内网放行）----------
+    location = /healthz {
+        proxy_pass http://campusphere_backend/;
+        access_log off;
+    }
+}
