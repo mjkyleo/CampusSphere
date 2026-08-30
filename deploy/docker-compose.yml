@@ -60,6 +60,32 @@ services:
       - meildata:/meili_data
 
   # ---------------------------------------------------------------------------
+  # 证书初始化：保证 nginx **总能启动**
+  #   - 已放置 fullchain.pem / privkey.pem → 原样使用
+  #   - 未放置 → 生成自签名证书，让 HTTPS 链路先跑通（浏览器会告警，仅联调用）
+  # 生产请替换为真实证书，否则用户会遇到"证书不受信"告警。
+  # ---------------------------------------------------------------------------
+  cert-init:
+    image: alpine:3.20
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /ssl
+        if [ -f /ssl/fullchain.pem ] && [ -f /ssl/privkey.pem ]; then
+          echo "[cert-init] 检测到已有证书，直接使用"
+        else
+          echo "[cert-init] 未找到证书，正在生成自签名证书（***** 仅供联调，生产必须替换 *****）"
+          apk add --no-cache openssl >/dev/null 2>&1
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /ssl/privkey.pem -out /ssl/fullchain.pem \
+            -days 365 -subj "/CN=localhost" 2>/dev/null
+          echo "[cert-init] 已生成 deploy/nginx/ssl/fullchain.pem 与 privkey.pem"
+        fi
+    volumes:
+      - ./nginx/ssl:/ssl
+
+  # ---------------------------------------------------------------------------
   # 前端构建：产出 dist/ 供 nginx 托管（拓扑 A：nginx 直出静态 + 反代 API/WS）
   # 构建完成即退出（service_completed_successfully），不常驻占用资源。
   # ---------------------------------------------------------------------------
@@ -70,12 +96,26 @@ services:
     command: sh -c "npm ci && npm run build"
     volumes:
       - ../frontend:/app
+      # 关键：把 node_modules 放进**匿名卷**。
+      # 否则 npm ci 会写入宿主机的 frontend/node_modules，用 Linux 原生二进制
+      # （esbuild 等）覆盖掉宿主机 Windows 版本的依赖，导致本地开发跑不起来。
+      - /app/node_modules
       - frontend_dist:/app/dist
 
   app:
+    # 注意路径基准：compose 中的相对路径一律以**本文件所在目录**（deploy/）解析，
+    # 不是执行 docker compose 命令的工作目录。因此这里是 ../backend 而非 ./backend。
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
+      target: app
+      # 镜像源加速：Docker Desktop 的代理**对容器内 apt/pip 无效**，
+      # 而官方源在国内仅约 60 kB/s（装完 gcc 依赖需 30 分钟以上）。
+      # 国内部署请在 deploy/.env 设置这两个变量；留空则回退官方源（海外 CI 适用）。
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+    image: campusphere-backend:latest
     restart: unless-stopped
     depends_on:
       postgres:
@@ -83,13 +123,13 @@ services:
       redis:
         condition: service_started
     env_file:
-      - ./deploy/.env
+      - ./.env
     environment:
       DB_URL: postgresql+asyncpg://${POSTGRES_USER:-campus}:${POSTGRES_PASSWORD:-campus}@postgres:5432/${POSTGRES_DB:-campus}
       REDIS_URL: redis://redis:6379/0
       SCHOOL_CONFIG_PATH: /app/config/school.yaml
     volumes:
-      - ./config:/app/config:ro
+      - ../config:/app/config:ro
     ports:
       - "8000:8000"
     command: >
@@ -97,8 +137,13 @@ services:
 
   worker:
     build:
-      context: ./backend
-      dockerfile: ../deploy/Dockerfile.worker
+      context: ../backend
+      dockerfile: Dockerfile
+      target: worker
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+    image: campusphere-worker:latest
     restart: unless-stopped
     depends_on:
       redis:
@@ -106,13 +151,13 @@ services:
       postgres:
         condition: service_healthy
     env_file:
-      - ./deploy/.env
+      - ./.env
     environment:
       DB_URL: postgresql+asyncpg://${POSTGRES_USER:-campus}:${POSTGRES_PASSWORD:-campus}@postgres:5432/${POSTGRES_DB:-campus}
       REDIS_URL: redis://redis:6379/0
       SCHOOL_CONFIG_PATH: /app/config/school.yaml
     volumes:
-      - ./config:/app/config:ro
+      - ../config:/app/config:ro
 
   nginx:
     image: nginx:1.25
@@ -122,6 +167,8 @@ services:
       app:
         condition: service_started
       frontend-builder:
+        condition: service_completed_successfully
+      cert-init:
         condition: service_completed_successfully
     ports:
       - "80:80"

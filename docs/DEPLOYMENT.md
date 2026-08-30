@@ -24,6 +24,54 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 
 ---
 
+## 0.1 国内网络构建加速（可选，但强烈建议）
+
+`docker build` 是在**容器内**联网的，Docker Desktop 配置的代理对容器内 `apt` / `pip` **无效**，
+因此国内直连官方源会非常慢甚至超时：
+
+| 阶段 | 官方源 | 配置镜像后 |
+|------|--------|-----------|
+| `apt-get install gcc libpq-dev` | ~60 kB/s，**30 分钟以上** | ~35 秒 |
+| `pip install .` | ~90 秒 | ~45 秒 |
+| 拉取基础镜像（Docker Hub） | 常超时 `auth.docker.io` | 取决于加速器可用性 |
+
+### ① apt / pip 镜像（本项目已内置开关）
+
+在 `deploy/.env` 中设置（该文件已被 git 忽略，不会提交）：
+
+```bash
+APT_MIRROR=mirrors.aliyun.com                        # 或 mirrors.tuna.tsinghua.edu.cn
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+`docker-compose.yml` 会把这两个值作为 `--build-arg` 传入 Dockerfile。
+**留空则回退官方源**，海外 CI（GitHub Actions）无需改动。
+
+### ② Docker Hub 镜像加速器（需你自行配置）
+
+若 `docker build` 报 `failed to fetch oauth token ... auth.docker.io` 超时，
+说明连不上 Docker Hub 的认证服务。在 Docker Desktop 中配置：
+
+**Settings → Docker Engine**，在 JSON 里加入 `registry-mirrors`：
+
+```json
+{
+  "builder": { "gc": { "defaultKeepStorage": "20GB", "enabled": true } },
+  "experimental": false,
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+```
+
+点 **Apply & Restart** 生效。也可使用阿里云容器镜像服务分配的专属加速地址
+（控制台 → 容器镜像服务 → 镜像工具 → 镜像加速器）。
+
+> 加速器地址可能随服务商策略变动；若某个不可用，换其他地址或暂时移除即可。
+
+---
+
 ## 1. 前置条件：依赖服务
 
 | 服务 | 版本 | 开发（默认） | 生产 | 必需性 | 用途 |
