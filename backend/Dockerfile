@@ -77,12 +77,24 @@ ARG BASE_IMAGE=python:3.12-slim
 
 FROM ${BASE_IMAGE} AS base
 
+# APT_MIRROR 也要在本阶段重声明：ARG 作用域止于 FROM，
+# 沿用 builder 阶段的声明在这里拿不到值，sed 会被跳过。
+ARG APT_MIRROR=""
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
 # 运行期仅需运行时库（psycopg 驱动等已在 venv 中），无需 gcc
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl \
+#
+# 这里的 sed 与 builder 阶段同样重要：遗漏它时，本阶段会走官方源。
+# 实测 deb.debian.org 在该机型上只有 18~30 kB/s，装 libpq5 + curl（15MB）
+# 耗时 **10 分钟**，是整个构建最慢的一步；换国内镜像后降到 1 分钟内。
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null \
+        || sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi \
+    && apt-get update && apt-get install -y --no-install-recommends libpq5 curl \
     && rm -rf /var/lib/apt/lists/* \
     # 创建非 root 用户运行服务，降低容器逃逸风险
     && useradd --create-home --uid 10001 appuser
@@ -102,10 +114,14 @@ FROM base AS app
 
 EXPOSE 8000
 
-# 健康检查：根路径 / 返回 200 即视为存活（见 app/main.py root 路由）。
-# 探测用 python 标准库，避免额外安装 curl 之外的探测工具。
+# 健康检查必须打 /health，不能打根路径 /。
+# 原因：GatewayMiddleware 对未公开路径强制要求令牌，而 PUBLIC_PATHS 里只有
+# /health 和 /metrics，根路径并不在其中 —— 探测 / 会拿到 401，
+# 容器被永久标记为 unhealthy，进而让依赖 condition: service_healthy 的
+# 编排全部卡住。/health 还会顺带查一次 DB，比只探进程存活更有意义。
+# 探测用 python 标准库，不额外安装工具。
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/').status==200 else 1)"
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
 
 # 开发/默认：SQLite 零依赖启动；生产请通过环境变量注入 DB_URL、REDIS_URL 等
 CMD ["uvicorn", "app.asgi:app", "--host", "0.0.0.0", "--port", "8000"]

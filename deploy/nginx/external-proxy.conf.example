@@ -99,8 +99,10 @@ server {
     }
 
     # ---------- 可选：健康检查（建议仅内网放行）----------
+    # 必须转发到 /health 而非 / ：网关中间件对未公开路径强制要求令牌，
+    # 根路径不在 PUBLIC_PATHS 里，转发 / 会返回 401，让健康检查永远失败。
     location = /healthz {
-        proxy_pass http://campusphere_backend/;
+        proxy_pass http://campusphere_backend/health;
         access_log off;
     }
 }
