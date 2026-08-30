@@ -197,8 +197,10 @@ services:
   # ---------------------------------------------------------------------------
   frontend-builder:
     profiles: ["build"]
-    # 用 slim（glibc）而非 alpine：esbuild 等原生二进制在 musl 上有兼容风险
-    image: node:20-slim
+    # Node 22 而非 20：jsdom / http-proxy-middleware / undici 等依赖的 engines
+    # 字段要求 Node >= 22（npm ci 会刷 EBADENGINE 警告）。选择依据见 package.json。
+    # 用 slim（glibc）而非 alpine：esbuild 等原生二进制在 musl 上有兼容风险。
+    image: node:22-slim
     working_dir: /app
     command: sh -c "npm ci && npm run build"
     volumes:
