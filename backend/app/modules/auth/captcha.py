@@ -35,7 +35,7 @@ import random
 import secrets
 import time
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode

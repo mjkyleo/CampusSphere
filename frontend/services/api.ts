@@ -1440,21 +1440,29 @@ export const api = {
     dashboard: () => request<any>('/api/admin/dashboard'),
     getOverview: () => api.admin.dashboard(),
     getReports: (status?: number) => api.admin.reports(status),
-    getLogs: () => {
-      // No dedicated audit-log endpoint in backend; keep mock for now
-      return Promise.resolve({
-        code: 0,
-        message: 'ok',
-        data: {
-          total: 3,
-          items: [
-            { id: 'log-1', admin_username: 'superadmin', action: '下架违规商品', target_type: 'item', target_id: 'itm-99', details: '虚假宣传已做下架处理', created_at: '2025-02-24 11:30' },
-            { id: 'log-2', admin_username: 'moderator_01', action: '封禁违规账号', target_type: 'user', target_id: 'usr-999', details: '批量发送垃圾兼职信息', created_at: '2025-02-24 10:15' },
-            { id: 'log-3', admin_username: 'superadmin', action: '审核通过课程评价', target_type: 'course_review', target_id: 'crev-12', details: '内容符合社区规范', created_at: '2025-02-23 18:20' }
-          ]
-        }
-      });
+    // 审计日志：真实后端接口（记录登录/注册/发送验证码/管理员操作等全量动作）
+    getLogs: (params: {
+      action?: string;
+      actor_type?: string;
+      result?: string;
+      keyword?: string;
+      limit?: number;
+      offset?: number;
+    } = {}) => {
+      const q = new URLSearchParams();
+      if (params.action) q.set('action', params.action);
+      if (params.actor_type) q.set('actor_type', params.actor_type);
+      if (params.result) q.set('result', params.result);
+      if (params.keyword) q.set('keyword', params.keyword);
+      if (params.limit) q.set('limit', String(params.limit));
+      if (params.offset) q.set('offset', String(params.offset));
+      const qs = q.toString();
+      return request<{ total: number; items: any[]; limit: number; offset: number }>(
+        `/api/admin/audit-logs${qs ? `?${qs}` : ''}`
+      );
     },
+    getAuditActions: () =>
+      request<{ value: string; label: string }[]>('/api/admin/audit-logs/actions'),
     getUsers: (page = 1, page_size = 20) => api.admin.users(page, page_size),
     handleReport: (reportId: string, data: { status: number; action: any; feedback: string }) =>
       api.reports.handle(reportId, data.action, data.feedback),

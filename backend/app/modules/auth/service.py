@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 import uuid
@@ -44,7 +45,7 @@ _PURPOSE_LABELS = {
 }
 
 
-def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
+async def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
     """把验证码投递到邮件队列。
 
     取舍说明：
@@ -52,6 +53,16 @@ def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
       不发信是预期行为），仅记 warning；
     * 已配置但**派发失败** → 抛业务错误。此时验证码确实写进了 Redis，
       但用户永远收不到，若返回"已发送"就是欺骗用户，宁可让前端报错重试。
+
+    ⚠️ 为何必须用 ``asyncio.to_thread`` 包一层
+    ----------------------------------------
+    Celery 的 ``delay()`` 在 broker / result backend **不可达**时不会立即失败，
+    而是按默认策略同步重试（约 20 次 × 1 秒 ≈ 2 分钟）。它是纯同步阻塞调用，
+    一旦直接写在 async 函数里，会把 uvicorn 的事件循环整个堵死 ——
+    表现为用户点"发送验证码"后一直转圈，且**同一进程的所有请求全部无响应**。
+
+    放进线程池执行后，即使 Celery 队列抖动，受阻的也只有这一个请求，
+    不会波及其他用户。这是生产环境必须守住的一条底线。
     """
     if not settings.smtp_host:
         # 已开启"回传验证码"（本地联调 / 自动化测试）：拿不到邮件也能走通链路，
@@ -72,13 +83,78 @@ def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
         f"有效期 {_CODE_TTL // 60} 分钟，请勿告知他人。\n"
         f"若非本人操作，请忽略此邮件。\n"
     )
+    def _dispatch() -> str:
+        # 优先 Celery 队列（解耦、可重试、生产推荐路径）。
+        # broker 不可达（本地未起 Redis / 生产 broker 抖动）时，delay() 会因上面的
+        # broker_connection_max_retries 配置快速抛错，此时降级为**内联直发**——
+        # 直接执行任务体（smtplib 同步发送），保证验证码一定送达，不至于让
+        # "收不到验证码"卡死注册/登录流程。
+        try:
+            email_tasks.send_email.delay(target, subject, body)
+            return "queued"
+        except Exception as exc:  # broker 不可达 / 队列故障
+            _logger.warning(
+                "email_dispatch_queue_unavailable_fallback_inline",
+                target=target,
+                purpose=purpose,
+                error=str(exc),
+            )
+            try:
+                result = email_tasks.send_email(target, subject, body)
+            except Exception as inner:
+                _logger.error(
+                    "email_dispatch_inline_failed",
+                    target=target,
+                    purpose=purpose,
+                    error=str(inner),
+                )
+                return "failed"
+            return "inline" if (result and result.get("ok")) else "failed"
+
     try:
-        email_tasks.send_email.delay(target, subject, body)
+        # 双重保护：to_thread 避免阻塞事件循环，wait_for 限制单个请求的最长等待。
+        # 即使队列彻底不可用 + 内联 SMTP 也超时，用户最多等 email_dispatch_timeout 秒拿到明确结果。
+        mode = await asyncio.wait_for(
+            asyncio.to_thread(_dispatch),
+            timeout=settings.email_dispatch_timeout,
+        )
+    except TimeoutError:
+        _logger.error(
+            "code_email_dispatch_timeout",
+            target=target,
+            purpose=purpose,
+            timeout=settings.email_dispatch_timeout,
+        )
+        # 本地联调豁免：已开启"回传验证码"时调用方不依赖邮件，
+        # 队列故障不应阻断注册流程（否则本地/测试环境无法开发）。
+        if settings.expose_verification_code:
+            _logger.warning(
+                "code_email_dispatch_ignored_debug_mode",
+                target=target,
+                purpose=purpose,
+                reason="EXPOSE_VERIFICATION_CODE=true",
+            )
+            return
+        raise BizError(ErrorCode.INTERNAL, "邮件服务繁忙，请稍后重试") from None
     except Exception as exc:
         _logger.error("code_email_dispatch_failed", target=target, purpose=purpose, error=str(exc))
+        if settings.expose_verification_code:
+            _logger.warning(
+                "code_email_dispatch_ignored_debug_mode",
+                target=target,
+                purpose=purpose,
+                reason="EXPOSE_VERIFICATION_CODE=true",
+            )
+            return
         raise BizError(ErrorCode.INTERNAL, "验证码发送失败，请稍后重试") from exc
 
-    _logger.info("code_email_dispatched", target=target, purpose=purpose)
+    if mode == "failed":
+        _logger.error("code_email_all_failed", target=target, purpose=purpose)
+        if settings.expose_verification_code:
+            return
+        raise BizError(ErrorCode.INTERNAL, "验证码发送失败，请稍后重试")
+
+    _logger.info("code_email_dispatched", target=target, purpose=purpose, mode=mode)
 
 
 async def register(db: AsyncSession, data) -> User:
@@ -225,7 +301,7 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
     await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
     # 入库存好之后再派发邮件：即使发信失败，重试也不会重复生成新码
     if is_mail:
-        _dispatch_code_email(target, code, purpose)
+        await _dispatch_code_email(target, code, purpose)
     _logger.info("verification_code_sent", target=target, purpose=purpose)
     return code
 

@@ -15,6 +15,7 @@ from app.core.middleware import GatewayMiddleware
 from app.core.redis import close_redis
 from app.modules.admin.router import router as admin_router
 from app.modules.ai.router import router as ai_router
+from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.canteen.router import router as canteen_router
 from app.modules.course.router import router as course_router
@@ -119,6 +120,7 @@ def create_app() -> FastAPI:
     app.include_router(teammate_router)
     app.include_router(report_router)
     app.include_router(admin_router)
+    app.include_router(audit_router)
     app.include_router(ai_router)
     app.include_router(storage_router)
     app.include_router(launcher_router)

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.exceptions import BizError
 from app.core.response import ApiResponse
 from app.modules.admin.deps import get_current_admin, require_admin
 from app.modules.admin.gateway import gateway_enforced, issue_gateway_token, require_admin_gateway
@@ -49,6 +50,8 @@ from app.modules.admin.service import (
     update_item_categories,
     update_item_review_config,
 )
+from app.modules.audit.actions import ActorType, AuditAction, AuditResult
+from app.modules.audit.service import record_audit_log
 from app.modules.canteen.schemas import CanteenCreate, CanteenOut, DishCreate, DishOut, StallCreate, StallOut
 from app.modules.canteen.service import (
     create_canteen,
@@ -81,10 +84,29 @@ async def discover(data: AdminDiscoverRequest):
 @router.post("/login", response_model=ApiResponse[AdminTokenResponse])
 async def login(
     data: AdminLoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _gw: None = Depends(require_admin_gateway),
 ):
-    tokens = await admin_login(db, data.username, data.password)
+    try:
+        tokens = await admin_login(db, data.username, data.password)
+    except BizError as exc:
+        # 管理员登录失败属于高危事件（撞库/越权尝试），必须留痕
+        await record_audit_log(
+            action=AuditAction.ADMIN_LOGIN_FAILED,
+            actor_type=ActorType.ADMIN,
+            actor_label=data.username,
+            result=AuditResult.FAILURE,
+            detail={"reason": exc.message},
+            request=request,
+        )
+        raise
+    await record_audit_log(
+        action=AuditAction.ADMIN_LOGIN,
+        actor_type=ActorType.ADMIN,
+        actor_label=data.username,
+        request=request,
+    )
     return ApiResponse.ok(data=AdminTokenResponse(**tokens))
 
 

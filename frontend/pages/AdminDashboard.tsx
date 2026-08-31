@@ -198,7 +198,16 @@ const AdminDashboard: React.FC = () => {
   const [aiConfigLoading, setAiConfigLoading] = useState(false);
 
   // Audit log state — derived from reports (processed records)
-  const [auditReports, setAuditReports] = useState<AdminReportOut[]>([]);
+  // ---- 审计日志（真实后端：登录/注册/发送验证码/管理员操作等全量动作）----
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditActionFilter, setAuditActionFilter] = useState('');
+  const [auditResultFilter, setAuditResultFilter] = useState('');
+  const [auditKeyword, setAuditKeyword] = useState('');
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditLimit] = useState(20);
+  const [auditActions, setAuditActions] = useState<{ value: string; label: string }[]>([]);
 
   // Report resolution dialog state
   const [selectedReport, setSelectedReport] = useState<AdminReportOut | null>(null);
@@ -210,21 +219,17 @@ const AdminDashboard: React.FC = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [mRes, rRes, uRes] = await Promise.all([
+      const [mRes, rRes, uRes, aRes] = await Promise.all([
         api.admin.getOverview(),
         api.admin.getReports(),
-        api.admin.getUsers()
+        api.admin.getUsers(),
+        api.admin.getAuditActions()
       ]);
 
       if (mRes.code === 0 && mRes.data) setMetrics(mRes.data);
-      if (rRes.code === 0 && rRes.data) {
-        setReports(rRes.data.items || []);
-        // Use the same reports data for the audit log tab —
-        // the backend has no dedicated audit-log endpoint, so we
-        // display processed reports as audit/processing records.
-        setAuditReports(rRes.data.items || []);
-      }
+      if (rRes.code === 0 && rRes.data) setReports(rRes.data.items || []);
       if (uRes.code === 0 && uRes.data) setUsersList(uRes.data.items || []);
+      if (aRes.code === 0 && aRes.data) setAuditActions(aRes.data || []);
     } catch {
       // Mock engine fallback
     } finally {
@@ -235,6 +240,39 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchAdminData();
   }, []);
+
+  // ---- 审计日志：真实后端接口（登录/注册/发送验证码/管理员操作等全量动作）----
+  const fetchAuditLogs = async (page = auditPage) => {
+    setAuditLoading(true);
+    try {
+      const res = await api.admin.getLogs({
+        action: auditActionFilter || undefined,
+        result: auditResultFilter || undefined,
+        keyword: auditKeyword.trim() || undefined,
+        limit: auditLimit,
+        offset: page * auditLimit
+      });
+      if (res.code === 0 && res.data) {
+        setAuditLogs(res.data.items || []);
+        setAuditTotal(res.data.total || 0);
+        setAuditPage(page);
+      } else {
+        setAuditLogs([]);
+        setAuditTotal(0);
+      }
+    } catch {
+      setAuditLogs([]);
+      setAuditTotal(0);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // 切换到审计日志 Tab 时自动加载；过滤条件变化时回到第一页
+  useEffect(() => {
+    if (activeTab === 'logs') fetchAuditLogs(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // ---- Fetch items for the item audit tab (lazy-loaded, via admin endpoints) ----
   const fetchItems = async (page: number) => {
@@ -1429,53 +1467,123 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 7: Audit Logs (Processing Records from Reports) */}
+      {/* Tab 7: 审计日志（真实后端：登录 / 注册 / 发送验证码 / 管理员操作等全量动作） */}
       {activeTab === 'logs' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">处理记录与审计日志 ({auditReports.length})</h3>
-            <span className="text-xs text-slate-400">展示所有举报工单的处理状态与记录</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">系统审计日志 ({auditTotal})</h3>
+              <span className="text-xs text-slate-400">用户的登录、注册、验证码发送及管理员操作都会在此留痕，便于追溯</span>
+            </div>
+            <button
+              onClick={() => fetchAuditLogs(0)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> 刷新
+            </button>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 divide-y divide-slate-100 shadow-xs">
-            {auditReports.length === 0 ? (
+          {/* 筛选栏 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={auditKeyword}
+                onChange={(e) => setAuditKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchAuditLogs(0)}
+                placeholder="搜索账号 / IP / 动作"
+                className="pl-9 pr-3 py-2 w-56 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-300"
+              />
+            </div>
+            <select
+              value={auditActionFilter}
+              onChange={(e) => { setAuditActionFilter(e.target.value); fetchAuditLogs(0); }}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none"
+            >
+              <option value="">全部动作</option>
+              {auditActions.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+            <select
+              value={auditResultFilter}
+              onChange={(e) => { setAuditResultFilter(e.target.value); fetchAuditLogs(0); }}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none"
+            >
+              <option value="">全部结果</option>
+              <option value="success">成功</option>
+              <option value="failure">失败</option>
+            </select>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 divide-y divide-slate-100 shadow-xs overflow-hidden">
+            {auditLoading ? (
+              <div className="p-8 text-center text-slate-400 text-sm">加载中…</div>
+            ) : auditLogs.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
                 <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                <p className="text-sm">暂无处理记录</p>
+                <p className="text-sm">暂无审计记录</p>
               </div>
             ) : (
-              auditReports.map((report) => (
-                <div key={report.id} className="p-4 flex items-center justify-between text-xs">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        {report.target_type}
+              auditLogs.map((log) => (
+                <div key={log.id} className="p-4 flex items-start justify-between gap-4 text-xs">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-bold px-2 py-0.5 rounded ${
+                        log.result === 'failure'
+                          ? 'text-rose-600 bg-rose-50'
+                          : 'text-emerald-600 bg-emerald-50'
+                      }`}>
+                        {log.action_label || log.action}
                       </span>
-                      <span className="text-slate-800 font-semibold">
-                        {report.status === ReportStatus.Resolved
-                          ? '已解决'
-                          : report.status === ReportStatus.Rejected
-                          ? '已驳回'
-                          : report.status === ReportStatus.Processing
-                          ? '处理中'
-                          : '待处理'}
-                      </span>
-                      {report.action && report.action !== ReportAction.None && (
-                        <span className="text-slate-400 text-[11px]">[{report.action}]</span>
+                      <span className="text-slate-400">{log.actor_type_label || log.actor_type}</span>
+                      {log.actor_label && <span className="text-slate-600 font-medium">{log.actor_label}</span>}
+                      {log.result_label && (
+                        <span className="inline-flex items-center gap-0.5 text-slate-400">
+                          {log.result === 'failure' ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                          {log.result_label}
+                        </span>
                       )}
                     </div>
-                    <div className="text-slate-400">
-                      举报原因：{report.reason} · 目标ID：{report.target_id}
-                      {report.feedback && ` · 处理意见：${report.feedback}`}
+                    <div className="text-slate-400 truncate">
+                      {log.target_type && `对象：${log.target_type}`}
+                      {log.target_id && ` #${log.target_id}`}
+                      {log.ip && ` · IP：${log.ip}`}
+                      {log.detail && Object.keys(log.detail).length > 0 && (
+                        <span> · {JSON.stringify(log.detail)}</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-slate-400 whitespace-nowrap">
-                    {report.created_at ? new Date(report.created_at).toLocaleString() : ''}
+                    {log.created_at ? new Date(log.created_at).toLocaleString() : ''}
                   </span>
                 </div>
               ))
             )}
           </div>
+
+          {/* 分页 */}
+          {auditTotal > auditLimit && (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                disabled={auditPage === 0}
+                onClick={() => fetchAuditLogs(auditPage - 1)}
+                className="inline-flex items-center gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:opacity-40"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+              </button>
+              <span className="text-xs text-slate-500">
+                第 {auditPage + 1} / {Math.ceil(auditTotal / auditLimit)} 页
+              </span>
+              <button
+                disabled={(auditPage + 1) * auditLimit >= auditTotal}
+                onClick={() => fetchAuditLogs(auditPage + 1)}
+                className="inline-flex items-center gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:opacity-40"
+              >
+                下一页 <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

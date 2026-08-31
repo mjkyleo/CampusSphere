@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     # 连接/读超时（秒）。SMTP 为同步阻塞调用，必须设上限，避免 worker 被拖死。
     smtp_timeout: int = 10
+    # 邮件任务**入队+兜底直发**的等待上限（秒）。
+    # 结果后端已禁用，broker 不可达时 delay() 约 2 秒内快速失败并降级为内联直发；
+    # 内联直发走 smtp_timeout（默认 10s）。本值需覆盖「broker 快速失败 + 内联 SMTP 发送」，
+    # 留出余量，避免正常内联发送被误判超时。
+    email_dispatch_timeout: int = 20
     # True=强制 STARTTLS（587 等端口）；留为 None 时按端口推断：465 走 SSL，其余走 STARTTLS。
     smtp_starttls: bool | None = None
 
