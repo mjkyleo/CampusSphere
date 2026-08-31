@@ -31,10 +31,11 @@ from __future__ import annotations
 import base64
 import io
 import json
+import random
 import secrets
 import time
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
@@ -60,47 +61,50 @@ _MIN_ELAPSED_MS = 80
 # ---------------------------------------------------------------------------
 # 图像生成
 # ---------------------------------------------------------------------------
-def _rand_color() -> tuple[int, int, int]:
+def _rand_color(rand: random.Random | None = None) -> tuple[int, int, int]:
     """随机中等亮度颜色（过暗/过亮都会让滑块与缺口难以分辨）。"""
-    return (
-        secrets.randbelow(120) + 60,
-        secrets.randbelow(120) + 60,
-        secrets.randbelow(120) + 60,
-    )
+    r = rand.randrange if rand else secrets.randbelow
+    return (r(120) + 60, r(120) + 60, r(120) + 60)
 
 
 def _random_background(width: int, height: int) -> Image.Image:
-    """生成随机渐变背景 + 干扰图形 + 噪点，保证每次图片都不同。"""
+    """生成随机渐变背景 + 少量干扰图形/噪点，保证每次图片都不同。
+
+    视觉元素只起辅助防 OCR 作用，不依赖复杂滤镜；复杂滤镜会显著拖慢
+    低配置服务器上的响应时间，因此这里保持轻量。
+    """
+    # 纯视觉元素使用 random 即可，不必占用密码学安全随机源
+    rand = random.Random()
     img = Image.new("RGB", (width, height))
     draw = ImageDraw.Draw(img)
 
-    # 竖向渐变
-    top, bottom = _rand_color(), _rand_color()
-    for row in range(height):
+    # 竖向渐变：每 4 像素画一条横线，减少 draw 调用次数
+    top, bottom = _rand_color(rand), _rand_color(rand)
+    for row in range(0, height, 4):
         ratio = row / max(height - 1, 1)
         color = tuple(int(top[i] + (bottom[i] - top[i]) * ratio) for i in range(3))
-        draw.line([(0, row), (width, row)], fill=color)
+        draw.rectangle([(0, row), (width, min(row + 4, height))], fill=color)
 
-    # 干扰图形：随机圆与折线，增加机器识别难度
-    for _ in range(6):
-        cx, cy = secrets.randbelow(width), secrets.randbelow(height)
-        radius = secrets.randbelow(18) + 6
+    # 干扰图形：随机圆与折线，数量保持轻量即可
+    for _ in range(3):
+        cx, cy = rand.randrange(width), rand.randrange(height)
+        radius = rand.randrange(6, 24)
         draw.ellipse(
             [cx - radius, cy - radius, cx + radius, cy + radius],
-            outline=_rand_color(),
+            outline=_rand_color(rand),
             width=2,
         )
-    for _ in range(4):
-        x1, y1 = secrets.randbelow(width), secrets.randbelow(height)
-        x2, y2 = secrets.randbelow(width), secrets.randbelow(height)
-        draw.line([(x1, y1), (x2, y2)], fill=_rand_color(), width=2)
+    for _ in range(2):
+        x1, y1 = rand.randrange(width), rand.randrange(height)
+        x2, y2 = rand.randrange(width), rand.randrange(height)
+        draw.line([(x1, y1), (x2, y2)], fill=_rand_color(rand), width=2)
 
-    # 噪点
-    for _ in range(400):
-        x, y = secrets.randbelow(width), secrets.randbelow(height)
-        draw.point((x, y), fill=_rand_color())
+    # 轻量噪点：数量减少，避免大量 point 调用拖慢生成
+    for _ in range(80):
+        x, y = rand.randrange(width), rand.randrange(height)
+        draw.point((x, y), fill=_rand_color(rand))
 
-    return img.filter(ImageFilter.SMOOTH)
+    return img
 
 
 def _puzzle_mask(size: int) -> Image.Image:

@@ -92,6 +92,21 @@ class SliderVerifyOut(BaseModel):
     expires_in: int
 
 
+# ---------------------------------------------------------------------------
+# 极验行为验证 4.0
+# ---------------------------------------------------------------------------
+class GeetestVerifyRequest(BaseModel):
+    """极验前端验证通过后回传的四个字段，服务端据此做二次校验。
+
+    字段名由极验 SDK 定义（``captcha.getValidate()`` 的返回），不可自定义。
+    """
+
+    lot_number: str = Field(description="验证流水号")
+    captcha_output: str = Field(description="验证输出信息")
+    pass_token: str = Field(description="验证通过标识")
+    gen_time: str = Field(description="验证通过时间戳")
+
+
 class VerifyCodeRequest(BaseModel):
     target: str
     code: str

@@ -10,8 +10,9 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.modules.auth.captcha import consume_ticket, generate_slider, verify_slider
+from app.modules.auth.captcha import consume_ticket, generate_slider, issue_ticket, verify_slider
 from app.modules.auth.deps import get_current_user
+from app.modules.auth.geetest import captcha_provider, geetest_enabled, verify_geetest
 from app.modules.auth.models import User
 from app.modules.auth.oauth import (
     bind_oauth,
@@ -27,6 +28,7 @@ from app.modules.auth.schemas import (
     BindPhoneRequest,
     EmailRegisterRequest,
     EmailRegisterResponse,
+    GeetestVerifyRequest,
     LoginRequest,
     PhoneLoginRequest,
     RefreshRequest,
@@ -109,8 +111,50 @@ async def logout_user(
 # ---------------------------------------------------------------------------
 @router.get("/captcha/config", response_model=ApiResponse[dict])
 async def captcha_config():
-    """公开只读：滑块验证是否开启，供前端决定是否需要弹出滑块。"""
-    return ApiResponse.ok(data={"enabled": settings.captcha_enabled})
+    """公开只读：验证码开关与当前生效的提供方，供前端决定渲染哪种验证。
+
+    ``provider`` 取值：
+      * ``geetest`` —— 已配置极验 captcha_id/key，前端渲染极验组件
+      * ``builtin`` —— 未接入第三方，使用服务端生成的拼图滑块
+
+    前端只认这个字段，不自己判断"有没有极验"，
+    避免两端对同一份配置产生不同理解。
+    """
+    provider = captcha_provider()
+    return ApiResponse.ok(
+        data={
+            "enabled": settings.captcha_enabled,
+            "provider": provider,
+            # 仅 geetest 模式下需要，builtin 时为空串（前端不会用到）
+            "geetest_id": settings.geetest_captcha_id if provider == "geetest" else "",
+        }
+    )
+
+
+@router.post("/captcha/geetest/verify", response_model=ApiResponse[SliderVerifyOut])
+async def captcha_geetest_verify(data: GeetestVerifyRequest):
+    """极验二次校验：通过后签发一次性票据（供 send-code 使用）。
+
+    票据机制与自建滑块**完全一致**，因此下游 send-code 不需要区分
+    用户是通过哪种方式完成的验证 —— 换 provider 对业务代码透明。
+    """
+    if not geetest_enabled():
+        raise BizError(ErrorCode.VALIDATION, "当前未启用极验验证")
+
+    ok, reason = await verify_geetest(
+        data.lot_number, data.captcha_output, data.pass_token, data.gen_time
+    )
+    if not ok:
+        # 不回传 reason：避免给攻击者提供调整参数的反馈
+        raise BizError(ErrorCode.VALIDATION, "人机验证未通过，请重试")
+
+    return ApiResponse.ok(
+        message="验证通过",
+        data=SliderVerifyOut(
+            ticket=await issue_ticket(),
+            expires_in=settings.captcha_ticket_ttl_seconds,
+        ),
+    )
 
 
 @router.get("/captcha/slider", response_model=ApiResponse[SliderCaptchaOut])

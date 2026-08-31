@@ -35,6 +35,7 @@ PUBLIC_PATHS = {
     "/api/auth/captcha/config",
     "/api/auth/captcha/slider",
     "/api/auth/captcha/verify",
+    "/api/auth/captcha/geetest/verify",
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
@@ -142,9 +143,10 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             "/api/auth/send-code",
             "/api/auth/verify-email",
             # 滑块生成是 CPU 密集操作，且校验端点可能被用于暴力试探缺口位置，
-            # 因此同样纳入严格限流（10 次/分钟）。
+            # 因此同样纳入严格限流（10 次/分钟）。极验二次校验同理。
             "/api/auth/captcha/slider",
             "/api/auth/captcha/verify",
+            "/api/auth/captcha/geetest/verify",
         }
         if request.url.path in _auth_strict_paths:
             auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"

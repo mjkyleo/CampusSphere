@@ -11,7 +11,7 @@ import {
   ReportOut, ReportTargetType, ReportStatus,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
   AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
-  SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig
+  SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig, GeetestValidate
 } from '../types.ts';
 
 // Storage keys
@@ -1156,6 +1156,13 @@ export const api = {
       request<SliderVerifyResult>('/api/auth/captcha/verify', {
         method: 'POST',
         body: JSON.stringify({ token, offset_x: offsetX, track, elapsed_ms: elapsedMs }),
+      }),
+
+    // 极验行为验证：前端拿到验证结果后交服务端做二次校验换票据
+    captchaGeetestVerify: (validate: GeetestValidate) =>
+      request<SliderVerifyResult>('/api/auth/captcha/geetest/verify', {
+        method: 'POST',
+        body: JSON.stringify(validate),
       }),
 
     emailConfig: () =>

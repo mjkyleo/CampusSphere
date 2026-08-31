@@ -115,6 +115,18 @@ export interface SliderVerifyResult {
 
 export interface CaptchaConfig {
   enabled: boolean;
+  /** 当前生效的验证提供方：geetest=极验行为验证；builtin=服务端拼图滑块 */
+  provider?: 'geetest' | 'builtin';
+  /** provider=geetest 时下发，供前端 initGeetest4 初始化 */
+  geetest_id?: string;
+}
+
+/** 极验前端验证通过后 getValidate() 的原始结果 */
+export interface GeetestValidate {
+  lot_number: string;
+  captcha_output: string;
+  pass_token: string;
+  gen_time: string;
 }
 
 export interface UserOut {

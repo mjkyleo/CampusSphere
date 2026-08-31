@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Sparkles, TrendingUp, Zap, Clock, ChevronRight,
@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getSmartCampusInsights } from '../services/geminiService.ts';
 import { api, formatPrice } from '../services/api.ts';
-import { ItemOut, CourseOut, TeamOut } from '../types.ts';
+import { ItemOut, CourseOut, TeamOut, JobOut, ShareOut } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 
 const HomePage: React.FC = () => {
@@ -19,6 +19,8 @@ const HomePage: React.FC = () => {
   const [items, setItems] = useState<ItemOut[]>([]);
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [teams, setTeams] = useState<TeamOut[]>([]);
+  const [jobs, setJobs] = useState<JobOut[]>([]);
+  const [shares, setShares] = useState<ShareOut[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const topics = ['考试周高效复习技巧', '一食堂今日招牌美食推荐', '大三找实习与竞赛组队策略', '二手闲置避坑与面交安全'];
@@ -59,6 +61,14 @@ const HomePage: React.FC = () => {
         if (tmRes.code === 0 && tmRes.data) {
           setTeams(tmRes.data.items || []);
         }
+        const jobRes = await api.jobs.list({ page: 1, page_size: 3 });
+        if (jobRes.code === 0 && jobRes.data) {
+          setJobs(jobRes.data.items || []);
+        }
+        const shareRes = await api.shares.list({ page: 1, page_size: 3 });
+        if (shareRes.code === 0 && shareRes.data) {
+          setShares(shareRes.data.items || []);
+        }
       } catch {
         // Fallbacks in mock engine
       }
@@ -66,6 +76,43 @@ const HomePage: React.FC = () => {
 
     loadPreviewData();
   }, []);
+
+  // 校园热搜榜：基于各模块真实数据动态生成
+  const trendingTags = useMemo(() => {
+    const tags: { tag: string; path: string }[] = [];
+
+    const topItems = [...items]
+      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      .slice(0, 2);
+    topItems.forEach((item) => tags.push({ tag: item.title.slice(0, 18), path: `/market/${item.id}` }));
+
+    const topCourses = [...courses]
+      .sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0))
+      .slice(0, 2);
+    topCourses.forEach((course) => tags.push({ tag: `${course.name} ${course.teacher || ''}`.trim().slice(0, 18), path: `/courses/${course.id}` }));
+
+    teams.slice(0, 1).forEach((team) => tags.push({ tag: team.title.slice(0, 18), path: `/teammates/${team.id}` }));
+
+    const topShares = [...shares]
+      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+      .slice(0, 1);
+    topShares.forEach((share) => tags.push({ tag: share.title.slice(0, 18), path: `/share/${share.id}` }));
+
+    jobs.slice(0, 1).forEach((job) => tags.push({ tag: job.title.slice(0, 18), path: `/jobs/${job.id}` }));
+
+    // Fallback presets if backend returns empty
+    if (tags.length === 0) {
+      return [
+        { tag: '考研数学高分资料', path: '/share' },
+        { tag: '数据结构张伟老师', path: '/courses' },
+        { tag: '一食堂招牌牛肉拉面', path: '/canteens' },
+        { tag: '国赛数学建模3缺1', path: '/teammates' },
+        { tag: '图书馆兼职助理', path: '/jobs' },
+        { tag: '九号电动车转让', path: '/market' }
+      ];
+    }
+    return tags;
+  }, [items, courses, teams, shares, jobs]);
 
   const quickLinks = [
     { label: '闲置市集', icon: ShoppingBag, color: 'bg-amber-50 text-amber-600 border-amber-100', path: '/market', desc: '真实面交 信用保障' },
@@ -289,14 +336,7 @@ const HomePage: React.FC = () => {
               校园热搜榜
             </h2>
             <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex flex-wrap gap-2 shadow-xs">
-              {[
-                { tag: '考研数学高分资料', path: '/share' },
-                { tag: '数据结构张伟老师', path: '/courses' },
-                { tag: '一食堂招牌牛肉拉面', path: '/canteens' },
-                { tag: '国赛数学建模3缺1', path: '/teammates' },
-                { tag: '图书馆兼职助理', path: '/jobs' },
-                { tag: '九号电动车转让', path: '/market' }
-              ].map((item) => (
+              {trendingTags.map((item) => (
                 <Link
                   key={item.tag}
                   to={item.path}

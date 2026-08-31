@@ -1,7 +1,7 @@
 <!-- 本文件由 scripts/doc_sync.py 自动生成，请勿手工编辑 -->
 # 项目状态快照（自动生成）
 
-> 生成时间：2026-08-29 06:51 UTC  ｜  来源：`scripts/doc_sync.py`
+> 生成时间：2026-08-31 04:31 UTC  ｜  来源：`scripts/doc_sync.py`
 > 本文件由代码实时抽取，反映当前仓库真实状态；如需修改内容，请改代码后重跑工具。
 
 ## 目录结构（节选）
@@ -63,22 +63,9 @@ CampusSphere/
         notify.py
         search_sync.py
         summary.py
-    campus_life_platform.egg-info/
-      dependency_links.txt
-      PKG-INFO
-      requires.txt
-      SOURCES.txt
-      top_level.txt
-    check_imports.py
-    check_imports.txt
     Dockerfile
-    pip_install.txt
-    pip_install2.txt
     pyproject.toml
-    pytest_collect.txt
-    pytest_ver.txt
     README.md
-    ruff_out.txt
     scripts/
       fake_redis_server.py
       gen_api_docs.py
@@ -86,7 +73,18 @@ CampusSphere/
       list_python.ps1
     tests/
       conftest.py
+      factories.py
       helpers.py
+      integration/
+        __init__.py
+        conftest.py
+        test_admin/
+        test_auth/
+        test_canteen/
+        test_course/
+        test_external/
+        test_items/
+        test_messaging/
       test_admin_gateway.py
       test_arch_imports.py
       test_auth.py
@@ -106,6 +104,12 @@ CampusSphere/
       test_smoke.py
       test_user.py
       test_websocket.py
+      unit/
+        __init__.py
+        conftest.py
+        test_captcha_unit.py
+        test_security_unit.py
+        test_utils_unit.py
   config/
     logging.yaml
     school.yaml
@@ -116,7 +120,9 @@ CampusSphere/
       dashboards/
         api-overview.json
     nginx/
+      external-proxy.conf.example
       nginx.conf
+      nginx.http-only.conf
       ssl/
         README.md
     prometheus/
@@ -127,7 +133,6 @@ CampusSphere/
     _generated/
       DOC_DRIFT_REPORT.md
       PROJECT_STATUS.md
-      state.json
     API_Reference.md
     audit/
       01-architecture.md
@@ -138,10 +143,38 @@ CampusSphere/
     DEPLOYMENT.md
     development.md
     openapi.json
+    TESTING.md
     usage.md
     后续开发计划.md
     部署手册.md
     项目现状分析.md
+  e2e/
+    package-lock.json
+    package.json
+    pages/
+      AdminPage.ts
+      BasePage.ts
+      CoursePage.ts
+      HomePage.ts
+      LoginPage.ts
+      MarketPage.ts
+      MessagePage.ts
+    playwright.config.ts
+    README.md
+    test-results/
+    tests/
+      01-home-browsing.spec.ts
+      02-register.spec.ts
+      03-login-session.spec.ts
+      04-unauthorized-redirect.spec.ts
+      05-publish-and-bargain.spec.ts
+      06-messaging.spec.ts
+      07-admin-moderation.spec.ts
+      08-course-review.spec.ts
+    tsconfig.json
+    utils/
+      auth-helpers.ts
+      test-data.ts
   examples/
     email_verification_flask/
       email_verification_flask_example.py
@@ -160,7 +193,7 @@ CampusSphere/
     C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\package-lock.json/
     C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\package.json/
     C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\pages/
-    … (+9 项)
+    … (+11 项)
   README.md
   scripts/
     check_css_classes.js
@@ -177,12 +210,12 @@ CampusSphere/
 | --- | ---: | --- | --- | --- | --- |
 | `admin` | 36 | ✅ | ✅ | ✅ | 管理后台 |
 | `ai` | 5 | ✅ | ✅ | ✅ | AI |
-| `auth` | 23 | ✅ | ✅ | ✅ | 认证 |
+| `auth` | 24 | ✅ | ✅ | ✅ | 认证 |
 | `canteen` | 4 | ✅ | ✅ | ✅ | 食堂 |
 | `course` | 5 | ✅ | ✅ | ✅ | 课程 |
 | `item` | 8 | ✅ | ✅ | ✅ | 二手 |
 | `job` | 4 | ✅ | ✅ | ✅ | 兼职 |
-| `launcher` | 2 | ✅ | — | — | 启动器 |
+| `launcher` | 3 | ✅ | — | — | 启动器 |
 | `message` | 4 | ✅ | ✅ | ✅ | 消息 |
 | `report` | 3 | ✅ | ✅ | ✅ | 举报 |
 | `share` | 3 | ✅ | ✅ | ✅ | 分享 |
@@ -199,7 +232,7 @@ CampusSphere/
 ## 依赖
 
 - Python 运行时要求：`>=3.12`
-- 后端依赖（26 项）：`fastapi>=0.111`、`uvicorn[standard]>=0.30`、`python-multipart>=0.0.9`、`sqlalchemy>=2.0.30`、`asyncpg>=0.29`、`psycopg2-binary>=2.9`、`alembic>=1.13`、`aiosqlite>=0.20`、`pydantic>=2.7`、`pydantic-settings>=2.3`、`redis>=5.0`、`celery>=5.4` 等
+- 后端依赖（27 项）：`fastapi>=0.111`、`uvicorn[standard]>=0.30`、`python-multipart>=0.0.9`、`sqlalchemy>=2.0.30`、`asyncpg>=0.29`、`psycopg2-binary>=2.9`、`alembic>=1.13`、`aiosqlite>=0.20`、`pydantic>=2.7`、`pydantic-settings>=2.3`、`email-validator>=2.0`、`redis>=5.0` 等
 - 前端依赖：8 项（React / Vite / Express 等，详见 frontend/package.json）
 
 ## 测试
@@ -227,6 +260,7 @@ CampusSphere/
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | int | `15` | — |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | int | `7` | — |
 | `RATE_LIMIT_PER_MINUTE` | int | `120` | — |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | int | `10` | 登录 / 注册 / 验证码等认证端点单独限流（防爆破与刷接口）。 生产保持 10；测试环境需放宽，否则批量创建用户的用例会在同一分钟内互相 挤爆限额（中间件已把它做成构造参数，这里补上配置入口供 .env 覆盖）。 |
 | `ADMIN_GATEWAY_KEY` | str | `""` | 这些字段专门保护 /api/admin/* 的可达性，与普通用户账号无关。 - admin_gateway_key  : 前端页面可见，调用 /api/admin/discover 时用它换取 X-Admin-Gateway 短期 token。 错误的 gateway key 一律 404 Not Found（对未授权 |
 | `ADMIN_BOOTSTRAP_ENABLED` | bool | `True` | — |
 | `ADMIN_BOOTSTRAP_USERNAME` | str | `"siteadmin"` | — |
@@ -234,34 +268,43 @@ CampusSphere/
 | `ADMIN_BOOTSTRAP_MIN_LENGTH` | int | `16` | — |
 | `ADMIN_GATEWAY_ROTATE_SECONDS` | int | `3600` | 派生 token 1 小时轮换 |
 | `ADMIN_GATEWAY_ENFORCE` | bool | `True` | 网关强制开关：True=生产（默认，强制校验 X-Admin-Gateway）；False=本地开发放宽（免网关密钥）。 仅用于本地联调，生产环境请勿置为 false（validate_admin_security 会告警）。 |
-| `SMTP_HOST` | str | `""` | 未配置 SMTP 时，验证码接口会返回 debug_code 便于测试联调； 配置后验证码仅通过邮件送达，生产环境必须配置。 |
+| `SMTP_HOST` | str | `""` | 生产环境**必须**配置 smtp_host，否则验证码无法送达（启动校验会拒绝启动）。 |
+| `EXPOSE_VERIFICATION_CODE` | bool | `False` | 是否在 ``send-code`` 响应里回传验证码（供本地联调与自动化测试读取）。  这是一个**独立开关**而非复用 DEBUG：DEBUG 还控制管理员网关校验开关 （``gateway_enforced() = admin_gateway_enforce and not debug``）与启动期 安全强校验的严 |
 | `SMTP_PORT` | int | `465` | — |
 | `SMTP_USER` | str | `""` | — |
 | `SMTP_PASS` | str | `""` | — |
+| `SMTP_FROM` | str | `""` | 发件人地址。留空时回退为 smtp_user（多数 SMTP 服务商要求两者一致）。 |
+| `SMTP_TIMEOUT` | int | `10` | 连接/读超时（秒）。SMTP 为同步阻塞调用，必须设上限，避免 worker 被拖死。 |
+| `SMTP_STARTTLS` | bool | None | `None` | True=强制 STARTTLS（587 等端口）；留为 None 时按端口推断：465 走 SSL，其余走 STARTTLS。 |
 | `CAPTCHA_ENABLED` | bool | `True` | 关闭后 /api/auth/send-code 不再要求票据（供测试与内网环境使用）。 |
 | `CAPTCHA_TOLERANCE_PX` | int | `6` | 缺口对齐容差（像素），过小会伤及真实用户体验 |
 | `CAPTCHA_TTL_SECONDS` | int | `300` | 滑块令牌有效期 |
 | `CAPTCHA_MAX_ATTEMPTS` | int | `3` | 同一滑块最多校验次数，超出即作废 |
 | `CAPTCHA_MIN_TRACK_POINTS` | int | `6` | 轨迹最少采样点，防脚本直传坐标 |
 | `CAPTCHA_TICKET_TTL_SECONDS` | int | `120` | 校验通过签发的票据有效期 |
+| `GEETEST_CAPTCHA_ID` | str | `""` | 留空则使用上面那套自建拼图滑块；填入 captcha_id / captcha_key 后， /api/auth/captcha/config 会下发 provider=geetest，前端自动切到极验。 这样"是否接入第三方"变成纯配置决策，不需要改代码重新发版。 |
+| `GEETEST_CAPTCHA_KEY` | str | `""` | — |
+| `GEETEST_TIMEOUT` | int | `5` | 二次校验接口超时（秒）。必须设上限：极验服务不可达时若无限等待， 会把 uvicorn 的工作线程拖死，进而影响整站。 |
+| `GEETEST_FAIL_OPEN` | bool | `True` | 容灾开关：极验服务异常/超时时是否放行。 True  → 校验接口不可达时"放行"，保证用户仍能注册（牺牲部分防刷能力） False → 校验接口不可达时"拒绝"，宁可暂时无法注册也不放机器人进来 |
 | `CODE_TTL_SECONDS` | int | `300` | 验证码有效期 |
 | `CODE_MAX_ATTEMPTS` | int | `5` | 同一验证码最多校验次数，超出即作废 |
-| `CORS_ORIGINS` | List[str] | `["http://localhost:5173", "http://127.0.0.1:5173"]` | 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖 |
+| `CODE_SEND_LIMIT_PER_MINUTE` | int | `1` | 同一 target 每分钟最多发送次数（防轰炸邮箱/手机）；0 表示不限制。 |
+| `CORS_ORIGINS` | list[str] | `["http://localhost:5173", "http://127.0.0.1:5173"]` | 默认放行前端（frontend :5173；3000 在 Windows Hyper-V 排除范围不可用）；生产环境用 .env 的 CORS_ORIGINS 覆盖 |
 | `SCHOOL_CONFIG_PATH` | str | `"../config/school.yaml"` | — |
 | `SCHOOL_NAME` | str | `"示例大学"` | — |
 | `SCHOOL_DOMAIN` | str | `"localhost"` | — |
-| `OAUTH` | Dict[str, Any] | `{}` | 由 school.yaml 注入的嵌套配置 |
-| `MINIO` | Dict[str, Any] | `{}` | — |
-| `MEILISEARCH` | Dict[str, Any] | `{}` | — |
-| `REPORT_POLICY` | Dict[str, Any] | `{}` | — |
-| `AUTH` | Dict[str, Any] | `{}` | — |
-| `ITEMS` | Dict[str, Any] | `{}` | — |
-| `COURSES` | Dict[str, Any] | `{}` | — |
-| `AI` | Dict[str, Any] | `{}` | — |
-| `ADMIN` | Dict[str, Any] | `{}` | — |
-| `MINIO_ENDPOINT` | Optional[str] | `None` | — |
-| `MINIO_ACCESS_KEY` | Optional[str] | `None` | — |
-| `MINIO_SECRET_KEY` | Optional[str] | `None` | — |
+| `OAUTH` | dict[str, Any] | `{}` | 由 school.yaml 注入的嵌套配置 |
+| `MINIO` | dict[str, Any] | `{}` | — |
+| `MEILISEARCH` | dict[str, Any] | `{}` | — |
+| `REPORT_POLICY` | dict[str, Any] | `{}` | — |
+| `AUTH` | dict[str, Any] | `{}` | — |
+| `ITEMS` | dict[str, Any] | `{}` | — |
+| `COURSES` | dict[str, Any] | `{}` | — |
+| `AI` | dict[str, Any] | `{}` | — |
+| `ADMIN` | dict[str, Any] | `{}` | — |
+| `MINIO_ENDPOINT` | str | None | `None` | — |
+| `MINIO_ACCESS_KEY` | str | None | `None` | — |
+| `MINIO_SECRET_KEY` | str | None | `None` | — |
 | `MINIO_SECURE` | bool | `False` | — |
 | `MINIO_BUCKET` | str | `"campus"` | — |
 | `MEILI_HOST` | str | `"http://localhost:7700"` | — |
