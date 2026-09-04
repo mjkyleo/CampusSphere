@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.config_reload import start_config_reloader, stop_config_reloader
 from app.core.database import SessionLocal, engine, init_models
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
@@ -64,6 +65,8 @@ async def lifespan(app: FastAPI):
             await manager.start_listener()
         except Exception:
             pass
+        # 启动配置热更新监听（Redis 不可用时内部优雅降级，不影响启动）
+        await start_config_reloader()
         yield
     finally:
         # 关闭期资源释放顺序：后台任务 → 外部连接 → 数据库连接池。
@@ -72,6 +75,10 @@ async def lifespan(app: FastAPI):
             await manager.stop_listener()
         except Exception as exc:
             _logger.warning("ws_listener_stop_failed", error=str(exc))
+        try:
+            await stop_config_reloader()
+        except Exception as exc:
+            _logger.warning("config_reloader_stop_failed", error=str(exc))
         try:
             await close_redis()
         except Exception as exc:

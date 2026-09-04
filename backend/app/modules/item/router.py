@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import ItemStatus
 from app.core.database import get_db
+from app.core.deps import Principal, Scope, require_owner_or_scope, require_scope
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.modules.auth.deps import get_current_user, get_current_user_optional, require_owner
+from app.modules.auth.deps import get_current_user, get_current_user_optional
 from app.modules.auth.models import User
 from app.modules.item.schemas import ItemCreate, ItemOut, ItemUpdate, TradeSessionOut
 from app.modules.item.service import (
@@ -93,10 +94,10 @@ async def update(
     item_id: str,
     data: ItemUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    principal: Principal = Depends(require_scope(Scope.WRITE)),
 ):
     item = await get_item(db, item_id)
-    require_owner(item.owner_id, user)
+    require_owner_or_scope(item.owner_id, principal, Scope.ADMIN)
     item = await update_item(db, item, data)
     return ApiResponse.ok(data=ItemOut.model_validate(item))
 
@@ -105,10 +106,15 @@ async def update(
 async def delete(
     item_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    principal: Principal = Depends(require_scope(Scope.WRITE)),
 ):
+    """删除物品：本人（write）或管理员（admin）可删。
+
+    权限判定完全由 ``require_scope`` + ``require_owner_or_scope`` 表达，
+    Service 层的 ``delete_item`` 只负责删除，不知道"管理员"这个概念的存在。
+    """
     item = await get_item(db, item_id)
-    require_owner(item.owner_id, user)
+    require_owner_or_scope(item.owner_id, principal, Scope.ADMIN)
     await delete_item(db, item)
     return ApiResponse.ok(message="已删除")
 

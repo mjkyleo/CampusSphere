@@ -24,12 +24,14 @@ import JobList from './pages/JobList.tsx';
 import MessageCenter from './pages/MessageCenter.tsx';
 import UserProfile from './pages/UserProfile.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
+import AdminLoginPage from './pages/AdminLoginPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 
 const AppContent: React.FC = () => {
   const { loading, adminLoading } = useAuth();
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const isAdminLogin = location.pathname === '/admin/login';
 
   if (loading || adminLoading) {
     return (
@@ -44,8 +46,8 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/60 text-slate-800 pb-20 lg:pb-12 lg:pt-16 antialiased selection:bg-indigo-500 selection:text-white">
-      {!isLoginPage && <Navbar />}
-      <main className={isLoginPage ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'}>
+      {!isLoginPage && !isAdminLogin && <Navbar />}
+      <main className={isLoginPage || isAdminLogin ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/market" element={<MarketList />} />
@@ -64,11 +66,12 @@ const AppContent: React.FC = () => {
           <Route path="/messages" element={<ProtectedRoute><MessageCenter /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {!isLoginPage && <ReportModal />}
+      {!isLoginPage && !isAdminLogin && <ReportModal />}
     </div>
   );
 };

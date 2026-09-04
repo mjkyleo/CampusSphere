@@ -8,13 +8,15 @@ import { JobOut, SalaryType } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 
-const categories = ['全部岗位', '助教/助管', '家教辅导', '校园代理', '技术开发', '设计剪辑', '活动执行', '文案编辑'];
+// 兜底分类：后端不可达时仍可用，避免页面空白（真实值由 /api/jobs/categories 下发）
+const FALLBACK_CATEGORIES = ['助教/助管', '家教辅导', '校园代理', '技术开发', '设计剪辑', '活动执行', '文案编辑'];
 
 const JobList: React.FC = () => {
   const { user } = useAuth();
   const { success, error } = useToast();
 
   const [jobs, setJobs] = useState<JobOut[]>([]);
+  const [categories, setCategories] = useState<string[]>(['全部岗位', ...FALLBACK_CATEGORIES]);
   const [selectedCat, setSelectedCat] = useState('全部岗位');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,7 @@ const JobList: React.FC = () => {
   const [company, setCompany] = useState('');
   const [salaryYuan, setSalaryYuan] = useState('150');
   const [salaryType, setSalaryType] = useState<SalaryType>(SalaryType.Daily);
+  const [category, setCategory] = useState(FALLBACK_CATEGORIES[0]);
   const [location, setLocation] = useState('校内图书馆 / 线上');
   const [contact, setContact] = useState('');
   const [requirements, setRequirements] = useState('');
@@ -52,6 +55,20 @@ const JobList: React.FC = () => {
     }
   };
 
+  // 动态拉取兼职分类（后台可配置，含 school.yaml 兜底），失败则用前端兜底常量
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.jobs.categories();
+        if (res.code === 0 && res.data?.categories?.length) {
+          setCategories(['全部岗位', ...res.data.categories]);
+        }
+      } catch {
+        // 保留兜底分类
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     fetchJobs();
   }, [selectedCat]);
@@ -75,6 +92,7 @@ const JobList: React.FC = () => {
         company: company.trim(),
         salary_cents: toCents(parseFloat(salaryYuan)),
         salary_type: salaryType,
+        category: category.trim(),
         location: location.trim(),
         contact: contact.trim(),
         requirements: requirements.trim(),
@@ -341,7 +359,19 @@ const JobList: React.FC = () => {
                     <option value={SalaryType.OneTime}>按次 / 项目结算</option>
                   </select>
                 </div>
-              </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">岗位分类 *</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-violet-600 outline-none"
+                  >
+                    {categories.filter((c) => c !== '全部岗位').map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                </div>
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">雇主联系方式 (手机/微信/邮箱) *</label>

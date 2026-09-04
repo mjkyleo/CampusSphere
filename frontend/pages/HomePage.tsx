@@ -57,7 +57,7 @@ const HomePage: React.FC = () => {
         if (crsRes.code === 0 && crsRes.data) {
           setCourses(crsRes.data.items || []);
         }
-        const tmRes = await api.teammates.list(1, 3);
+        const tmRes = await api.teammates.list({ page: 1, page_size: 3 });
         if (tmRes.code === 0 && tmRes.data) {
           setTeams(tmRes.data.items || []);
         }

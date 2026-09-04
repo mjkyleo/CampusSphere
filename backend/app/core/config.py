@@ -164,6 +164,13 @@ class Settings(BaseSettings):
     courses: dict[str, Any] = Field(default_factory=dict)
     ai: dict[str, Any] = Field(default_factory=dict)
     admin: dict[str, Any] = Field(default_factory=dict)
+    # 分类配置化（P1）：与 items.categories 同一套「yaml 默认 → DB 覆盖 →
+    # 公开端点下发 → 前端兜底」四层模式，消除前端写死分类。
+    job: dict[str, Any] = Field(default_factory=dict)
+    share: dict[str, Any] = Field(default_factory=dict)
+    teammate: dict[str, Any] = Field(default_factory=dict)
+    # 食堂维度枚举（P3）：学部 / 餐饮区 / 类型 / 学期。
+    canteen: dict[str, Any] = Field(default_factory=dict)
 
     # ----- 基础设施（可由 .env 覆盖，缺省取 school.yaml）-----
     minio_endpoint: str | None = None
@@ -194,7 +201,10 @@ class Settings(BaseSettings):
         for key in ("school_name", "school_domain"):
             if data.get(key):
                 setattr(self, key, data[key])
-        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "courses", "ai", "admin"):
+        for key in (
+            "oauth", "minio", "meilisearch", "report_policy", "auth", "items",
+            "courses", "ai", "admin", "job", "share", "teammate", "canteen",
+        ):
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
 

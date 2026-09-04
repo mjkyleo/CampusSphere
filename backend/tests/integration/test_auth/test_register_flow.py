@@ -26,7 +26,7 @@ _VCODE_PREFIX = "vcode:register:"
 
 # 与 config/school.yaml 的 auth.email_register.domains 保持一致；
 # 若调整该文件需同步更新此常量，否则注册用例会被白名单拦截。
-DEFAULT_ALLOWED_DOMAIN = "example.edu.cn"
+DEFAULT_ALLOWED_DOMAIN = "whu.edu.cn"
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import {
   TradeSessionOut, TradeStatus,
   ConversationOut, MessageOut, MessageType,
   CourseOut, CourseCreate, CourseReviewOut,
-  CanteenOut, StallOut, DishOut, CanteenReviewOut,
+  CanteenOut, StallOut, DishOut, CanteenReviewOut, CanteenConfig,
   JobOut, JobCreate, JobApplicationOut, ApplicationStatus, JobStatus,
   ShareOut, ShareCreate, ShareCommentOut,
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
@@ -632,10 +632,18 @@ type RefreshResult =
  * Guarded against repeated calls and the login page itself.
  */
 function redirectToLogin(admin = false, reason?: string): void {
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+  // 管理员登录独立地址 /admin/login；已在该页或普通登录页时不重复跳转
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname !== '/login' &&
+    window.location.pathname !== '/admin/login'
+  ) {
+    if (admin) {
+      window.location.href = '/admin/login';
+      return;
+    }
     const params: string[] = [];
-    if (admin) params.push('admin=1');
-    else if (reason) params.push(`reason=${encodeURIComponent(reason)}`);
+    if (reason) params.push(`reason=${encodeURIComponent(reason)}`);
     window.location.href = `/login${params.length > 0 ? `?${params.join('&')}` : ''}`;
   }
 }
@@ -859,6 +867,58 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
       items = items.filter((i: ItemOut) => i.title.includes(keyword) || i.description.includes(keyword));
     }
     return { code: 0, message: 'ok', data: { total: items.length, items } as any };
+  }
+
+  // Items: Categories (mock 兜底，与 FALLBACK_CATEGORIES 对齐)
+  if (path === '/api/items/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['电子数码', '日常用品', '书籍教材', '运动装备', '宿舍好物', '衣帽鞋包', '票券卡券', '其他'] } as any };
+  }
+
+  // Jobs: Categories (mock 兜底)
+  if (path === '/api/jobs/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['助教/助管', '家教辅导', '校园代理', '技术开发', '设计剪辑', '活动执行', '文案编辑', '其他'] } as any };
+  }
+
+  // Shares: Categories (mock 兜底)
+  if (path === '/api/shares/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['期末复习题', '考研考证', '课件PPT', '实验报告模版', '竞赛真题', '开源代码', '其他'] } as any };
+  }
+
+  // Teammates: Categories (mock 兜底)
+  if (path === '/api/teams/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['学术竞赛', '考研考公', '运动健身', '游戏开黑', '旅行逛街', '期末自习', '其他'] } as any };
+  }
+
+  // Canteens: Configs (mock 兜底，含学部/餐饮区/类型/学期)
+  if (path === '/api/canteens/configs' && method === 'GET') {
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        campuses: ['文理学部', '工学部', '信息学部', '医学部'],
+        zones: {
+          文理学部: ['梅园', '桂园', '枫园'],
+          工学部: ['湖滨', '工学部', '田园'],
+          信息学部: ['信息学部', '星园'],
+          医学部: ['医学部'],
+        },
+        types: ['学生大伙食堂', '风味食堂', '教工食堂'],
+        semesters: ['2026-2027-1', '2026-2027-2'],
+        current_semester: '2026-2027-1',
+      } as any,
+    };
+  }
+
+  // Courses: Departments (mock 兜底，含学部分组)
+  if (path === '/api/courses/departments' && method === 'GET') {
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        departments: ['计算机学院', '软件学院', '数学科学学院', '经济管理学院', '外国语学院', '通识教育中心'],
+        groups: [],
+      } as any,
+    };
   }
 
   // Items: Get detail
@@ -1227,6 +1287,34 @@ export const api = {
     categories: () => request<{ categories: string[] }>('/api/items/categories')
   },
 
+  // Jobs (兼职)
+  jobs: {
+    list: (
+      params?: string | { keyword?: string; category?: string; page?: number; page_size?: number },
+      status?: number,
+      page = 1,
+      page_size = 20
+    ) => {
+      const q = new URLSearchParams();
+      if (typeof params === 'string') {
+        if (params) q.set('keyword', params);
+        if (status !== undefined) q.set('status', status.toString());
+        q.set('page', page.toString());
+        q.set('page_size', page_size.toString());
+      } else if (params && typeof params === 'object') {
+        if (params.keyword) q.set('keyword', params.keyword);
+        if (params.category) q.set('category', params.category);
+        if (params.page) q.set('page', params.page.toString());
+        if (params.page_size) q.set('page_size', params.page_size.toString());
+      }
+      return request<{ total: number; items: JobOut[] }>(`/api/jobs?${q.toString()}`);
+    },
+    create: (data: JobCreate) => request<JobOut>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
+    apply: (jobId: string, note?: string) => request<JobApplicationOut>(`/api/jobs/${jobId}/apply`, { method: 'POST', body: JSON.stringify({ note }) }),
+    applications: (jobId: string) => request<JobApplicationOut[]>(`/api/jobs/${jobId}/applications`),
+    categories: () => request<{ categories: string[] }>('/api/jobs/categories')
+  },
+
   // Messages (会话与实时消息)
   messages: {
     conversations: () => request<ConversationOut[]>('/api/messages/conversations'),
@@ -1267,7 +1355,7 @@ export const api = {
       return res as unknown as ApiResponse<CourseOut & { reviews: CourseReviewOut[] }>;
     },
     create: (data: CourseCreate) => request<CourseOut>('/api/courses', { method: 'POST', body: JSON.stringify(data) }),
-    departments: () => request<{ departments: string[] }>('/api/courses/departments'),
+    departments: () => request<{ departments: string[]; groups: { group: string; departments: string[] }[] }>('/api/courses/departments'),
     getReviews: async (courseId: string) => {
       // Backend has no dedicated reviews list endpoint; reviews come from the detail endpoint
       const res = await request<{ course: CourseOut; reviews: CourseReviewOut[] }>(`/api/courses/${courseId}`);
@@ -1294,7 +1382,16 @@ export const api = {
 
   // Canteens (食堂与菜品)
   canteens: {
-    list: () => request<CanteenOut[]>('/api/canteens'),
+    list: (params?: { campus?: string; zone?: string; canteen_type?: string; semester?: string; keyword?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.campus) q.set('campus', params.campus);
+      if (params?.zone) q.set('zone', params.zone);
+      if (params?.canteen_type) q.set('canteen_type', params.canteen_type);
+      if (params?.semester) q.set('semester', params.semester);
+      if (params?.keyword) q.set('keyword', params.keyword);
+      return request<CanteenOut[]>(`/api/canteens?${q.toString()}`);
+    },
+    configs: () => request<CanteenConfig>('/api/canteens/configs'),
     get: (id: string) => request<CanteenOut>(`/api/canteens/${id}`),
     getDish: (dishId: string) => request<DishOut>(`/api/canteens/dishes/${dishId}`),
     getReviews: (canteenId: string, stallId?: string) =>
@@ -1305,32 +1402,7 @@ export const api = {
       request<CanteenReviewOut>(`/api/canteens/dishes/${dishId}/reviews`, { method: 'POST', body: JSON.stringify({ rating, content }) })
   },
 
-  // Jobs (兼职)
-  jobs: {
-    list: (
-      params?: string | { keyword?: string; category?: string; page?: number; page_size?: number },
-      status?: number,
-      page = 1,
-      page_size = 20
-    ) => {
-      const q = new URLSearchParams();
-      if (typeof params === 'string') {
-        if (params) q.set('keyword', params);
-        if (status !== undefined) q.set('status', status.toString());
-        q.set('page', page.toString());
-        q.set('page_size', page_size.toString());
-      } else if (params && typeof params === 'object') {
-        if (params.keyword) q.set('keyword', params.keyword);
-        if (params.category) q.set('category', params.category);
-        if (params.page) q.set('page', params.page.toString());
-        if (params.page_size) q.set('page_size', params.page_size.toString());
-      }
-      return request<{ total: number; items: JobOut[] }>(`/api/jobs?${q.toString()}`);
-    },
-    create: (data: JobCreate) => request<JobOut>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
-    apply: (jobId: string, note?: string) => request<JobApplicationOut>(`/api/jobs/${jobId}/apply`, { method: 'POST', body: JSON.stringify({ note }) }),
-    applications: (jobId: string) => request<JobApplicationOut[]>(`/api/jobs/${jobId}/applications`)
-  },
+  // Jobs block defined earlier (api.jobs)
 
   // Share (资源共享)
   shares: {
@@ -1373,12 +1445,22 @@ export const api = {
     getComments: (id: string) =>
       request<{ total: number; items: ShareCommentOut[] }>(`/api/shares/${id}/comments`),
     addComment: (id: string, content: string) =>
-      request<ShareCommentOut>(`/api/shares/${id}/comments`, { method: 'POST', body: JSON.stringify({ content }) })
+      request<ShareCommentOut>(`/api/shares/${id}/comments`, { method: 'POST', body: JSON.stringify({ content }) }),
+    categories: () => request<{ categories: string[] }>('/api/shares/categories')
   },
 
   // Teammates (组队搭子)
   teammates: {
-    list: (page = 1, page_size = 20) => request<{ total: number; items: TeamOut[] }>(`/api/teams?page=${page}&page_size=${page_size}`),
+    list: (params?: { category?: string; page?: number; page_size?: number }) =>
+      request<{ total: number; items: TeamOut[] }>(
+        (() => {
+          const q = new URLSearchParams();
+          if (params?.category) q.set('category', params.category);
+          if (params?.page) q.set('page', params.page.toString());
+          if (params?.page_size) q.set('page_size', params.page_size.toString());
+          return `/api/teams?${q.toString()}`;
+        })()
+      ),
     get: async (id: string) => {
       // Backend returns { team: TeamOut, members: TeamMemberOut[] }
       // Flatten to match frontend expectation (team fields + members array)
@@ -1401,7 +1483,8 @@ export const api = {
         saveMockDB(db);
       }
       return Promise.resolve({ code: 0, message: '已关闭招募', data: null });
-    }
+    },
+    categories: () => request<{ categories: string[] }>('/api/teams/categories')
   },
 
   // Reports (举报投诉)

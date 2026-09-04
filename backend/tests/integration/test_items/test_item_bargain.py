@@ -63,12 +63,15 @@ def test_conversation_visible_to_both_parties(client):
         assert conv_id in ids, f"{tokens} 看不到会话: {r.text}"
 
 
-def test_repeat_trade_creates_new_session(client):
-    """同一买家重复发起议价 → **每次新建一个会话**（当前实现无幂等复用）。
+def test_repeat_trade_is_rejected(client):
+    """同一物品已有进行中的议价 → 再次发起被拒（并发加固后的期望行为）。
 
-    这里固化现状：``create_trade_session`` 不做"买家+物品"唯一性校验，
-    因此重复点击"我想要"会产生多条议价记录。若产品上希望复用会话，
-    需在此处补充幂等逻辑并同步更新本用例。
+    早期实现是 check-then-act：先读 ``item.status`` 再插入会话，两步之间
+    无锁。两个买家并发点"我想要"时都能读到 ON_SALE，于是同一物品出现多个
+    活跃会话，继续往下走就是对同一件物品重复成交。
+
+    现在改为**条件 UPDATE 原子抢占**（ON_SALE→RESERVED，受影响行数为 0 即
+    判负），因此重复发起一定被 409 挡下，物品也只会保留一个活跃会话。
     """
     seller = register_login(client, "deal_s3")
     buyer = register_login(client, "deal_b3")
@@ -76,12 +79,38 @@ def test_repeat_trade_creates_new_session(client):
 
     first = client.post(
         f"/api/items/{item['id']}/trade", headers=auth_header(buyer["access_token"])
-    ).json()["data"]
+    )
+    assert first.status_code == 200 and first.json()["code"] == 0, first.text
+
     second = client.post(
         f"/api/items/{item['id']}/trade", headers=auth_header(buyer["access_token"])
-    ).json()["data"]
-    assert first["conversation_id"] != second["conversation_id"]
-    assert first["item_id"] == second["item_id"] == item["id"]
+    )
+    assert second.json()["code"] == 40900, second.text
+
+    # 抢占成功后物品进入 RESERVED，广场上不该再显示"在售"
+    detail = client.get(f"/api/items/{item['id']}").json()["data"]
+    assert detail["status"] != 0, detail
+
+
+def test_item_locked_after_trade_started(client):
+    """抢占的原子性：物品被预订后，**其他买家**同样无法再发起议价。
+
+    与上一条用例（同一买家重复点击）区分开：这里验证的是"一人抢到之后，
+    所有后来者都被拒"，即 RESERVED 状态对全局生效，而非仅对发起者。
+    """
+    seller = register_login(client, "deal_s6")
+    buyer1 = register_login(client, "deal_b6a")
+    buyer2 = register_login(client, "deal_b6b")
+    item = _publish(client, seller["access_token"])
+
+    assert client.post(
+        f"/api/items/{item['id']}/trade", headers=auth_header(buyer1["access_token"])
+    ).json()["code"] == 0
+
+    late = client.post(
+        f"/api/items/{item['id']}/trade", headers=auth_header(buyer2["access_token"])
+    )
+    assert late.json()["code"] == 40900, late.text
 
 
 def test_conversation_detail_readable_by_participant(client):
@@ -102,16 +131,11 @@ def test_conversation_detail_readable_by_participant(client):
 # ---------------------------------------------------------------------------
 # 边界与越权
 # ---------------------------------------------------------------------------
-@pytest.mark.xfail(
-    reason="已知缺陷 P2：create_trade_session 未校验 buyer.id == item.owner_id，"
-    "卖家可与自己议价并生成自会话（见 docs/TESTING.md 已知缺陷清单）",
-    strict=False,
-)
 def test_seller_cannot_trade_own_item(client):
-    """卖家不能和自己议价（**期望行为**，当前实现缺失该校验）。
+    """卖家不能和自己议价。
 
-    以 xfail 固化：一旦有人补上自交易校验，本用例会变为 XPASS 提醒更新标记；
-    在此之前它不会阻塞 CI，但缺陷始终可见于测试报告。
+    原为 xfail（``create_trade_session`` 未校验 buyer.id == item.owner_id），
+    并发加固时顺手补上该校验，故移除 xfail 标记转为正式断言。
     """
     seller = register_login(client, "deal_self")
     item = _publish(client, seller["access_token"])

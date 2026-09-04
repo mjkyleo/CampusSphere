@@ -342,7 +342,24 @@ export interface CanteenOut {
   rating?: number;
   image?: string;
   status?: string;
+  // 维度字段（与武大学部/餐饮区/类型/学期结构对齐）
+  campus?: string;
+  zone?: string;
+  canteen_type?: string;
+  floor?: string;
+  features?: string[];
+  popular_dishes?: string[];
+  semester?: string;
   stalls?: StallOut[];
+}
+
+// 食堂维度枚举配置（由后台 canteen.config 下发，前端筛选控件的数据源）
+export interface CanteenConfig {
+  campuses: string[];
+  zones: Record<string, string[]>;
+  types: string[];
+  semesters: string[];
+  current_semester: string;
 }
 
 export interface CanteenReviewOut {

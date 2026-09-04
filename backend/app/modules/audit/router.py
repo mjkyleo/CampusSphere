@@ -10,8 +10,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.deps import require_scope
 from app.core.response import ApiResponse
-from app.modules.admin.deps import require_admin
 from app.modules.audit.actions import (
     ACTION_LABELS,
     ACTOR_LABELS,
@@ -59,7 +59,7 @@ async def get_audit_logs(
     limit: int = Query(default=50, ge=1, le=_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_admin),
+    _=Depends(require_scope("audit")),
 ):
     """分页查询审计日志，按时间倒序。"""
     rows, total = await list_audit_logs(
@@ -83,7 +83,7 @@ async def get_audit_logs(
 
 
 @router.get("/audit-logs/actions", response_model=ApiResponse[list[AuditActionOption]])
-async def get_audit_actions(_=Depends(require_admin)):
+async def get_audit_actions(_=Depends(require_scope("audit"))):
     """动作字典，供后台筛选下拉框使用（避免前端硬编码一份）。"""
     return ApiResponse.ok(
         data=[AuditActionOption(value=k, label=v) for k, v in ACTION_LABELS.items()]

@@ -64,6 +64,21 @@ items:
   review:
     # 是否启用"发布后审核再上架"：false=发布即上架；true=进入待审核(PENDING)
     enabled: false
+  # 业务规则阈值：由 Pydantic 校验器在**请求解析期**强制执行
+  # （见 backend/app/modules/item/schemas.py），违规数据在进入 Service 前即被拒绝。
+  # 阈值外置是为了让运营调整严格程度时不必重新发版；配合配置热更新可改完即生效。
+  rules:
+    # 电子产品要求的最少实物图数量。0 = 不启用该规则。
+    #
+    # 为何默认为 0 而非 3：当前前端发布页（MarketPublish.tsx）只强制
+    # "至少 1 张图"，并未按分类区分。若服务端直接要求 3 张，真实用户在
+    # 发布电子产品时会被 422 拦下却无从得知原因——规则本身正确，但体验断裂。
+    # 待前端按分类给出图片数量提示后，改为 3 即可开启。
+    electronics_min_images: 0
+    # 禁止零元发布 / 零元挂售。
+    # 默认 true：前端已强制 price > 0，服务端补齐这层属于纵深防御，
+    # 不会改变任何现有用户行为，但能挡住绕过前端的直接调用。
+    forbid_zero_price_on_sale: true
   # 二手交易分类（后台可动态配置；"全部"为前端筛选用，不存入此列表）
   categories:
     - 电子产品
@@ -77,6 +92,7 @@ items:
 # 课程评价（可在后台 /api/admin/courses/departments 动态覆盖）
 courses:
   # 开课院系列表（后台可动态配置；课程发布时从该列表选择）
+  # 扁平列表：作为兜底与"全部院系"的来源。
   departments:
     - 计算机学院
     - 软件学院
@@ -84,6 +100,135 @@ courses:
     - 经济管理学院
     - 外国语学院
     - 通识教育中心
+  # 按学部两级组织（后台 /api/admin/courses/departments/groups 可热更新）。
+  #
+  # 为何要分组：武大实际有 40+ 个开课单位，前端若把院系平铺成一排 pill 会
+  # 横向溢出。分组后前端渲染为「学部 Tab → 院系 chips」两级，一级只有 7 个
+  # 学部，横排不溢出，二级在选中学部后才展开。
+  #
+  # 配置即覆盖：一旦此处有内容，公开接口 /api/courses/departments 下发的
+  # groups 即以此为准，扁平 departments 自动汇总为组内院系并集（见
+  # admin.service.get_course_department_groups）。
+  department_groups:
+    - group: 人文科学学部
+      departments:
+        - 文学院
+        - 历史学院
+        - 哲学学院
+        - 艺术学院
+        - 外国语言文学学院
+        - 新闻与传播学院
+    - group: 社会科学学部
+      departments:
+        - 经济与管理学院
+        - 法学院
+        - 马克思主义学院
+        - 社会学院
+        - 政治与公共管理学院
+        - 信息管理学院
+    - group: 理学部
+      departments:
+        - 数学与统计学院
+        - 物理科学与技术学院
+        - 化学与分子科学学院
+        - 生命科学学院
+        - 资源与环境科学学院
+    - group: 工学部
+      departments:
+        - 水利水电学院
+        - 电气与自动化学院
+        - 动力与机械学院
+        - 城市设计学院
+        - 土木建筑工程学院
+        - 测绘学院
+    - group: 信息科学学部
+      departments:
+        - 计算机学院
+        - 软件学院
+        - 国家网络安全学院
+        - 电子信息学院
+        - 人工智能学院
+    - group: 医学部
+      departments:
+        - 基础医学院
+        - 公共卫生学院
+        - 药学院
+        - 口腔医学院
+        - 第一临床学院
+        - 第二临床学院
+    - group: 跨学科/通识
+      departments:
+        - 弘毅学堂
+        - 通识教育中心
+        - 体育部
+        - 国际教育学院
+
+# 兼职招聘分类（可在后台 /api/admin/jobs/categories 动态覆盖）
+job:
+  categories:
+    - 助教/助管
+    - 家教辅导
+    - 校园代理
+    - 技术开发
+    - 设计剪辑
+    - 活动执行
+    - 文案编辑
+    - 其他
+
+# 学术资源共享分类（可在后台 /api/admin/shares/categories 动态覆盖）
+share:
+  categories:
+    - 期末复习题
+    - 考研考证
+    - 课件PPT
+    - 实验报告模版
+    - 竞赛真题
+    - 开源代码
+    - 其他
+
+# 搭子组队分类（可在后台 /api/admin/teammates/categories 动态覆盖）
+teammate:
+  categories:
+    - 学术竞赛
+    - 考研考公
+    - 运动健身
+    - 游戏开黑
+    - 旅行逛街
+    - 期末自习
+    - 其他
+
+# 食堂（学部 / 餐饮区 / 类型 / 学期枚举；可在后台 /api/admin/canteens/config 动态覆盖）
+canteen:
+  campuses:
+    - 文理学部
+    - 工学部
+    - 信息学部
+    - 医学部
+  # 学部 → 餐饮区。前端按「学部 Tab → 餐饮区分组」两级展示。
+  zones:
+    文理学部:
+      - 梅园
+      - 桂园
+      - 枫园
+    工学部:
+      - 湖滨
+      - 工学部
+      - 田园
+    信息学部:
+      - 信息学部
+      - 星园
+    医学部:
+      - 医学部
+  types:
+    - 学生大伙食堂
+    - 风味食堂
+    - 教工食堂
+  # 可选学期列表；留空表示"不随学期变化"（长期开放）的食堂始终显示。
+  semesters:
+    - 2026-2027-1
+    - 2026-2027-2
+  # 前端默认选中的学期；为空则不做学期过滤。
+  current_semester: "2026-2027-1"
 
 # AI 智能助手（Gemini）—— 可在后台 /api/admin/ai/config 动态覆盖开关与模型
 ai:

@@ -9,7 +9,9 @@ from app.core.exceptions import BizError, ErrorCode
 TRANSITIONS: dict[ItemStatus, set[ItemStatus]] = {
     ItemStatus.ON_SALE: {ItemStatus.OFF_SHELF, ItemStatus.RESERVED, ItemStatus.SOLD},
     ItemStatus.OFF_SHELF: {ItemStatus.ON_SALE},
-    ItemStatus.RESERVED: {ItemStatus.ON_SALE, ItemStatus.SOLD},
+    # 被预订（RESERVED）的物品仍可下架（卖家取消交易 / 买家反悔），
+    # 也可回到上架或成交。下架是合法出口，否则会出现"卡在预订态无法下掉"的死锁。
+    ItemStatus.RESERVED: {ItemStatus.ON_SALE, ItemStatus.SOLD, ItemStatus.OFF_SHELF},
     ItemStatus.SOLD: set(),  # 终态
     ItemStatus.PENDING: {ItemStatus.ON_SALE, ItemStatus.OFF_SHELF},  # 审核通过/拒绝
 }

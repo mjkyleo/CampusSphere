@@ -8,13 +8,15 @@ import { ShareOut, ShareCommentOut } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 
-const categories = ['全部', '期末复习题', '考研考证', '课件PPT', '实验报告模版', '竞赛真题', '开源代码'];
+// 兜底分类：后端不可达时使用（真实值由 /api/shares/categories 下发）
+const FALLBACK_CATEGORIES = ['期末复习题', '考研考证', '课件PPT', '实验报告模版', '竞赛真题', '开源代码'];
 
 const ShareFeed: React.FC = () => {
   const { user, openReport } = useAuth();
   const { success, error, info } = useToast();
 
   const [shares, setShares] = useState<ShareOut[]>([]);
+  const [categories, setCategories] = useState<string[]>(['全部', ...FALLBACK_CATEGORIES]);
   const [selectedCat, setSelectedCat] = useState('全部');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,7 @@ const ShareFeed: React.FC = () => {
   // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('期末复习题');
+  const [category, setCategory] = useState(FALLBACK_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [fileUrl, setFileUrl] = useState('https://campus-resources.example.edu/downloads/cs101-final-exam-key.pdf');
   const [fileSize, setFileSize] = useState('4.2 MB');
@@ -50,6 +52,20 @@ const ShareFeed: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 动态拉取资料分类（后台可配置，含 school.yaml 兜底）；失败则用前端兜底常量
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.shares.categories();
+        if (res.code === 0 && res.data?.categories?.length) {
+          setCategories(['全部', ...res.data.categories]);
+        }
+      } catch {
+        // 保留兜底分类
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     fetchShares();

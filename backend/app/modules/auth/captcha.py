@@ -28,6 +28,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
@@ -159,19 +160,53 @@ def _to_data_uri(img: Image.Image) -> str:
 # ---------------------------------------------------------------------------
 # 对外接口
 # ---------------------------------------------------------------------------
+def _render_slider_images(
+    target_x: int, target_y: int
+) -> tuple[str, str]:
+    """**纯 CPU 密集**的拼图渲染：背景生成 → 裁块 → 挖孔 → PNG 编码。
+
+    这是唯一被 ``asyncio.to_thread`` 委派的部分，必须保持**纯同步、无 IO、
+    无共享状态**：不触碰 Redis、不读写文件、不访问全局可变对象，
+    因此可以安全地在线程池里并发执行。
+
+    :return: ``(滑块图 data URI, 带缺口的背景图 data URI)``
+    """
+    bg = _random_background(CANVAS_WIDTH, CANVAS_HEIGHT)
+    mask = _puzzle_mask(SLIDER_SIZE)
+    slider = _cut_slider(bg, mask, target_x, target_y)
+    background = _punch_hole(bg, mask, target_x, target_y)
+    return _to_data_uri(slider), _to_data_uri(background)
+
+
 async def generate_slider() -> dict:
     """生成一次滑块验证。
 
     返回可直接渲染的载荷；缺口坐标只写入 Redis，不出现在响应中。
+
+    为什么图像生成要 ``await asyncio.to_thread(...)``
+    -------------------------------------------------
+    Pillow 的绘制与 PNG 编码是**同步且耗 CPU** 的（渐变填充、滤镜、zlib
+    压缩）。若像重构前那样直接在 ``async def`` 里调用，这段计算会**独占
+    事件循环**：期间所有其他请求、WebSocket 心跳、后台任务全部停摆。
+    单个验证码约几十毫秒看似无害，但在注册高峰并发下会叠加成明显的
+    响应抖动（P99 抖动的主要来源之一）。
+
+    ``asyncio.to_thread`` 把这段同步工作交给默认线程池执行，事件循环
+    在 ``await`` 处让出控制权，从而保住主循环的响应性。
+
+    并发上限说明：这里**没有**额外加信号量限流 —— 网关中间件已对
+    ``/api/auth/captcha/slider`` 施加了每 IP 每分钟 10 次的严格限流
+    （见 ``middleware.py`` 的 ``_auth_strict_paths``），渲染并发天然有界，
+    不会把线程池打满而饿死其他 ``to_thread`` 调用方。
     """
-    bg = _random_background(CANVAS_WIDTH, CANVAS_HEIGHT)
     # 缺口位置：左右各留出滑块宽度，避免贴边导致无法拖动
     target_x = secrets.randbelow(CANVAS_WIDTH - 2 * SLIDER_SIZE) + SLIDER_SIZE
     target_y = secrets.randbelow(CANVAS_HEIGHT - SLIDER_SIZE - 16) + 8
 
-    mask = _puzzle_mask(SLIDER_SIZE)
-    slider = _cut_slider(bg, mask, target_x, target_y)
-    background = _punch_hole(bg, mask, target_x, target_y)
+    # CPU 密集部分委派线程池；事件循环在此处让出，不被图像计算阻塞
+    slider_uri, background_uri = await asyncio.to_thread(
+        _render_slider_images, target_x, target_y
+    )
 
     token = secrets.token_urlsafe(32)
     payload = {
@@ -185,8 +220,8 @@ async def generate_slider() -> dict:
     )
     return {
         "token": token,
-        "background": _to_data_uri(background),
-        "slider": _to_data_uri(slider),
+        "background": background_uri,
+        "slider": slider_uri,
         "width": CANVAS_WIDTH,
         "height": CANVAS_HEIGHT,
         "slider_size": SLIDER_SIZE,

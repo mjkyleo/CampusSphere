@@ -20,11 +20,16 @@ from app.modules.admin.schemas import (
     AdminTokenResponse,
     AiFeatureConfig,
     BanRequest,
+    CanteenConfig,
+    CourseDepartmentGroupsConfig,
     CourseDepartmentsConfig,
     EmailRegisterConfig,
     ItemCategoriesConfig,
     ItemReviewConfig,
     ItemReviewRejectRequest,
+    JobCategoriesConfig,
+    ShareCategoriesConfig,
+    TeammateCategoriesConfig,
 )
 from app.modules.admin.service import (
     admin_delete_item,
@@ -34,21 +39,31 @@ from app.modules.admin.service import (
     ban_user,
     cleanup_orphan_files,
     dashboard,
+    get_canteen_config,
+    get_course_department_groups,
     get_course_departments,
     get_email_register_config,
     get_item_categories,
     get_item_review_config,
+    get_job_categories,
     get_permissions,
+    get_share_categories,
+    get_teammate_categories,
     list_all_items,
     list_orphan_files,
     list_users,
     promote_user_to_admin,
     reject_item,
     unban_user,
+    update_canteen_config,
+    update_course_department_groups,
     update_course_departments,
     update_email_register_config,
     update_item_categories,
     update_item_review_config,
+    update_job_categories,
+    update_share_categories,
+    update_teammate_categories,
 )
 from app.modules.audit.actions import ActorType, AuditAction, AuditResult
 from app.modules.audit.service import record_audit_log
@@ -243,6 +258,93 @@ async def admin_put_course_departments(
     payload = await update_course_departments(db, data.departments)
     return ApiResponse.ok(data=CourseDepartmentsConfig(departments=payload))
 
+
+@router.get("/courses/departments/groups", response_model=ApiResponse[CourseDepartmentGroupsConfig])
+async def admin_get_course_department_groups(
+    db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """读取课程院系的**学部分组**（后台可配置，前端两级筛选的数据源）。"""
+    return ApiResponse.ok(data=CourseDepartmentGroupsConfig(groups=await get_course_department_groups(db)))
+
+
+@router.put("/courses/departments/groups", response_model=ApiResponse[CourseDepartmentGroupsConfig])
+async def admin_put_course_department_groups(
+    data: CourseDepartmentGroupsConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新课程院系学部分组（写 DB，实时生效）。
+
+    传空数组即可回到"扁平院系"模式（前端降级为单排 pill）。
+    """
+    payload = await update_course_department_groups(db, [g.model_dump() for g in data.groups])
+    return ApiResponse.ok(data=CourseDepartmentGroupsConfig(groups=payload))
+
+
+# ------------------------------------------------------------------
+# 分类配置化（P1）：兼职 / 资料 / 搭子 的分类列表
+# 与 items.categories 完全同构：school.yaml 默认值 → DB 覆盖 → 公开端点下发
+# ------------------------------------------------------------------
+
+
+@router.get("/jobs/categories", response_model=ApiResponse[JobCategoriesConfig])
+async def admin_get_job_categories(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    """读取兼职岗位分类（后台配置）。"""
+    return ApiResponse.ok(data=JobCategoriesConfig(categories=await get_job_categories(db)))
+
+
+@router.put("/jobs/categories", response_model=ApiResponse[JobCategoriesConfig])
+async def admin_put_job_categories(
+    data: JobCategoriesConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新兼职岗位分类（写 DB，实时生效）。"""
+    return ApiResponse.ok(data=JobCategoriesConfig(categories=await update_job_categories(db, data.categories)))
+
+
+@router.get("/shares/categories", response_model=ApiResponse[ShareCategoriesConfig])
+async def admin_get_share_categories(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    """读取学术资料分类（后台配置）。"""
+    return ApiResponse.ok(data=ShareCategoriesConfig(categories=await get_share_categories(db)))
+
+
+@router.put("/shares/categories", response_model=ApiResponse[ShareCategoriesConfig])
+async def admin_put_share_categories(
+    data: ShareCategoriesConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新学术资料分类（写 DB，实时生效）。"""
+    return ApiResponse.ok(data=ShareCategoriesConfig(categories=await update_share_categories(db, data.categories)))
+
+
+@router.get("/teammates/categories", response_model=ApiResponse[TeammateCategoriesConfig])
+async def admin_get_teammate_categories(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    """读取搭子组队分类（后台配置）。"""
+    return ApiResponse.ok(data=TeammateCategoriesConfig(categories=await get_teammate_categories(db)))
+
+
+@router.put("/teammates/categories", response_model=ApiResponse[TeammateCategoriesConfig])
+async def admin_put_teammate_categories(
+    data: TeammateCategoriesConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新搭子组队分类（写 DB，实时生效）。"""
+    return ApiResponse.ok(data=TeammateCategoriesConfig(categories=await update_teammate_categories(db, data.categories)))
+
+
+# ------------------------------------------------------------------
+# 食堂维度配置（P3）：学部 / 餐饮区 / 类型 / 学期
+# ------------------------------------------------------------------
+
+
+@router.get("/canteens/config", response_model=ApiResponse[CanteenConfig])
+async def admin_get_canteen_config(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    """读取食堂维度枚举（学部 / 餐饮区 / 类型 / 学期）。"""
+    return ApiResponse.ok(data=CanteenConfig(**await get_canteen_config(db)))
+
+
+@router.put("/canteens/config", response_model=ApiResponse[CanteenConfig])
+async def admin_put_canteen_config(
+    data: CanteenConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新食堂维度枚举（写 DB，实时生效）。"""
+    return ApiResponse.ok(data=CanteenConfig(**await update_canteen_config(db, data.model_dump())))
+
 # ------------------------------------------------------------------
 # AI 智能助手功能开关（复用 ai 模块的配置读写，与 review-config 同一模式）
 # ------------------------------------------------------------------
@@ -382,6 +484,34 @@ async def admin_reject_item_view(
     """审核拒绝：待审核(PENDING) -> 下架(OFF_SHELF)。"""
     item = await reject_item(db, item_id, reason=data.reason)
     return ApiResponse.ok(data=ItemOut.model_validate(item))
+
+
+@router.post("/config/reload", response_model=ApiResponse[dict])
+async def reload_school_config(_=Depends(require_admin)):
+    """重读 ``config/school.yaml`` 并广播到所有实例（零停机热更新）。
+
+    适用场景：运维直接修改了服务器上的 school.yaml（学校名称、域名白名单、
+    业务规则阈值等静态配置），希望**不重启**就让全校实例生效。
+
+    实现：向 Redis ``config:reload`` 频道发布消息，各实例的长驻监听 Task
+    收到后原地刷新 ``Settings`` 单例。发布者自身也在订阅者之列，
+    因此本实例同样会刷新。
+
+    Redis 不可用（``receivers == 0``）时降级为**仅本机刷新**并置
+    ``degraded=true`` —— 让运维立刻看到"热更新没广播出去"，
+    而不是误以为全集群已生效。
+    """
+    from app.core.config_reload import publish_config_reload, reload_settings
+
+    receivers = await publish_config_reload(reason="admin:config-reload")
+    degraded = receivers == 0
+    if degraded:
+        # 无 Redis：至少让本机生效，避免管理员的操作被完全吞掉
+        await reload_settings(reason="admin:config-reload:local-only")
+    return ApiResponse.ok(
+        data={"receivers": receivers, "degraded": degraded},
+        message="已广播配置重载" if not degraded else "Redis 不可用，仅本机已刷新",
+    )
 
 
 @router.get("/files/orphans", response_model=ApiResponse[dict])

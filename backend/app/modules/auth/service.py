@@ -36,13 +36,26 @@ _CODE_TTL = settings.code_ttl_seconds  # 验证码有效期（可配置）
 _RATE_LIMIT_PREFIX = "vcode:limit:"
 _TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
 
-# 验证码用途 → 邮件文案
+# 验证码用途 → 邮件文案（缺了会把主题写成"【武汉大学】bind_email验证码"）
 _PURPOSE_LABELS = {
     "register": "注册",
     "login": "登录",
     "reset": "重置密码",
     "bind": "绑定",
+    "bind_email": "绑定邮箱",
+    "bind_phone": "绑定手机号",
 }
+
+
+class _EmailDispatchTimeout(BizError):
+    """邮件派发超时。
+
+    与"确定失败"区分开：超时的那封邮件可能仍在后台线程里缓慢投递，
+    调用方**不能**据此归还发送额度让用户立即重发，否则同一邮箱会收到两封验证码。
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ErrorCode.INTERNAL, message)
 
 
 async def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
@@ -135,7 +148,8 @@ async def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
                 reason="EXPOSE_VERIFICATION_CODE=true",
             )
             return
-        raise BizError(ErrorCode.INTERNAL, "邮件服务繁忙，请稍后重试") from None
+        # 超时用专用子类：send_code 据此判断"邮件可能迟到"，不归还发送额度
+        raise _EmailDispatchTimeout("邮件服务繁忙，请稍后重试") from None
     except Exception as exc:
         _logger.error("code_email_dispatch_failed", target=target, purpose=purpose, error=str(exc))
         if settings.expose_verification_code:
@@ -301,7 +315,16 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
     await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
     # 入库存好之后再派发邮件：即使发信失败，重试也不会重复生成新码
     if is_mail:
-        await _dispatch_code_email(target, code, purpose)
+        try:
+            await _dispatch_code_email(target, code, purpose)
+        except _EmailDispatchTimeout:
+            raise  # 邮件可能仍在路上，不归还额度，避免用户立即重发收到两封
+        except BizError:
+            # 派发**确定**失败（一封都没发出去）：归还本窗口的发送额度，
+            # 用户修正后立即可重试，而不是被"发送过于频繁"再拦 60 秒——
+            # 没发出任何邮件的失败不该消耗频率配额。
+            await redis_delete(limit_key)
+            raise
     _logger.info("verification_code_sent", target=target, purpose=purpose)
     return code
 

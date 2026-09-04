@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -53,6 +54,38 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
     await invalidate_namespace("items")
     _logger.info("item_created", item_id=str(item.id), owner=str(owner.id))
     return item
+
+
+async def cas_item_status(
+    db: AsyncSession,
+    item_id: str,
+    expected: int,
+    target: int,
+    *,
+    message: str = "物品状态已被其他操作变更，请刷新后重试",
+) -> None:
+    """条件 UPDATE（Compare-And-Swap）原子变更物品状态。
+
+    把「读状态 → 判断 → 写状态」三步合成一条 SQL：
+
+    ``UPDATE items SET status=:target WHERE id=:id AND status=:expected``
+
+    受影响行数为 1 表示抢占成功；为 0 说明在本次请求执行期间已经有别的
+    请求改过这条记录（并发抢购 / 重复提交 / 管理后台介入），此时直接判负，
+    由调用方转成 409 交给前端提示用户刷新。
+
+    SQLite 与 PostgreSQL 下语义一致，故作为主实现，无需再按数据库分支。
+    """
+    result = await db.execute(
+        update(Item)
+        .where(Item.id == item_id, Item.status == expected)
+        .values(status=target)
+    )
+    if result.rowcount != 1:
+        _logger.info(
+            "item_status_cas_failed", item_id=item_id, expected=expected, target=target
+        )
+        raise BizError(ErrorCode.CONFLICT, message)
 
 
 async def list_items(
@@ -157,7 +190,11 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
         item.category = data.category
     if data.status is not None and data.status != item.status:
         validate_transition(item.status, data.status)
-        item.status = data.status
+        # 先把上面已改字段落盘，再对 status 走条件 UPDATE：
+        # 两者分开执行，避免 ORM 的整行 UPDATE 覆盖掉 CAS 的条件判断。
+        await db.flush()
+        await cas_item_status(db, str(item.id), item.status, data.status)
+        await db.refresh(item)
     await db.commit()
     await db.refresh(item)
     # 写操作：失效物品列表缓存（状态/标题变更会影响广场展示）
@@ -175,30 +212,61 @@ async def delete_item(db: AsyncSession, item: Item) -> None:
 async def create_trade_session(
     db: AsyncSession, item: Item, buyer: User
 ) -> TradeSession:
+    if str(item.owner_id) == str(buyer.id):
+        raise BizError(ErrorCode.CONFLICT, "不能与自己发布的物品发起交易")
     if item.status != ItemStatus.ON_SALE.value:
         raise BizError(ErrorCode.CONFLICT, "该物品当前不可交易")
-    # 创建交易会话（并联动消息模块生成会话）
-    ts = TradeSession(
-        item_id=str(item.id),
-        buyer_id=str(buyer.id),
-        seller_id=item.owner_id,
-        status=TradeStatus.PENDING.value,
-    )
-    db.add(ts)
-    await db.commit()
-    await db.refresh(ts)
 
-    from app.modules.message.service import create_conversation
+    # 并发抢占：用「带旧状态条件的 UPDATE」把 ON_SALE 原子改为 RESERVED。
+    #
+    # 为什么不能只靠上面的 if 判断：check-then-act 之间存在时间窗。两个买家
+    # 同时点"我想要"时，双方都能读到 ON_SALE，随后各自建出一个活跃会话，
+    # 同一物品被卖两次。条件 UPDATE 把判断与写入合成一步，数据库保证只有
+    # 一个请求能把 rowcount 变成 1，另一个读到 0 即判负。
+    #
+    # 状态抢占 + 会话创建放在同一事务：任一步失败整体回滚，物品不会卡在
+    # RESERVED 却没有会话的"僵尸"状态。
+    try:
+        await cas_item_status(
+            db,
+            str(item.id),
+            ItemStatus.ON_SALE.value,
+            ItemStatus.RESERVED.value,
+            message="该物品已被其他同学抢先预订，看看别的闲置吧",
+        )
+        ts = TradeSession(
+            item_id=str(item.id),
+            buyer_id=str(buyer.id),
+            seller_id=item.owner_id,
+            status=TradeStatus.PENDING.value,
+        )
+        db.add(ts)
+        await db.flush()
 
-    conv = await create_conversation(
-        db,
-        conv_type="trade",
-        related_id=str(ts.id),
-        participant_ids=[str(buyer.id), item.owner_id],
-        creator_id=str(buyer.id),
-    )
-    ts.conversation_id = str(conv.id)
-    await db.commit()
+        from app.modules.message.service import create_conversation
+
+        conv = await create_conversation(
+            db,
+            conv_type="trade",
+            related_id=str(ts.id),
+            participant_ids=[str(buyer.id), item.owner_id],
+            creator_id=str(buyer.id),
+        )
+        ts.conversation_id = str(conv.id)
+        await db.commit()
+    except IntegrityError as exc:
+        # 部分唯一索引兜底：同一物品已存在进行中的会话（理论上 CAS 已拦截，
+        # 此处防御索引与 CAS 判定不一致的极端情况，如管理员手工改状态）。
+        await db.rollback()
+        _logger.warning("trade_session_conflict", item_id=str(item.id), error=str(exc))
+        raise BizError(ErrorCode.CONFLICT, "该物品已有进行中的交易，无法重复发起") from exc
+    except Exception:
+        await db.rollback()
+        raise
+
     await db.refresh(ts)
+    await db.refresh(item)
+    # 状态已变更，列表缓存需立即失效，否则广场上仍显示"在售"
+    await invalidate_namespace("items")
     _logger.info("trade_session_created", trade_id=str(ts.id), conv=str(conv.id))
     return ts

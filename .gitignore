@@ -46,6 +46,9 @@ ruff_out.txt
 .codebuddy/
 .workbuddy/
 
+# ---- 工具预览快照（CodeBuddy 等生成，不入版本库） ----
+.preview/
+
 # ---- 运行期产物 / 临时文件 ----
 # devctl 启停脚本的 PID 与日志（.run/backend.pid、.run/logs/*.log）
 .run/

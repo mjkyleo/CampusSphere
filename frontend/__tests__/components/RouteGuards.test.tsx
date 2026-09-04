@@ -47,6 +47,7 @@ function renderAt(route: string, element: ReactElement) {
         <Route path="/" element={<div>首页</div>} />
         <Route path="/admin" element={<div>管理后台</div>} />
         <Route path="/login" element={<div>登录页</div>} />
+        <Route path="/admin/login" element={<div>登录页</div>} />
         <Route path="/secret" element={element} />
       </Routes>
     </MemoryRouter>,
@@ -142,7 +143,7 @@ describe('AdminRoute（仅管理员可访问）', () => {
         <div>管理内容</div>
       </AdminRoute>,
     );
-    // 管理端登录地址带 admin=1 参数，此处按路径匹配到同一个"登录页"标记
+    // 未登录访问受保护管理端时重定向到独立的管理员登录页 /admin/login
     expect(screen.getByText('登录页')).toBeInTheDocument();
     expect(screen.queryByText('管理内容')).not.toBeInTheDocument();
   });

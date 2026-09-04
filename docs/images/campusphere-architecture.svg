@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="760" viewBox="0 0 1080 760" font-family="'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#6B7280"/>
+    </marker>
+    <marker id="arrowAccent" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#4C6EF5"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1080" height="760" rx="14" fill="#F7F6F2"/>
+
+  <!-- Title -->
+  <text x="540" y="36" text-anchor="middle" font-size="21" font-weight="700" fill="#1A1B1C">CampusSphere 后端总体架构（模块化单体）</text>
+  <text x="540" y="58" text-anchor="middle" font-size="12" fill="#6B7280">FastAPI + SQLAlchemy 2.0 Async · 一套代码 · 一份 school.yaml · 一键上新校</text>
+
+  <!-- ============ Layer 0: Client ============ -->
+  <rect x="40" y="76" width="1000" height="58" rx="10" fill="#FFFFFF" stroke="#E4E3DD"/>
+  <rect x="40" y="76" width="1000" height="58" rx="10" fill="none" stroke="none"/>
+  <text x="60" y="98" font-size="12" font-weight="600" fill="#4C6EF5">CLIENT</text>
+  <rect x="200" y="88" width="150" height="34" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="275" y="110" text-anchor="middle" font-size="13" fill="#2B3F8F">Web 前端（React/Vite）</text>
+  <rect x="380" y="88" width="150" height="34" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="455" y="110" text-anchor="middle" font-size="13" fill="#2B3F8F">移动端 / H5</text>
+  <rect x="560" y="88" width="180" height="34" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="650" y="110" text-anchor="middle" font-size="13" fill="#2B3F8F">管理后台（Admin UI）</text>
+  <rect x="770" y="88" width="200" height="34" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="870" y="110" text-anchor="middle" font-size="13" fill="#2B3F8F">WebSocket 客户端（/ws）</text>
+
+  <!-- arrow client -> gateway -->
+  <line x1="540" y1="136" x2="540" y2="164" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ Layer 1: Gateway ============ -->
+  <rect x="40" y="166" width="1000" height="74" rx="10" fill="#FFFFFF" stroke="#E4E3DD"/>
+  <text x="60" y="188" font-size="12" font-weight="600" fill="#4C6EF5">GATEWAY 网关中间件（横切）</text>
+  <rect x="200" y="182" width="168" height="42" rx="8" fill="#FFF8E6" stroke="#F0DCA0"/>
+  <text x="284" y="200" text-anchor="middle" font-size="12" fill="#7A5B00">请求 ID 注入 X-Request-ID</text>
+  <text x="284" y="216" text-anchor="middle" font-size="11" fill="#8A6D14">→ 日志 + SQL 染色链路贯穿</text>
+  <rect x="384" y="182" width="150" height="42" rx="8" fill="#FFF8E6" stroke="#F0DCA0"/>
+  <text x="459" y="200" text-anchor="middle" font-size="12" fill="#7A5B00">JWT 鉴权 + 黑名单</text>
+  <text x="459" y="216" text-anchor="middle" font-size="11" fill="#8A6D14">公开路径白名单</text>
+  <rect x="550" y="182" width="150" height="42" rx="8" fill="#FFF8E6" stroke="#F0DCA0"/>
+  <text x="625" y="200" text-anchor="middle" font-size="12" fill="#7A5B00">Redis 令牌桶限流</text>
+  <text x="625" y="216" text-anchor="middle" font-size="11" fill="#8A6D14">认证端点 10 次/分钟</text>
+  <rect x="716" y="182" width="168" height="42" rx="8" fill="#FFEDED" stroke="#F2C3C3"/>
+  <text x="800" y="200" text-anchor="middle" font-size="12" fill="#A11D1D">管理员路由隐身</text>
+  <text x="800" y="216" text-anchor="middle" font-size="11" fill="#B03838">/api/admin/* 无令牌→404</text>
+  <rect x="900" y="182" width="124" height="42" rx="8" fill="#E9F7EF" stroke="#BFE3CE"/>
+  <text x="962" y="200" text-anchor="middle" font-size="12" fill="#1E7A46">/metrics</text>
+  <text x="962" y="216" text-anchor="middle" font-size="11" fill="#2E9358">Prometheus</text>
+
+  <!-- arrow gateway -> router -->
+  <line x1="540" y1="242" x2="540" y2="270" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ Layer 2: Business modules ============ -->
+  <rect x="40" y="272" width="1000" height="172" rx="10" fill="#FFFFFF" stroke="#E4E3DD"/>
+  <text x="60" y="294" font-size="12" font-weight="600" fill="#4C6EF5">BUSINESS 业务路由 / Service 层（app/modules/&lt;domain&gt; 自治分包）</text>
+
+  <!-- row 1: core modules -->
+  <rect x="60" y="304" width="150" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="135" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">auth · user</text>
+  <text x="135" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">账户 / OAuth / 资料</text>
+  <rect x="220" y="304" width="150" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="295" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">item 二手交易 ★</text>
+  <text x="295" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">状态机 + 审核 + 规则引擎</text>
+  <rect x="380" y="304" width="150" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="455" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">message + ws ★</text>
+  <text x="455" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">会话 / 消息 / 序号补发</text>
+  <rect x="540" y="304" width="150" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="615" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">course · canteen</text>
+  <text x="615" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">课程评价 / 食堂档口</text>
+  <rect x="700" y="304" width="150" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="775" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">job · share</text>
+  <text x="775" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">兼职招聘 / 资源共享</text>
+  <rect x="860" y="304" width="160" height="52" rx="8" fill="#EEF1FF" stroke="#C9D4F8"/>
+  <text x="940" y="325" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2B3F8F">teammate · report</text>
+  <text x="940" y="343" text-anchor="middle" font-size="10.5" fill="#5A6BAF">组队招募 / 举报治理</text>
+
+  <!-- row 2: platform modules -->
+  <rect x="60" y="366" width="200" height="52" rx="8" fill="#E9F7EF" stroke="#BFE3CE"/>
+  <text x="160" y="387" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1E7A46">admin 管理后台 ★</text>
+  <text x="160" y="405" text-anchor="middle" font-size="10.5" fill="#2E9358">声明式 RBAC · 动态配置 · 网关</text>
+  <rect x="280" y="366" width="180" height="52" rx="8" fill="#E9F7EF" stroke="#BFE3CE"/>
+  <text x="370" y="387" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1E7A46">storage 文件存储</text>
+  <text x="370" y="405" text-anchor="middle" font-size="10.5" fill="#2E9358">预签名直传 · 白名单校验</text>
+  <rect x="480" y="366" width="180" height="52" rx="8" fill="#E9F7EF" stroke="#BFE3CE"/>
+  <text x="570" y="387" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1E7A46">ai 智能助手</text>
+  <text x="570" y="405" text-anchor="middle" font-size="10.5" fill="#2E9358">Gemini REST · 开关驱动</text>
+  <rect x="680" y="366" width="200" height="52" rx="8" fill="#E9F7EF" stroke="#BFE3CE"/>
+  <text x="780" y="387" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1E7A46">audit 审计日志</text>
+  <text x="780" y="405" text-anchor="middle" font-size="10.5" fill="#2E9358">独立会话 · 失败不改业务</text>
+
+  <!-- highlight: 6 refactor badges -->
+  <rect x="60" y="424" width="960" height="12" rx="6" fill="#FDF2E9"/>
+  <text x="540" y="434" text-anchor="middle" font-size="10" fill="#B4662C">★ = 深度重构承载点（声明式权限 / Pydantic 业务规则 / CPU 隔离 / 配置热更 / WS 序号补发 / 全链路 SQL 染色）</text>
+
+  <!-- arrow business -> infra -->
+  <line x1="540" y1="446" x2="540" y2="474" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ Layer 3: Infra cross-cutting ============ -->
+  <rect x="40" y="476" width="1000" height="86" rx="10" fill="#FFFFFF" stroke="#E4E3DD"/>
+  <text x="60" y="498" font-size="12" font-weight="600" fill="#4C6EF5">INFRA 基础设施与横切关注点（core / tasks / search）</text>
+  <rect x="60" y="508" width="140" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="130" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">配置三层叠加</text>
+  <text x="130" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">env→yaml→DB 热更</text>
+  <rect x="212" y="508" width="140" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="282" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">统一响应/异常</text>
+  <text x="282" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">{code,message,data}</text>
+  <rect x="364" y="508" width="140" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="434" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">SQLAlchemy Async</text>
+  <text x="434" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">sync_db 供 worker</text>
+  <rect x="516" y="508" width="140" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="586" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">Celery 4 队列</text>
+  <text x="586" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">email/notify/search</text>
+  <rect x="668" y="508" width="140" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="738" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">可观测</text>
+  <text x="738" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">structlog+OTel+Metrics</text>
+  <rect x="820" y="508" width="200" height="42" rx="8" fill="#F3F0FA" stroke="#D8CCEF"/>
+  <text x="920" y="526" text-anchor="middle" font-size="12" fill="#5A3FA0">全链路 SQL 染色 ★</text>
+  <text x="920" y="541" text-anchor="middle" font-size="10.5" fill="#7A63B8">do_execute + contextvars</text>
+
+  <!-- arrow infra -> data -->
+  <line x1="540" y1="564" x2="540" y2="592" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ Layer 4: Data layer ============ -->
+  <rect x="40" y="594" width="1000" height="118" rx="10" fill="#FFFFFF" stroke="#E4E3DD"/>
+  <text x="60" y="616" font-size="12" font-weight="600" fill="#4C6EF5">DATA 数据 / 中间件（全部支持优雅降级）</text>
+  <rect x="60" y="626" width="180" height="70" rx="8" fill="#E8F0FE" stroke="#BCD0F2"/>
+  <text x="150" y="650" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B4EA0">PostgreSQL / SQLite</text>
+  <text x="150" y="668" text-anchor="middle" font-size="10.5" fill="#3F6FC0">asyncpg · 强一致 · 共享事务</text>
+  <text x="150" y="684" text-anchor="middle" font-size="10.5" fill="#3F6FC0">软删除 + UUID + 时间戳 Mixin</text>
+  <rect x="252" y="626" width="180" height="70" rx="8" fill="#E8F0FE" stroke="#BCD0F2"/>
+  <text x="342" y="650" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B4EA0">Redis（db0/1/2）</text>
+  <text x="342" y="668" text-anchor="middle" font-size="10.5" fill="#3F6FC0">缓存 / Celery broker</text>
+  <text x="342" y="684" text-anchor="middle" font-size="10.5" fill="#3F6FC0">result / 限流 / 广播 / 序号</text>
+  <rect x="444" y="626" width="180" height="70" rx="8" fill="#E8F0FE" stroke="#BCD0F2"/>
+  <text x="534" y="650" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B4EA0">MinIO / 本地磁盘</text>
+  <text x="534" y="668" text-anchor="middle" font-size="10.5" fill="#3F6FC0">私有桶 + 预签名 URL</text>
+  <text x="534" y="684" text-anchor="middle" font-size="10.5" fill="#3F6FC0">降级 ./uploads/</text>
+  <rect x="636" y="626" width="180" height="70" rx="8" fill="#E8F0FE" stroke="#BCD0F2"/>
+  <text x="726" y="650" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B4EA0">Meilisearch</text>
+  <text x="726" y="668" text-anchor="middle" font-size="10.5" fill="#3F6FC0">中文分词 · users/items</text>
+  <text x="726" y="684" text-anchor="middle" font-size="10.5" fill="#3F6FC0">降级 DB LIKE 查询</text>
+  <rect x="828" y="626" width="196" height="70" rx="8" fill="#E8F0FE" stroke="#BCD0F2"/>
+  <text x="926" y="650" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B4EA0">Celery Worker ×4 队列</text>
+  <text x="926" y="668" text-anchor="middle" font-size="10.5" fill="#3F6FC0">email/notify/search/default</text>
+  <text x="926" y="684" text-anchor="middle" font-size="10.5" fill="#3F6FC0">Windows -P solo</text>
+
+  <!-- caption -->
+  <text x="540" y="742" text-anchor="middle" font-size="11" fill="#8A8F98">示意：真实结构以代码为准（app/main.py → modules / core / tasks / search）</text>
+</svg>

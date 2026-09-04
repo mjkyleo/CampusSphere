@@ -55,12 +55,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   // 极验已配置 captcha_id 时用它，否则回退到服务端拼图滑块
   const useGeetest = captchaConfig?.provider === 'geetest' && !!captchaConfig?.geetest_id;
 
-  // 管理员登录：仅在 /login?admin=1 时出现，独立视图，不与普通用户界面共存
-  const isAdminMode = searchParams.get('admin') === '1';
-  const [adminGatewayKey, setAdminGatewayKey] = useState('');
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-
   useEffect(() => {
     api.auth.emailConfig()
       .then((res) => {
@@ -200,20 +194,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setLoading(false);
   };
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminGatewayKey || !adminUsername || !adminPassword) {
-      error('请填写网关密钥、管理员账号与密码');
-      return;
-    }
-    setLoading(true);
-    const ok = await adminLogin(adminGatewayKey, adminUsername, adminPassword);
-    setLoading(false);
-    if (ok) {
-      navigate('/admin');
-    }
-  };
-
   const isEmailValid = (() => {
     if (!emailTarget || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTarget)) return false;
     if (!emailConfig?.enabled) return true;
@@ -230,93 +210,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
     return true;
   })();
-
-  // 管理员入口：仅 /login?admin=1 时出现，独立视图，
-  // 不与普通用户的登录 / 注册界面同时出现。
-  if (isAdminMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-md w-full bg-slate-800 rounded-3xl shadow-2xl p-6 sm:p-10 space-y-6 border border-slate-700">
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-slate-700 rounded-3xl mx-auto flex items-center justify-center text-white mb-3">
-              <KeyRound className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-white">系统管理后台</h1>
-            <p className="text-slate-400 text-sm">需网关密钥 + 管理员账号双重认证</p>
-          </div>
-
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                网关密钥
-              </label>
-              <div className="relative">
-                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="password"
-                  value={adminGatewayKey}
-                  onChange={(e) => setAdminGatewayKey(e.target.value)}
-                  placeholder="ADMIN_GATEWAY_KEY"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                管理员账号
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="text"
-                  value={adminUsername}
-                  onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="siteadmin"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                登录密码
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="请输入管理员密码"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              进入管理后台
-            </button>
-          </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="text-xs text-slate-400 hover:text-slate-200 underline underline-offset-4"
-            >
-              返回普通用户登录
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 sm:p-6 lg:p-8">
