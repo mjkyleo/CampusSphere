@@ -9,7 +9,6 @@ from __future__ import annotations
 import uuid
 
 import pytest
-
 from factories import CourseFactory, CourseReviewFactory
 from helpers import auth_header, register_login
 

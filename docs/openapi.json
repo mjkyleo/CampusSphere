@@ -192,12 +192,141 @@
         }
       }
     },
+    "/api/auth/captcha/config": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Captcha Config",
+        "description": "公开只读：验证码开关与当前生效的提供方，供前端决定渲染哪种验证。\n\n``provider`` 取值：\n  * ``geetest`` —— 已配置极验 captcha_id/key，前端渲染极验组件\n  * ``builtin`` —— 未接入第三方，使用服务端生成的拼图滑块\n\n前端只认这个字段，不自己判断\"有没有极验\"，\n避免两端对同一份配置产生不同理解。",
+        "operationId": "captcha_config_api_auth_captcha_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/captcha/geetest/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Captcha Geetest Verify",
+        "description": "极验二次校验：通过后签发一次性票据（供 send-code 使用）。\n\n票据机制与自建滑块**完全一致**，因此下游 send-code 不需要区分\n用户是通过哪种方式完成的验证 —— 换 provider 对业务代码透明。",
+        "operationId": "captcha_geetest_verify_api_auth_captcha_geetest_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeetestVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_SliderVerifyOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/captcha/slider": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Captcha Slider",
+        "description": "获取一次滑块验证（背景图 + 拼图块）。\n\n缺口的横坐标只保存在服务端，响应中仅包含纵坐标 y，\n前端据此把拼图块放在同一水平线上。",
+        "operationId": "captcha_slider_api_auth_captcha_slider_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_SliderCaptchaOut_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/captcha/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Captcha Verify",
+        "description": "校验滑块拖动结果，通过则签发一次性票据（供 send-code 使用）。",
+        "operationId": "captcha_verify_api_auth_captcha_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SliderVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_SliderVerifyOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/send-code": {
       "post": {
         "tags": [
           "auth"
         ],
         "summary": "Send Verification Code",
+        "description": "发送验证码（邮箱/手机号，purpose 区分用途）。\n\n开启滑块验证时，必须携带 ``/captcha/verify`` 签发的一次性票据，\n否则拒绝发送——避免脚本绕过滑块直接刷验证码轰炸邮箱/手机。\n\n默认**绝不**回传验证码（仅通过邮件送达）；\n仅当开启 ``EXPOSE_VERIFICATION_CODE`` 时回传 debug_code，供本地联调与自动化测试使用。",
         "operationId": "send_verification_code_api_auth_send_code_post",
         "requestBody": {
           "content": {
@@ -215,7 +344,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                  "$ref": "#/components/schemas/ApiResponse_SendCodeOut_"
                 }
               }
             }
@@ -226,6 +355,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/email-config": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Email Register Config",
+        "description": "公开只读：邮箱注册规则（是否开启 + 允许域名/正则），供注册页动态展示。",
+        "operationId": "email_register_config_api_auth_email_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_EmailRegisterConfig_"
                 }
               }
             }
@@ -427,7 +578,7 @@
           "auth"
         ],
         "summary": "Email Register",
-        "description": "邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号。",
+        "description": "邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号并签发令牌（注册即登录）。",
         "operationId": "email_register_api_auth_email_register_post",
         "requestBody": {
           "content": {
@@ -445,7 +596,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_UserOut_"
+                  "$ref": "#/components/schemas/ApiResponse_EmailRegisterResponse_"
                 }
               }
             }
@@ -1054,6 +1205,28 @@
         }
       }
     },
+    "/api/items/categories": {
+      "get": {
+        "tags": [
+          "item"
+        ],
+        "summary": "Categories",
+        "description": "公开读取二手交易分类（后台配置，含 school.yaml 兜底）。",
+        "operationId": "categories_api_items_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/items/{item_id}": {
       "get": {
         "tags": [
@@ -1150,6 +1323,7 @@
           "item"
         ],
         "summary": "Delete",
+        "description": "删除物品：本人（write）或管理员（admin）可删。\n\n权限判定完全由 ``require_scope`` + ``require_owner_or_scope`` 表达，\nService 层的 ``delete_item`` 只负责删除，不知道\"管理员\"这个概念的存在。",
         "operationId": "delete_api_items__item_id__delete",
         "parameters": [
           {
@@ -1406,6 +1580,16 @@
             }
           },
           {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Department"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1485,6 +1669,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/departments": {
+      "get": {
+        "tags": [
+          "course"
+        ],
+        "summary": "Departments",
+        "description": "公开读取课程院系列表（后台配置，含 school.yaml 兜底）。\n\n响应同时给出两种结构，前端按能力渐进使用：\n\n- ``departments``：扁平列表（老前端 / 后端筛选直接可用）；\n- ``groups``：按学部分组的二级结构 ``[{group, departments}]``，\n  配了分组才有内容，为空时前端降级为单排 pill。",
+        "operationId": "departments_api_courses_departments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
                 }
               }
             }
@@ -1586,6 +1792,28 @@
         }
       }
     },
+    "/api/canteens/configs": {
+      "get": {
+        "tags": [
+          "canteen"
+        ],
+        "summary": "Canteen Configs",
+        "description": "公开读取食堂维度枚举（学部 / 餐饮区 / 类型 / 学期）。\n\n前端首页 Tab、筛选 chip 的数据源，全部由后台 ``canteen.config`` 下发，\n不再写死常量。",
+        "operationId": "canteen_configs_api_canteens_configs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/canteens": {
       "get": {
         "tags": [
@@ -1593,6 +1821,58 @@
         ],
         "summary": "List All",
         "operationId": "list_all_api_canteens_get",
+        "parameters": [
+          {
+            "name": "campus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Campus"
+            }
+          },
+          {
+            "name": "zone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Zone"
+            }
+          },
+          {
+            "name": "canteen_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Canteen Type"
+            }
+          },
+          {
+            "name": "semester",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Semester"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Keyword"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1600,117 +1880,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse_list_"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "canteen"
-        ],
-        "summary": "Create",
-        "operationId": "create_api_canteens_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CanteenCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_CanteenOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/canteens/stalls": {
-      "post": {
-        "tags": [
-          "canteen"
-        ],
-        "summary": "Create Stall Endpoint",
-        "operationId": "create_stall_endpoint_api_canteens_stalls_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StallCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_StallOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/canteens/dishes": {
-      "post": {
-        "tags": [
-          "canteen"
-        ],
-        "summary": "Create Dish Endpoint",
-        "operationId": "create_dish_endpoint_api_canteens_dishes_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DishCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse_DishOut_"
                 }
               }
             }
@@ -1815,6 +1984,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canteens/{canteen_id}": {
+      "get": {
+        "tags": [
+          "canteen"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_api_canteens__canteen_id__get",
+        "parameters": [
+          {
+            "name": "canteen_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Canteen Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CanteenOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/categories": {
+      "get": {
+        "tags": [
+          "job"
+        ],
+        "summary": "Categories",
+        "description": "公开读取兼职岗位分类（后台配置，含 school.yaml 兜底）。",
+        "operationId": "categories_api_jobs_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
                 }
               }
             }
@@ -2030,6 +2263,28 @@
         }
       }
     },
+    "/api/shares/categories": {
+      "get": {
+        "tags": [
+          "share"
+        ],
+        "summary": "Categories",
+        "description": "公开读取学术资料分类（后台配置，含 school.yaml 兜底）。",
+        "operationId": "categories_api_shares_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/shares": {
       "get": {
         "tags": [
@@ -2177,6 +2432,28 @@
         }
       }
     },
+    "/api/teams/categories": {
+      "get": {
+        "tags": [
+          "teammate"
+        ],
+        "summary": "Categories",
+        "description": "公开读取搭子组队分类（后台配置，含 school.yaml 兜底）。",
+        "operationId": "categories_api_teams_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/teams": {
       "get": {
         "tags": [
@@ -2185,6 +2462,16 @@
         "summary": "List All",
         "operationId": "list_all_api_teams_get",
         "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Category"
+            }
+          },
           {
             "name": "page",
             "in": "query",
@@ -2444,6 +2731,22 @@
               "default": 20,
               "title": "Page Size"
             }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
           }
         ],
         "responses": {
@@ -2486,6 +2789,22 @@
               "type": "string",
               "title": "Report Id"
             }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
           }
         ],
         "requestBody": {
@@ -2522,6 +2841,48 @@
         }
       }
     },
+    "/api/admin/discover": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Discover",
+        "description": "用网关密钥换取短时网关令牌（HMAC）。密钥错误一律 404，避免暴露管理端存在。",
+        "operationId": "discover_api_admin_discover_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDiscoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/login": {
       "post": {
         "tags": [
@@ -2529,15 +2890,33 @@
         ],
         "summary": "Login",
         "operationId": "login_api_admin_login_post",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AdminLoginRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -2591,6 +2970,24 @@
         ],
         "summary": "Dashboard View",
         "operationId": "dashboard_view_api_admin_dashboard_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2598,6 +2995,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2634,6 +3041,22 @@
               "minimum": 1,
               "default": 20,
               "title": "Page Size"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
             }
           }
         ],
@@ -2676,6 +3099,22 @@
             "schema": {
               "type": "string",
               "title": "User Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
             }
           }
         ],
@@ -2729,8 +3168,93 @@
               "type": "string",
               "title": "User Id"
             }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{user_id}/promote": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Promote",
+        "description": "将普通用户提升为管理员（设置其后台登录密码），并标记 User.is_admin。",
+        "operationId": "promote_api_admin_users__user_id__promote_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPromoteRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2762,6 +3286,24 @@
         ],
         "summary": "Get Email Config",
         "operationId": "get_email_config_api_admin_auth_email_config_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2769,6 +3311,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse_EmailRegisterConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2781,15 +3333,33 @@
         ],
         "summary": "Put Email Config",
         "operationId": "put_email_config_api_admin_auth_email_config_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EmailRegisterConfig"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -2854,6 +3424,22 @@
               "default": 20,
               "title": "Page Size"
             }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
           }
         ],
         "responses": {
@@ -2863,6 +3449,2417 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin List Items",
+        "description": "List all items (any user's) with optional status filter and pagination.",
+        "operationId": "admin_list_items_api_admin_items_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items/review-config": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Item Review",
+        "operationId": "admin_get_item_review_api_admin_items_review_config_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemReviewConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Item Review",
+        "operationId": "admin_put_item_review_api_admin_items_review_config_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemReviewConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemReviewConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items/categories": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Item Categories",
+        "description": "读取二手交易分类（后台配置）。",
+        "operationId": "admin_get_item_categories_api_admin_items_categories_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Item Categories",
+        "description": "更新二手交易分类（写 DB，实时生效）。",
+        "operationId": "admin_put_item_categories_api_admin_items_categories_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemCategoriesConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/courses/departments": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Course Departments",
+        "description": "读取课程开课院系列表（后台配置）。",
+        "operationId": "admin_get_course_departments_api_admin_courses_departments_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CourseDepartmentsConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Course Departments",
+        "description": "更新课程开课院系列表（写 DB，实时生效）。",
+        "operationId": "admin_put_course_departments_api_admin_courses_departments_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseDepartmentsConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CourseDepartmentsConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/courses/departments/groups": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Course Department Groups",
+        "description": "读取课程院系的**学部分组**（后台可配置，前端两级筛选的数据源）。",
+        "operationId": "admin_get_course_department_groups_api_admin_courses_departments_groups_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CourseDepartmentGroupsConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Course Department Groups",
+        "description": "更新课程院系学部分组（写 DB，实时生效）。\n\n传空数组即可回到\"扁平院系\"模式（前端降级为单排 pill）。",
+        "operationId": "admin_put_course_department_groups_api_admin_courses_departments_groups_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseDepartmentGroupsConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CourseDepartmentGroupsConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/jobs/categories": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Job Categories",
+        "description": "读取兼职岗位分类（后台配置）。",
+        "operationId": "admin_get_job_categories_api_admin_jobs_categories_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_JobCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Job Categories",
+        "description": "更新兼职岗位分类（写 DB，实时生效）。",
+        "operationId": "admin_put_job_categories_api_admin_jobs_categories_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCategoriesConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_JobCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/shares/categories": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Share Categories",
+        "description": "读取学术资料分类（后台配置）。",
+        "operationId": "admin_get_share_categories_api_admin_shares_categories_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ShareCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Share Categories",
+        "description": "更新学术资料分类（写 DB，实时生效）。",
+        "operationId": "admin_put_share_categories_api_admin_shares_categories_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareCategoriesConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ShareCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/teammates/categories": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Teammate Categories",
+        "description": "读取搭子组队分类（后台配置）。",
+        "operationId": "admin_get_teammate_categories_api_admin_teammates_categories_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_TeammateCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Teammate Categories",
+        "description": "更新搭子组队分类（写 DB，实时生效）。",
+        "operationId": "admin_put_teammate_categories_api_admin_teammates_categories_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeammateCategoriesConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_TeammateCategoriesConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/config": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Canteen Config",
+        "description": "读取食堂维度枚举（学部 / 餐饮区 / 类型 / 学期）。",
+        "operationId": "admin_get_canteen_config_api_admin_canteens_config_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CanteenConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Canteen Config",
+        "description": "更新食堂维度枚举（写 DB，实时生效）。",
+        "operationId": "admin_put_canteen_config_api_admin_canteens_config_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanteenConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CanteenConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai/config": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Get Ai Config",
+        "description": "读取 AI 助手开关与运行状态（含 API Key 配置提示，不回传 Key 本身）。",
+        "operationId": "admin_get_ai_config_api_admin_ai_config_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Put Ai Config",
+        "description": "更新 AI 助手开关与模型名（写 DB，实时生效）。",
+        "operationId": "admin_put_ai_config_api_admin_ai_config_put",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiFeatureConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AiFeatureConfig_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin List Canteens",
+        "description": "食堂管理列表（含档口与菜品）。",
+        "operationId": "admin_list_canteens_api_admin_canteens_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Create Canteen",
+        "operationId": "admin_create_canteen_api_admin_canteens_post",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanteenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CanteenOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/{canteen_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Update Canteen",
+        "operationId": "admin_update_canteen_api_admin_canteens__canteen_id__put",
+        "parameters": [
+          {
+            "name": "canteen_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Canteen Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanteenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CanteenOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Delete Canteen",
+        "description": "删除食堂（级联删除档口、菜品与评价）。",
+        "operationId": "admin_delete_canteen_api_admin_canteens__canteen_id__delete",
+        "parameters": [
+          {
+            "name": "canteen_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Canteen Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/stalls": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Create Stall",
+        "operationId": "admin_create_stall_api_admin_canteens_stalls_post",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StallCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_StallOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/stalls/{stall_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Update Stall",
+        "operationId": "admin_update_stall_api_admin_canteens_stalls__stall_id__put",
+        "parameters": [
+          {
+            "name": "stall_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stall Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StallCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_StallOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Delete Stall",
+        "operationId": "admin_delete_stall_api_admin_canteens_stalls__stall_id__delete",
+        "parameters": [
+          {
+            "name": "stall_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stall Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/dishes": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Create Dish",
+        "operationId": "admin_create_dish_api_admin_canteens_dishes_post",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DishOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/canteens/dishes/{dish_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Update Dish",
+        "operationId": "admin_update_dish_api_admin_canteens_dishes__dish_id__put",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dish Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DishCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_DishOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Delete Dish",
+        "operationId": "admin_delete_dish_api_admin_canteens_dishes__dish_id__delete",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dish Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items/{item_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Update Item View",
+        "description": "Update any item's fields (e.g., take off sale). Bypasses owner check.",
+        "operationId": "admin_update_item_view_api_admin_items__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Delete Item View",
+        "description": "Soft-delete any item. Bypasses owner check.",
+        "operationId": "admin_delete_item_view_api_admin_items__item_id__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items/{item_id}/approve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Approve Item View",
+        "description": "审核通过：待审核(PENDING) -> 上架(ON_SALE)。",
+        "operationId": "admin_approve_item_view_api_admin_items__item_id__approve_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/items/{item_id}/reject": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Reject Item View",
+        "description": "审核拒绝：待审核(PENDING) -> 下架(OFF_SHELF)。",
+        "operationId": "admin_reject_item_view_api_admin_items__item_id__reject_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemReviewRejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_ItemOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/config/reload": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reload School Config",
+        "description": "重读 ``config/school.yaml`` 并广播到所有实例（零停机热更新）。\n\n适用场景：运维直接修改了服务器上的 school.yaml（学校名称、域名白名单、\n业务规则阈值等静态配置），希望**不重启**就让全校实例生效。\n\n实现：向 Redis ``config:reload`` 频道发布消息，各实例的长驻监听 Task\n收到后原地刷新 ``Settings`` 单例。发布者自身也在订阅者之列，\n因此本实例同样会刷新。\n\nRedis 不可用（``receivers == 0``）时降级为**仅本机刷新**并置\n``degraded=true`` —— 让运维立刻看到\"热更新没广播出去\"，\n而不是误以为全集群已生效。",
+        "operationId": "reload_school_config_api_admin_config_reload_post",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/files/orphans": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin List Orphan Files View",
+        "description": "扫描存储中未被任何业务记录引用的孤儿文件（只列出，不删除）。",
+        "operationId": "admin_list_orphan_files_view_api_admin_files_orphans_get",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Cleanup Orphan Files View",
+        "description": "删除全部孤儿文件，返回实际删除数量。",
+        "operationId": "admin_cleanup_orphan_files_view_api_admin_files_orphans_delete",
+        "parameters": [
+          {
+            "name": "X-Admin-Gateway",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Gateway"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Audit Logs",
+        "description": "分页查询审计日志，按时间倒序。",
+        "operationId": "get_audit_logs_api_admin_audit_logs_get",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按动作过滤",
+              "title": "Action"
+            },
+            "description": "按动作过滤"
+          },
+          {
+            "name": "actor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按操作者 ID 过滤",
+              "title": "Actor Id"
+            },
+            "description": "按操作者 ID 过滤"
+          },
+          {
+            "name": "actor_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "user/admin/system/anonymous",
+              "title": "Actor Type"
+            },
+            "description": "user/admin/system/anonymous"
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "success/failure",
+              "title": "Result"
+            },
+            "description": "success/failure"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按账号/IP/动作模糊搜索",
+              "title": "Keyword"
+            },
+            "description": "按账号/IP/动作模糊搜索"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AuditLogPage_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit-logs/actions": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Audit Actions",
+        "description": "动作字典，供后台筛选下拉框使用（避免前端硬编码一份）。",
+        "operationId": "get_audit_actions_api_admin_audit_logs_actions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_list_AuditActionOption__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/status": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Status",
+        "description": "AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。",
+        "operationId": "ai_status_api_ai_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_AiStatusOut_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/insights": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Insights",
+        "description": "首页校园智能灵感。",
+        "operationId": "insights_api_ai_insights_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsightRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/item-description": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Item Description",
+        "description": "闲置发布描述 AI 润色。",
+        "operationId": "item_description_api_ai_item_description_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemDescriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/course-summary": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Course Summary",
+        "description": "课程评价 AI 汇总。",
+        "operationId": "course_summary_api_ai_course_summary_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseSummaryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/categorize": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Categorize",
+        "description": "内容自动分类与安全预审（发帖场景预留）。",
+        "operationId": "categorize_api_ai_categorize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategorizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_CategorizeOut_"
                 }
               }
             }
@@ -3002,13 +5999,37 @@
         }
       }
     },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "launcher"
+        ],
+        "summary": "Health",
+        "description": "健康检查：返回服务与基础依赖状态。\n\n同时挂在 /health 与 /api/health 两个路径上。\n后者不是冗余：前端 dev server（frontend/server.ts）本地实现了\n``/api/health`` 并直接返回 200，而生产由 nginx 统一转发 /api/* 到后端 ——\n若后端不提供该路径，同一个探测就会在开发环境 200、上线后 404。\ne2e 的 webServer 健康检查用的正是 ``${BACKEND_URL}/api/health``。",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
           "launcher"
         ],
         "summary": "Health",
-        "description": "健康检查：返回服务与基础依赖状态。",
+        "description": "健康检查：返回服务与基础依赖状态。\n\n同时挂在 /health 与 /api/health 两个路径上。\n后者不是冗余：前端 dev server（frontend/server.ts）本地实现了\n``/api/health`` 并直接返回 200，而生产由 nginx 统一转发 /api/* 到后端 ——\n若后端不提供该路径，同一个探测就会在开发环境 200、上线后 404。\ne2e 的 webServer 健康检查用的正是 ``${BACKEND_URL}/api/health``。",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -3069,6 +6090,20 @@
   },
   "components": {
     "schemas": {
+      "AdminDiscoverRequest": {
+        "properties": {
+          "gateway_key": {
+            "type": "string",
+            "title": "Gateway Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gateway_key"
+        ],
+        "title": "AdminDiscoverRequest",
+        "description": "用网关密钥换取短时网关令牌。"
+      },
       "AdminLoginRequest": {
         "properties": {
           "username": {
@@ -3130,6 +6165,20 @@
         ],
         "title": "AdminOut"
       },
+      "AdminPromoteRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "AdminPromoteRequest",
+        "description": "将普通用户提升为管理员时设置其后台登录密码（必填）。"
+      },
       "AdminTokenResponse": {
         "properties": {
           "access_token": {
@@ -3152,6 +6201,45 @@
           "refresh_token"
         ],
         "title": "AdminTokenResponse"
+      },
+      "AiFeatureConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": "gemini-2.0-flash"
+          }
+        },
+        "type": "object",
+        "title": "AiFeatureConfig",
+        "description": "AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。\n\n个人开发者无大模型 API 额度时保持关闭，前端隐藏所有 AI 入口；\n额度到位后管理员在后台一键开启即可上线。"
+      },
+      "AiStatusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "default": false
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "AiStatusOut",
+        "description": "AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。"
       },
       "ApiResponse_AdminOut_": {
         "properties": {
@@ -3205,6 +6293,84 @@
         "type": "object",
         "title": "ApiResponse[AdminTokenResponse]"
       },
+      "ApiResponse_AiFeatureConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiFeatureConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[AiFeatureConfig]"
+      },
+      "ApiResponse_AiStatusOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[AiStatusOut]"
+      },
+      "ApiResponse_AuditLogPage_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditLogPage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[AuditLogPage]"
+      },
       "ApiResponse_BindingsOut_": {
         "properties": {
           "code": {
@@ -3230,6 +6396,32 @@
         },
         "type": "object",
         "title": "ApiResponse[BindingsOut]"
+      },
+      "ApiResponse_CanteenConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanteenConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[CanteenConfig]"
       },
       "ApiResponse_CanteenOut_": {
         "properties": {
@@ -3282,6 +6474,84 @@
         },
         "type": "object",
         "title": "ApiResponse[CanteenReviewOut]"
+      },
+      "ApiResponse_CategorizeOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategorizeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[CategorizeOut]"
+      },
+      "ApiResponse_CourseDepartmentGroupsConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseDepartmentGroupsConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[CourseDepartmentGroupsConfig]"
+      },
+      "ApiResponse_CourseDepartmentsConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseDepartmentsConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[CourseDepartmentsConfig]"
       },
       "ApiResponse_CourseOut_": {
         "properties": {
@@ -3387,6 +6657,58 @@
         "type": "object",
         "title": "ApiResponse[EmailRegisterConfig]"
       },
+      "ApiResponse_EmailRegisterResponse_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailRegisterResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[EmailRegisterResponse]"
+      },
+      "ApiResponse_ItemCategoriesConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemCategoriesConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ItemCategoriesConfig]"
+      },
       "ApiResponse_ItemOut_": {
         "properties": {
           "code": {
@@ -3413,6 +6735,32 @@
         "type": "object",
         "title": "ApiResponse[ItemOut]"
       },
+      "ApiResponse_ItemReviewConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemReviewConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ItemReviewConfig]"
+      },
       "ApiResponse_JobApplicationOut_": {
         "properties": {
           "code": {
@@ -3438,6 +6786,32 @@
         },
         "type": "object",
         "title": "ApiResponse[JobApplicationOut]"
+      },
+      "ApiResponse_JobCategoriesConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCategoriesConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[JobCategoriesConfig]"
       },
       "ApiResponse_JobOut_": {
         "properties": {
@@ -3511,6 +6885,58 @@
         "type": "object",
         "title": "ApiResponse[ReportOut]"
       },
+      "ApiResponse_SendCodeOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SendCodeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[SendCodeOut]"
+      },
+      "ApiResponse_ShareCategoriesConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareCategoriesConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[ShareCategoriesConfig]"
+      },
       "ApiResponse_ShareOut_": {
         "properties": {
           "code": {
@@ -3536,6 +6962,58 @@
         },
         "type": "object",
         "title": "ApiResponse[ShareOut]"
+      },
+      "ApiResponse_SliderCaptchaOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SliderCaptchaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[SliderCaptchaOut]"
+      },
+      "ApiResponse_SliderVerifyOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SliderVerifyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[SliderVerifyOut]"
       },
       "ApiResponse_StallOut_": {
         "properties": {
@@ -3614,6 +7092,32 @@
         },
         "type": "object",
         "title": "ApiResponse[TeamOut]"
+      },
+      "ApiResponse_TeammateCategoriesConfig_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeammateCategoriesConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[TeammateCategoriesConfig]"
       },
       "ApiResponse_TokenResponse_": {
         "properties": {
@@ -3775,6 +7279,36 @@
         "type": "object",
         "title": "ApiResponse[list]"
       },
+      "ApiResponse_list_AuditActionOption__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AuditActionOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "ApiResponse[list[AuditActionOption]]"
+      },
       "ApiResponse_str_": {
         "properties": {
           "code": {
@@ -3801,6 +7335,156 @@
         },
         "type": "object",
         "title": "ApiResponse[str]"
+      },
+      "AuditActionOption": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "AuditActionOption",
+        "description": "动作下拉选项。"
+      },
+      "AuditLogOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "actor_type": {
+            "type": "string",
+            "title": "Actor Type"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_label": {
+            "type": "string",
+            "title": "Actor Label",
+            "default": ""
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "result": {
+            "type": "string",
+            "title": "Result",
+            "default": "success"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type",
+            "default": ""
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Detail"
+          },
+          "ip": {
+            "type": "string",
+            "title": "Ip",
+            "default": ""
+          },
+          "user_agent": {
+            "type": "string",
+            "title": "User Agent",
+            "default": ""
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "default": ""
+          },
+          "action_label": {
+            "type": "string",
+            "title": "Action Label",
+            "default": ""
+          },
+          "result_label": {
+            "type": "string",
+            "title": "Result Label",
+            "default": ""
+          },
+          "actor_type_label": {
+            "type": "string",
+            "title": "Actor Type Label",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "actor_type",
+          "action"
+        ],
+        "title": "AuditLogOut",
+        "description": "单条审计记录。\n\n额外附带 ``action_label`` / ``result_label`` / ``actor_type_label``\n三个中文字段，避免前端自己再维护一份动作字典（两处字典迟早会不同步）。"
+      },
+      "AuditLogPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditLogOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "default": 50
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "AuditLogPage",
+        "description": "分页结果。"
       },
       "BanRequest": {
         "properties": {
@@ -3966,6 +7650,53 @@
         ],
         "title": "Body_upload_api_files_upload_post"
       },
+      "CanteenConfig": {
+        "properties": {
+          "campuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Campuses",
+            "default": []
+          },
+          "zones": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Zones",
+            "default": {}
+          },
+          "types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "semesters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Semesters",
+            "default": []
+          },
+          "current_semester": {
+            "type": "string",
+            "title": "Current Semester",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "CanteenConfig",
+        "description": "食堂维度枚举配置（后台可动态配置）。\n\n``zones`` 为「学部 → 餐饮区列表」映射；``semesters`` 为空表示不启用\n学期筛选，``current_semester`` 为空表示前端默认展示全部学期。"
+      },
       "CanteenCreate": {
         "properties": {
           "name": {
@@ -3975,6 +7706,62 @@
           "location": {
             "type": "string",
             "title": "Location",
+            "default": ""
+          },
+          "image": {
+            "type": "string",
+            "title": "Image",
+            "default": ""
+          },
+          "campus": {
+            "type": "string",
+            "title": "Campus",
+            "default": ""
+          },
+          "zone": {
+            "type": "string",
+            "title": "Zone",
+            "default": ""
+          },
+          "canteen_type": {
+            "type": "string",
+            "title": "Canteen Type",
+            "default": ""
+          },
+          "floor": {
+            "type": "string",
+            "title": "Floor",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features",
+            "default": []
+          },
+          "popular_dishes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Popular Dishes",
+            "default": []
+          },
+          "opening_hours": {
+            "type": "string",
+            "title": "Opening Hours",
+            "default": ""
+          },
+          "semester": {
+            "type": "string",
+            "title": "Semester",
             "default": ""
           }
         },
@@ -3999,6 +7786,61 @@
             "type": "string",
             "title": "Location"
           },
+          "image": {
+            "type": "string",
+            "title": "Image"
+          },
+          "campus": {
+            "type": "string",
+            "title": "Campus",
+            "default": ""
+          },
+          "zone": {
+            "type": "string",
+            "title": "Zone",
+            "default": ""
+          },
+          "canteen_type": {
+            "type": "string",
+            "title": "Canteen Type",
+            "default": ""
+          },
+          "floor": {
+            "type": "string",
+            "title": "Floor",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features",
+            "default": []
+          },
+          "popular_dishes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Popular Dishes",
+            "default": []
+          },
+          "opening_hours": {
+            "type": "string",
+            "title": "Opening Hours",
+            "default": ""
+          },
+          "semester": {
+            "type": "string",
+            "title": "Semester",
+            "default": ""
+          },
           "stalls": {
             "items": {
               "$ref": "#/components/schemas/StallOut"
@@ -4012,7 +7854,8 @@
         "required": [
           "id",
           "name",
-          "location"
+          "location",
+          "image"
         ],
         "title": "CanteenOut"
       },
@@ -4068,6 +7911,46 @@
         ],
         "title": "CanteenReviewOut"
       },
+      "CategorizeOut": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "isSafe": {
+            "type": "boolean",
+            "title": "Issafe"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "isSafe",
+          "summary"
+        ],
+        "title": "CategorizeOut",
+        "description": "内容分类结果。"
+      },
+      "CategorizeRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "CategorizeRequest",
+        "description": "内容自动分类与安全预审（发帖场景预留）。"
+      },
       "CourseCreate": {
         "properties": {
           "code": {
@@ -4092,6 +7975,11 @@
             "type": "string",
             "title": "Semester",
             "default": ""
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": ""
           }
         },
         "type": "object",
@@ -4100,6 +7988,36 @@
           "name"
         ],
         "title": "CourseCreate"
+      },
+      "CourseDepartmentGroupsConfig": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentGroup"
+            },
+            "type": "array",
+            "title": "Groups",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "CourseDepartmentGroupsConfig",
+        "description": "课程院系按学部分组（后台可动态配置）。\n\n用于前端「学部 Tab → 院系 chips」两级筛选，避免 40+ 院系平铺溢出。"
+      },
+      "CourseDepartmentsConfig": {
+        "properties": {
+          "departments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Departments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "CourseDepartmentsConfig",
+        "description": "课程开课院系列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"
       },
       "CourseOut": {
         "properties": {
@@ -4127,6 +8045,10 @@
           "semester": {
             "type": "string",
             "title": "Semester"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
           }
         },
         "type": "object",
@@ -4136,7 +8058,8 @@
           "name",
           "teacher",
           "credits",
-          "semester"
+          "semester",
+          "department"
         ],
         "title": "CourseOut"
       },
@@ -4192,6 +8115,47 @@
         ],
         "title": "CourseReviewOut"
       },
+      "CourseSummaryRequest": {
+        "properties": {
+          "reviewTexts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Reviewtexts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reviewTexts"
+        ],
+        "title": "CourseSummaryRequest",
+        "description": "课程评价 AI 汇总提炼。"
+      },
+      "DepartmentGroup": {
+        "properties": {
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "departments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Departments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "group"
+        ],
+        "title": "DepartmentGroup",
+        "description": "一个学部及其下属院系。"
+      },
       "DishCreate": {
         "properties": {
           "stall_id": {
@@ -4208,6 +8172,11 @@
             "title": "Price",
             "description": "单位：分",
             "default": 0
+          },
+          "image": {
+            "type": "string",
+            "title": "Image",
+            "default": ""
           }
         },
         "type": "object",
@@ -4235,6 +8204,10 @@
           "price": {
             "type": "integer",
             "title": "Price"
+          },
+          "image": {
+            "type": "string",
+            "title": "Image"
           }
         },
         "type": "object",
@@ -4242,7 +8215,8 @@
           "id",
           "stall_id",
           "name",
-          "price"
+          "price",
+          "image"
         ],
         "title": "DishOut"
       },
@@ -4310,6 +8284,84 @@
         ],
         "title": "EmailRegisterRequest"
       },
+      "EmailRegisterResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "username"
+        ],
+        "title": "EmailRegisterResponse",
+        "description": "邮箱注册响应：在令牌基础上附带新生成的账号信息，便于前端直接展示。"
+      },
+      "GeetestVerifyRequest": {
+        "properties": {
+          "lot_number": {
+            "type": "string",
+            "title": "Lot Number",
+            "description": "验证流水号"
+          },
+          "captcha_output": {
+            "type": "string",
+            "title": "Captcha Output",
+            "description": "验证输出信息"
+          },
+          "pass_token": {
+            "type": "string",
+            "title": "Pass Token",
+            "description": "验证通过标识"
+          },
+          "gen_time": {
+            "type": "string",
+            "title": "Gen Time",
+            "description": "验证通过时间戳"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_number",
+          "captcha_output",
+          "pass_token",
+          "gen_time"
+        ],
+        "title": "GeetestVerifyRequest",
+        "description": "极验前端验证通过后回传的四个字段，服务端据此做二次校验。\n\n字段名由极验 SDK 定义（``captcha.getValidate()`` 的返回），不可自定义。"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4322,6 +8374,37 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "InsightRequest": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Topic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic"
+        ],
+        "title": "InsightRequest",
+        "description": "首页校园智能灵感。"
+      },
+      "ItemCategoriesConfig": {
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ItemCategoriesConfig",
+        "description": "二手交易分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"
       },
       "ItemCreate": {
         "properties": {
@@ -4362,6 +8445,28 @@
           "title"
         ],
         "title": "ItemCreate"
+      },
+      "ItemDescriptionRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "category"
+        ],
+        "title": "ItemDescriptionRequest",
+        "description": "闲置物品描述 AI 润色。"
       },
       "ItemImageIn": {
         "properties": {
@@ -4467,6 +8572,30 @@
           "status"
         ],
         "title": "ItemOut"
+      },
+      "ItemReviewConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ItemReviewConfig",
+        "description": "二手物品发布审核开关（DB 值覆盖 school.yaml 默认值）。"
+      },
+      "ItemReviewRejectRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ItemReviewRejectRequest",
+        "description": "拒绝审核时的原因说明。"
       },
       "ItemUpdate": {
         "properties": {
@@ -4574,6 +8703,21 @@
           "note"
         ],
         "title": "JobApplicationOut"
+      },
+      "JobCategoriesConfig": {
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "JobCategoriesConfig",
+        "description": "兼职岗位分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"
       },
       "JobCreate": {
         "properties": {
@@ -4768,6 +8912,28 @@
               }
             ],
             "title": "School Major"
+          },
+          "campus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campus"
+          },
+          "contact_wx": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Wx"
           },
           "grade": {
             "anyOf": [
@@ -5001,6 +9167,28 @@
         ],
         "title": "ReportOut"
       },
+      "SendCodeOut": {
+        "properties": {
+          "debug_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debug Code"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "title": "SendCodeOut",
+        "description": "发送验证码响应。开发/测试模式（debug=true）返回 debug_code 便于本地验证；\n生产环境 debug_code 恒为 null，验证码只能通过邮件/短信真实送达。"
+      },
       "SendCodeRequest": {
         "properties": {
           "target": {
@@ -5013,6 +9201,18 @@
             "title": "Purpose",
             "description": "login/register/email",
             "default": "login"
+          },
+          "captcha_ticket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captcha Ticket",
+            "description": "滑块验证票据（captcha_enabled 时必填，由 /captcha/verify 签发）"
           }
         },
         "type": "object",
@@ -5020,6 +9220,21 @@
           "target"
         ],
         "title": "SendCodeRequest"
+      },
+      "ShareCategoriesConfig": {
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ShareCategoriesConfig",
+        "description": "学术资料分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"
       },
       "ShareCreate": {
         "properties": {
@@ -5106,6 +9321,119 @@
         ],
         "title": "ShareOut"
       },
+      "SliderCaptchaOut": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "本次验证令牌，校验时回传"
+          },
+          "background": {
+            "type": "string",
+            "title": "Background",
+            "description": "带缺口的背景图（data URI）"
+          },
+          "slider": {
+            "type": "string",
+            "title": "Slider",
+            "description": "拼图块（data URI，透明 PNG）"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width",
+            "description": "画布宽度（px）"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height",
+            "description": "画布高度（px）"
+          },
+          "slider_size": {
+            "type": "integer",
+            "title": "Slider Size",
+            "description": "滑块边长（px）"
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y",
+            "description": "缺口纵坐标（px），滑块需保持同一水平线"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "令牌有效期（秒）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "background",
+          "slider",
+          "width",
+          "height",
+          "slider_size",
+          "y",
+          "expires_in"
+        ],
+        "title": "SliderCaptchaOut",
+        "description": "滑块验证载荷：两张 base64 图片 + 画布尺寸。\n\n注意：缺口的**横坐标不会下发**（仅服务端保存），只有纵坐标 y 需要下发，\n前端据此把滑块放在同一水平线上。"
+      },
+      "SliderVerifyOut": {
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "title": "Ticket"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "expires_in"
+        ],
+        "title": "SliderVerifyOut",
+        "description": "校验通过后的票据，需在调用 send-code 时回传（一次性）。"
+      },
+      "SliderVerifyRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "generate_slider 返回的令牌"
+          },
+          "offset_x": {
+            "type": "number",
+            "title": "Offset X",
+            "description": "滑块相对画布左边缘的位移（px）"
+          },
+          "track": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Track",
+            "description": "拖动轨迹 [[t_ms, x, y], ...]，用于识别脚本行为"
+          },
+          "elapsed_ms": {
+            "type": "integer",
+            "title": "Elapsed Ms",
+            "description": "从开始拖到松手的总耗时（毫秒）",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "offset_x"
+        ],
+        "title": "SliderVerifyRequest"
+      },
       "StallCreate": {
         "properties": {
           "canteen_id": {
@@ -5115,6 +9443,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "image": {
+            "type": "string",
+            "title": "Image",
+            "default": ""
           }
         },
         "type": "object",
@@ -5139,6 +9472,10 @@
             "type": "string",
             "title": "Name"
           },
+          "image": {
+            "type": "string",
+            "title": "Image"
+          },
           "dishes": {
             "items": {
               "$ref": "#/components/schemas/DishOut"
@@ -5152,7 +9489,8 @@
         "required": [
           "id",
           "canteen_id",
-          "name"
+          "name",
+          "image"
         ],
         "title": "StallOut"
       },
@@ -5170,6 +9508,21 @@
           "required_roles": {
             "type": "string",
             "title": "Required Roles",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": ""
+          },
+          "max_members": {
+            "type": "integer",
+            "title": "Max Members",
+            "default": 3
+          },
+          "contact_info": {
+            "type": "string",
+            "title": "Contact Info",
             "default": ""
           }
         },
@@ -5240,6 +9593,21 @@
             "type": "integer",
             "title": "Status"
           },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": "其他"
+          },
+          "max_members": {
+            "type": "integer",
+            "title": "Max Members",
+            "default": 3
+          },
+          "contact_info": {
+            "type": "string",
+            "title": "Contact Info",
+            "default": ""
+          },
           "member_count": {
             "type": "integer",
             "title": "Member Count",
@@ -5256,6 +9624,21 @@
           "status"
         ],
         "title": "TeamOut"
+      },
+      "TeammateCategoriesConfig": {
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "TeammateCategoriesConfig",
+        "description": "搭子组队分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"
       },
       "TokenResponse": {
         "properties": {
@@ -5450,6 +9833,14 @@
             "type": "string",
             "title": "School Major"
           },
+          "campus": {
+            "type": "string",
+            "title": "Campus"
+          },
+          "contact_wx": {
+            "type": "string",
+            "title": "Contact Wx"
+          },
           "grade": {
             "type": "integer",
             "title": "Grade"
@@ -5489,6 +9880,8 @@
           "nickname",
           "bio",
           "school_major",
+          "campus",
+          "contact_wx",
           "grade",
           "verified"
         ],

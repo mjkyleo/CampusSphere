@@ -11,10 +11,10 @@ from __future__ import annotations
 import uuid
 
 import pytest  # type: ignore[reportMissingImports]
-
-from app.common.enums import ItemStatus
 from factories import ItemFactory
 from helpers import auth_header, register_login
+
+from app.common.enums import ItemStatus
 
 pytestmark = pytest.mark.integration
 

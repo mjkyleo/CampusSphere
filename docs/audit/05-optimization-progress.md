@@ -177,6 +177,8 @@
 
 规则基于后端真实指标名编写：`campus_http_requests_total{method,endpoint,status}` 与
 `campus_http_request_latency_seconds`（见 `app/modules/launcher/metrics.py`），非臆造指标。
+
+> ⚠️ **2026-09-05 实测补充**：当前 `launcher/metrics.py` 仅定义 Counter/Histogram 实例，**全项目无任何 .inc()/.observe() 调用点**（grep 验证），因此这些规则暂时**不会触发**；需先在 ASGI middleware 中埋点后规则才会生效。
 > 投递：本阶段仅定义规则；要真正通知到人还需配 Alertmanager（route/receiver），配置示例已写在 `alerts.yml` 注释中。
 
 #### 8.7 代码规范清理（CI 前置修复）

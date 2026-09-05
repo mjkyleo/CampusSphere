@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 # EmailRegisterConfig 为**有意的再导出**：admin.router 从本模块导入它，
 # 而实现已上移到 app.common.schemas（auth 与 admin 共用，避免 auth 顶层依赖 admin）。
-# noqa: F401 标记导出意图，防止被当作"未使用导入"自动删除。
 from app.common.schemas import EmailRegisterConfig  # noqa: F401
 
 
@@ -71,6 +70,54 @@ class CourseDepartmentsConfig(BaseModel):
     """课程开课院系列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
 
     departments: list[str] = []
+
+
+class JobCategoriesConfig(BaseModel):
+    """兼职岗位分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
+
+    categories: list[str] = []
+
+
+class ShareCategoriesConfig(BaseModel):
+    """学术资料分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
+
+    categories: list[str] = []
+
+
+class TeammateCategoriesConfig(BaseModel):
+    """搭子组队分类列表（后台可动态配置，DB 值覆盖 school.yaml 默认值）。"""
+
+    categories: list[str] = []
+
+
+class DepartmentGroup(BaseModel):
+    """一个学部及其下属院系。"""
+
+    group: str
+    departments: list[str] = []
+
+
+class CourseDepartmentGroupsConfig(BaseModel):
+    """课程院系按学部分组（后台可动态配置）。
+
+    用于前端「学部 Tab → 院系 chips」两级筛选，避免 40+ 院系平铺溢出。
+    """
+
+    groups: list[DepartmentGroup] = []
+
+
+class CanteenConfig(BaseModel):
+    """食堂维度枚举配置（后台可动态配置）。
+
+    ``zones`` 为「学部 → 餐饮区列表」映射；``semesters`` 为空表示不启用
+    学期筛选，``current_semester`` 为空表示前端默认展示全部学期。
+    """
+
+    campuses: list[str] = []
+    zones: dict[str, list[str]] = {}
+    types: list[str] = []
+    semesters: list[str] = []
+    current_semester: str = ""
 
 
 class AiFeatureConfig(BaseModel):

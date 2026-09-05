@@ -35,12 +35,18 @@ PUBLIC_PATHS = {
     "/api/auth/captcha/config",
     "/api/auth/captcha/slider",
     "/api/auth/captcha/verify",
+    "/api/auth/captcha/geetest/verify",
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
     "/api/admin/discover",
     "/api/ai/status",
     "/health",
+    # 前端 dev server（frontend/server.ts）本地实现了 /api/health 并直接返回
+    # 200。生产改为 nginx 统一转发 /api/* 后，该路径会落到后端 —— 若不放行，
+    # 开发与生产行为就不一致了：本地探测 200、上线后 401。健康端点本就该
+    # 可公开探测，e2e 的 webServer 健康检查也依赖它。
+    "/api/health",
     "/metrics",
     "/docs",
     "/openapi.json",
@@ -137,9 +143,10 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             "/api/auth/send-code",
             "/api/auth/verify-email",
             # 滑块生成是 CPU 密集操作，且校验端点可能被用于暴力试探缺口位置，
-            # 因此同样纳入严格限流（10 次/分钟）。
+            # 因此同样纳入严格限流（10 次/分钟）。极验二次校验同理。
             "/api/auth/captcha/slider",
             "/api/auth/captcha/verify",
+            "/api/auth/captcha/geetest/verify",
         }
         if request.url.path in _auth_strict_paths:
             auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"

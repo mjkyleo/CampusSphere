@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 import pytest
-
-from app.common.enums import ReportStatus, UserStatus
 from factories import ReportFactory
 from helpers import admin_login, auth_header, register_login, seed_admin
+
+from app.common.enums import ReportStatus, UserStatus
 
 pytestmark = pytest.mark.integration
 

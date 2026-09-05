@@ -14,9 +14,61 @@ cp backend/.env.example backend/.env        # 默认 SQLite，无需任何中间
 python scripts/devctl.py up                 # 启动后端 + 前端，自动健康检查
 
 # 生产（Docker 一键）
-cp deploy/.env.example deploy/.env          # 改 SECRET_KEY / DB_URL / 管理员密钥 / MinIO / Meili
+cp deploy/.env.example deploy/.env          # 改 SECRET_KEY / DB_URL / 管理员密钥 / MinIO / Meili / SMTP
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 ```
+
+> ⚠️ **SMTP 是生产硬前置**：未配置 `SMTP_HOST` 时验证码发不出去，
+> 而生产又禁止回传验证码，注册/找回密码**完全不可用**。
+> 见 [§1 前置条件](#1-前置条件依赖服务)与[§3.6 邮件发送](#3-环境变量全集按分组)。
+
+---
+
+## 0.1 国内网络构建加速（可选，但强烈建议）
+
+`docker build` 是在**容器内**联网的，Docker Desktop 配置的代理对容器内 `apt` / `pip` **无效**，
+因此国内直连官方源会非常慢甚至超时：
+
+| 阶段 | 官方源 | 配置镜像后 |
+|------|--------|-----------|
+| `apt-get install gcc libpq-dev` | ~60 kB/s，**30 分钟以上** | ~35 秒 |
+| `pip install .` | ~90 秒 | ~45 秒 |
+| 拉取基础镜像（Docker Hub） | 常超时 `auth.docker.io` | 取决于加速器可用性 |
+
+### ① apt / pip 镜像（本项目已内置开关）
+
+在 `deploy/.env` 中设置（该文件已被 git 忽略，不会提交）：
+
+```bash
+APT_MIRROR=mirrors.aliyun.com                        # 或 mirrors.tuna.tsinghua.edu.cn
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+`docker-compose.yml` 会把这两个值作为 `--build-arg` 传入 Dockerfile。
+**留空则回退官方源**，海外 CI（GitHub Actions）无需改动。
+
+### ② Docker Hub 镜像加速器（需你自行配置）
+
+若 `docker build` 报 `failed to fetch oauth token ... auth.docker.io` 超时，
+说明连不上 Docker Hub 的认证服务。在 Docker Desktop 中配置：
+
+**Settings → Docker Engine**，在 JSON 里加入 `registry-mirrors`：
+
+```json
+{
+  "builder": { "gc": { "defaultKeepStorage": "20GB", "enabled": true } },
+  "experimental": false,
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+```
+
+点 **Apply & Restart** 生效。也可使用阿里云容器镜像服务分配的专属加速地址
+（控制台 → 容器镜像服务 → 镜像工具 → 镜像加速器）。
+
+> 加速器地址可能随服务商策略变动；若某个不可用，换其他地址或暂时移除即可。
 
 ---
 
@@ -30,7 +82,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 | Redis | 7 | 不需要（内存兜底） | 7 | 推荐 | 缓存 / 限流 / 验证码 / 黑名单 / WS 广播 / Celery Broker |
 | MinIO | 最新 | 不需要（本地磁盘兜底） | 必需 | 对象存储（或用兼容 S3） | 图片 / 文件 |
 | Meilisearch | v1.11+ | 不需要（DB LIKE 兜底） | 推荐 | 全文搜索 | 物品 / 用户搜索 |
-| SMTP 服务 | — | 不需要（返回 debug_code） | 必需 | 注册验证码邮件 | 邮箱验证 |
+| SMTP 服务 | — | 可选（开启回传则无需） | **必需** | 注册验证码邮件 | 邮箱验证 |
 | Gemini API Key | — | 不需要（AI 入口隐藏） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
 
 > 开发模式（SQLite + 无 Redis/MinIO/Meili）**开箱即跑**；生产环境缺 Redis/Celery 会降级，但**验证码邮件、WS 广播、搜索**等依赖外部服务的特性将不可用。
@@ -209,11 +261,17 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 - [ ] `SECRET_KEY`：≥ 32 字节随机串，且**不是** `change-me-...`
 - [ ] `ADMIN_GATEWAY_KEY`：≥ 16 位随机串，且**不是** `change-me-admin-gateway-key`
 - [ ] `ADMIN_BOOTSTRAP_PASSWORD`：≥ `ADMIN_BOOTSTRAP_MIN_LENGTH`(16) 位
-- [ ] `SMTP_*`：已填真实邮件服务（注册验证码依赖）
+- [ ] `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS`：已填真实邮件服务
+      （未配置则注册/找回密码**彻底不可用**，启动时会打 CRITICAL 日志）
+- [ ] `EXPOSE_VERIFICATION_CODE=false`：**必须为 false**。
+      设为 true 会让任何人从响应里读到 6 位验证码，等于绕过邮箱验证
 - [ ] `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`：**不是** `minioadmin`
 - [ ] `MEILI_API_KEY`：**不是** `masterKey`
-- [ ] `CORS_ORIGINS`：已改为真实前端域名
+- [ ] `CORS_ORIGINS`：已改为真实前端域名（移除 `localhost` 与 `example` 占位）
 - [ ] `DB_URL`：生产指向 PostgreSQL
+- [ ] `MEILI_ENV=production`（默认已是，确认未被改回 `development`）
+- [ ] nginx 证书：`deploy/nginx/ssl/fullchain.pem` 与 `privkey.pem` 已就位
+      （缺证书 nginx 无法启动；可先用 `NGINX_CONF=./nginx/nginx.http-only.conf` 联调）
 - [ ] `school.yaml` 的 `oauth.*.secret`：如启用第三方登录需真实值
 
 > 网关密钥与管理员密码通过**安全渠道**告知管理员，**不写入前端源码**、不入库。后端未携带有效网关令牌时 `/api/admin/*` 一律返回 404，避免被探测。
@@ -275,7 +333,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info   # 另开终�
 
 - **启动即退出（SystemExit）**：多为密钥仍为占位值，见 §4 安全清单。本地联调可设 `DEBUG=true` 绕过（仅限开发）。
 - **验证码收不到**：检查 `SMTP_*` 是否配置；未配置时接口返回 `debug_code`。
-- **搜索无结果**：确认 Meilisearch 在线，或已触发 Celery 索引同步任务（离线自动降级 SQL）。
+- **搜索无结果**：确认 Meilisearch 在线（**注意：search_sync Celery 任务当前无 .delay() 调用方，发布物品不会自动触发索引同步**；离线自动降级 SQL LIKE）。
 - **WS 连接失败**：Nginx 需透传 `Upgrade`/`Connection`；多实例依赖 Redis 广播。
 - **端口占用**：后端 8000 / 前端 5173；Windows 下 3000 被 Hyper-V 保留，已固定用 5173。
 

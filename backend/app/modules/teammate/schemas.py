@@ -11,6 +11,9 @@ class TeamCreate(BaseModel):
     title: str
     description: str = ""
     required_roles: str = ""
+    category: str = ""
+    max_members: int = 3
+    contact_info: str = ""
 
 
 class TeamUpdate(BaseModel):
@@ -24,6 +27,9 @@ class TeamOut(BaseModel):
     description: str
     required_roles: str
     status: int
+    category: str = "其他"
+    max_members: int = 3
+    contact_info: str = ""
     member_count: int = 0
 
     model_config = {"from_attributes": True}

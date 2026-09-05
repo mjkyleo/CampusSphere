@@ -12,8 +12,10 @@ from app.modules.teammate.models import Team, TeamMember
 from app.modules.teammate.schemas import TeamCreate, TeamOut
 
 
-async def list_teams(db: AsyncSession, page: int = 1, page_size: int = 20) -> dict:
+async def list_teams(db: AsyncSession, page: int = 1, page_size: int = 20, category: str = "") -> dict:
     stmt = select(Team).where(Team.status == TeamStatus.RECRUITING.value)
+    if category:
+        stmt = stmt.where(Team.category == category)
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = (await db.scalars(stmt.order_by(Team.created_at.desc()).offset((page - 1) * page_size).limit(page_size))).all()
     items = []
@@ -28,7 +30,13 @@ async def list_teams(db: AsyncSession, page: int = 1, page_size: int = 20) -> di
 
 
 async def create_team(db: AsyncSession, creator: User, data: TeamCreate) -> Team:
-    team = Team(creator_id=str(creator.id), **data.model_dump(), status=TeamStatus.RECRUITING.value)
+    # 分类收敛到后台配置列表内：前端传了已被运营下线的分类时，落到"其他"
+    # 而不是把脏值写进库里（否则筛选页会出现一个点不动的空分类）。
+    from app.modules.admin.service import normalize_category
+
+    payload = data.model_dump()
+    payload["category"] = await normalize_category(db, "teammate", payload.get("category", ""))
+    team = Team(creator_id=str(creator.id), **payload, status=TeamStatus.RECRUITING.value)
     db.add(team)
     await db.flush()
     # 创建者自动成为活跃成员
