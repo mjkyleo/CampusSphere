@@ -11,17 +11,18 @@
 | 模块 | 说明 |
 | --- | --- |
 | 账号体系 | 邮箱注册（验证码 + 域名白名单）、统一登录（邮箱 / 手机号 / 自定义账号）、邮箱 / 手机 / QQ / 微信多方式绑定、JWT 双 Token |
-| 二手市场 | 发布 / 浏览 / 详情 / 交易会话，支持发布审核策略（后台可切换）、物品描述 AI 代写 |
-| 课程中心 | 课程搜索、课程详情、学生评价与 AI 选课摘要 |
-| 食堂 | 食堂列表、档口 / 菜品浏览、评价 |
-| 兼职 | 兼职发布 / 申请、申请状态流转 |
-| 分享圈 | 动态发布、评论、互动 |
-| 队友招募 | 组队发帖 / 入队申请、队伍状态管理 |
-| 即时消息 | WebSocket 实时私信，Redis 广播，跨实例支持 |
-| 举报系统 | 多目标举报、自动封禁策略、工单升级 |
+| 二手市场 | 发布 / 浏览 / 详情 / 交易会话，**并发安全**（条件 UPDATE 原子抢占 + 活跃会话部分唯一索引 + 状态机校验），支持发布审核策略（后台可切换）、物品描述 AI 代写 |
+| 课程中心 | 课程搜索、课程详情、学生评价与 AI 选课摘要，**学部 → 院系两级筛选**（由 `school.yaml` 配置驱动） |
+| 食堂 | 食堂列表、档口 / 菜品浏览、评价，**按学部 / 餐饮区 / 类型 / 学期多维度配置化筛选**（模型扩维 + 后台 configs 端点 + seed 脚本） |
+| 兼职 | 兼职发布 / 申请、申请状态流转，**分类由后台配置驱动**（与二手/分享/组队同套四层配置模式） |
+| 分享圈 | 动态发布、评论、互动，**分类由后台配置驱动** |
+| 队友招募 | 组队发帖 / 入队申请、队伍状态管理，**分类由后台配置驱动** |
+| 即时消息 | WebSocket 实时私信，Redis 广播，跨实例支持；会话列表 **N+1 合并查询**（窗口函数），历史消息**分页上拉** |
+| 举报系统 | 多目标举报（user / item / message / share / comment）、自动封禁策略、工单升级 |
 | 管理后台 | 数据看板、举报处理、审核配置、邮箱注册规则动态覆盖 |
 | AI 助手 | 校园智能洞察、物品文案生成、课程评价摘要、帖子分类（Gemini 多模型自动兜底，无 Key 时降级为内置文案） |
 | 基础设施 | Celery 异步任务、MinIO 对象存储、Meilisearch 全文搜索、OpenTelemetry 可观测、structlog 结构化日志 |
+| 演示数据 | `backend/scripts/seed_demo_users.py` 一键灌入 10 个演示账号（`user01`~`user10` / `123456`）及全功能使用记录 |
 
 ## 技术栈
 
@@ -43,7 +44,7 @@ campusLifePlatform-py/
 │   │   ├── search/          # Meilisearch 客户端
 │   │   └── main.py          # 应用工厂（装配路由 / 中间件 / WebSocket / 生命周期）
 │   ├── alembic/             # 数据库迁移
-│   ├── scripts/             # 开发辅助脚本（fake_redis、API 文档生成等）
+│   ├── scripts/             # 开发辅助脚本（seed_demo_users、seed_canteens、fake_redis、API 文档生成等）
 │   ├── tests/               # pytest 冒烟测试
 │   ├── pyproject.toml
 │   └── .env.example
@@ -68,7 +69,7 @@ campusLifePlatform-py/
     ├── DEPLOYMENT.md        # 初次部署/启动配置清单（环境变量/配置文件/依赖服务/密钥/数据库初始化）
     ├── 项目现状分析.md
     ├── 后续开发计划.md
-    ├── API_Reference.md     # 88 个接口文档
+    ├── API_Reference.md     # 128 个接口端点文档
     └── openapi.json
 ```
 
@@ -130,6 +131,8 @@ npm run dev                                         # http://localhost:5173
 
 **页面权限分离**：前端按登录身份隔离路由——未登录只能浏览公开内容（首页 / 市场 / 课程 / 食堂 / 分享 / 兼职 / 组队列表，后端列表接口对 GET 开放）；发布、评价、消息、个人中心需普通用户登录（自动跳转 `/login`）；`/admin` 管理后台仅管理员账号可进入，普通用户 token 无法访问任何 `/api/admin/*` 接口。
 
+**演示账号**：执行 `python backend/scripts/seed_demo_users.py` 可一键灌入 10 个演示用户（`user01`~`user10`，密码统一 `123456`，昵称 测试用户一 ~ 十）以及覆盖二手 / 课程 / 食堂 / 兼职 / 分享 / 组队 / 消息 / 举报全部功能的使用记录（脚本幂等，重复执行自动跳过）。食堂与课程数据另由 `backend/scripts/seed_canteens.py`（按 `school.yaml` 的 canteen 段）灌入。
+
 > **验证码说明**：当前默认未配置 SMTP 发送服务，`POST /api/auth/send-code` 的响应会直接返回 `debug_code`，前端注册页自动填入便于联调；生产环境在 `.env` 配置 `SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS` 后，验证码仅通过邮件送达，接口不再返回明文验证码。
 
 ### 4. 滑块验证（发送验证码前的防滥用闸门）
@@ -171,19 +174,23 @@ POST /api/auth/send-code        → 携带票据才能真正发送
 | --- | --- |
 | [docs/usage.md](docs/usage.md) | 使用说明：安装步骤、配置项、功能模块使用、生产部署 |
 | [docs/development.md](docs/development.md) | 开发指南：架构设计、模块说明、API 约定、测试与贡献 |
-| [docs/API_Reference.md](docs/API_Reference.md) | 88 个接口的字段级参考 |
+| [docs/API_Reference.md](docs/API_Reference.md) | 128 个接口端点的字段级参考 |
 | [docs/部署手册.md](docs/部署手册.md) | 生产部署手册 |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | 初次部署/启动配置清单：环境变量、配置文件、依赖服务、密钥凭证、数据库初始化与前置条件 |
 | [docs/TESTING.md](docs/TESTING.md) | **测试计划**：三层测试范围与工具选型、数据工厂与环境配置、运行方式、CI 门禁、已知缺陷清单 |
 | [e2e/README.md](e2e/README.md) | 端到端测试：8 个场景清单、页面对象模式、运行与调试方式 |
 | [docs/项目现状分析.md](docs/项目现状分析.md) | 项目现状与结构分析 |
 | [docs/后续开发计划.md](docs/后续开发计划.md) | 开发路线图 |
+| [docs/配置方案_2026-09-04.md](docs/配置方案_2026-09-04.md) | 配置化改造方案（食堂 / 课程院系 / 分类四层 / 消息历史 / 并发加固），已全部落地 |
+| [docs/REFACTOR_DELIVERABLE.md](docs/REFACTOR_DELIVERABLE.md) | 后端深改交付文档（权限作用域 / 规则引擎 / 任务隔离 / 配置热更新 / WS 补发 / 可观测 + P0-P4 迭代） |
+| [docs/架构与面试备战白皮书.md](docs/架构与面试备战白皮书.md) | 项目架构设计与核心难点攻克（面试向） |
+| [docs/模块级技术白皮书与面试备战手册.md](docs/模块级技术白皮书与面试备战手册.md) | 模块级技术拆解与面试备战手册 |
 
 > 文档与代码的一致性由 `scripts/doc_sync.py` 自动比对：运行后生成 `docs/_generated/PROJECT_STATUS.md`（项目状态快照）与 `DOC_DRIFT_REPORT.md`（漂移清单），`--check` 可作 CI 卡点，`--sync-env-example` 可自动补全 `backend/.env.example` 缺失的部署配置键。
 
 ## 测试
 
-采用**单元测试 / 集成测试 / 端到端测试**三层体系，共 **295 个后端用例 + 14 个前端组件用例 + 8 个端到端场景**。
+采用**单元测试 / 集成测试 / 端到端测试**三层体系，共 **373 个后端用例 + 14 个前端组件用例 + 8 个端到端场景**。
 完整测试计划见 **[docs/TESTING.md](docs/TESTING.md)**。
 
 ```bash

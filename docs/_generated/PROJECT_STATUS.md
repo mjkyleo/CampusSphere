@@ -1,7 +1,7 @@
 <!-- 本文件由 scripts/doc_sync.py 自动生成，请勿手工编辑 -->
 # 项目状态快照（自动生成）
 
-> 生成时间：2026-08-31 04:31 UTC  ｜  来源：`scripts/doc_sync.py`
+> 生成时间：2026-09-05 09:56 UTC  ｜  来源：`scripts/doc_sync.py`
 > 本文件由代码实时抽取，反映当前仓库真实状态；如需修改内容，请改代码后重跑工具。
 
 ## 目录结构（节选）
@@ -14,6 +14,7 @@ CampusSphere/
       script.py.mako
       versions/
         0001_initial.py
+        0002_campus_config.py
     alembic.ini
     app/
       __init__.py
@@ -23,12 +24,15 @@ CampusSphere/
         enums.py
         models.py
         schemas.py
+        types.py
         utils.py
       core/
         __init__.py
         cache.py
         config.py
+        config_reload.py
         database.py
+        deps.py
         exceptions.py
         logging.py
         middleware.py
@@ -41,6 +45,7 @@ CampusSphere/
       modules/
         admin/
         ai/
+        audit/
         auth/
         canteen/
         course/
@@ -71,6 +76,8 @@ CampusSphere/
       gen_api_docs.py
       kill_celery.ps1
       list_python.ps1
+      seed_canteens.py
+      seed_demo_users.py
     tests/
       conftest.py
       factories.py
@@ -107,9 +114,16 @@ CampusSphere/
       unit/
         __init__.py
         conftest.py
+        test_captcha_thread_offload_unit.py
         test_captcha_unit.py
+        test_config_hot_reload_unit.py
+        test_item_schema_rules_unit.py
+        test_redis_fallback_unit.py
+        test_scope_deps_unit.py
         test_security_unit.py
+        test_trace_id_unit.py
         test_utils_unit.py
+        test_ws_seq_unit.py
   config/
     logging.yaml
     school.yaml
@@ -142,11 +156,18 @@ CampusSphere/
       05-optimization-progress.md
     DEPLOYMENT.md
     development.md
+    images/
+      campusphere-architecture.svg
     openapi.json
+    REFACTOR_DELIVERABLE.md
     TESTING.md
     usage.md
     后续开发计划.md
+    架构与面试备战白皮书.md
+    模块级技术白皮书与面试备战手册.md
     部署手册.md
+    配置方案_2026-09-04.md
+    配置方案总览.html
     项目现状分析.md
   e2e/
     package-lock.json
@@ -179,21 +200,22 @@ CampusSphere/
     email_verification_flask/
       email_verification_flask_example.py
   frontend/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\App.tsx/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\bun.lock/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\components/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\context/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\dev_err.txt/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\dev_log.txt/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\hooks/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\index.css/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\index.html/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\index.tsx/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\metadata.json/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\package-lock.json/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\package.json/
-    C:\Users\86132\Desktop\Phase3\Projects\CampusSphere\frontend\pages/
+    D:\Phase3\Projects\CampusSphere\frontend\App.tsx/
+    D:\Phase3\Projects\CampusSphere\frontend\bun.lock/
+    D:\Phase3\Projects\CampusSphere\frontend\components/
+    D:\Phase3\Projects\CampusSphere\frontend\context/
+    D:\Phase3\Projects\CampusSphere\frontend\dev_err.txt/
+    D:\Phase3\Projects\CampusSphere\frontend\dev_log.txt/
+    D:\Phase3\Projects\CampusSphere\frontend\hooks/
+    D:\Phase3\Projects\CampusSphere\frontend\index.css/
+    D:\Phase3\Projects\CampusSphere\frontend\index.html/
+    D:\Phase3\Projects\CampusSphere\frontend\index.tsx/
+    D:\Phase3\Projects\CampusSphere\frontend\metadata.json/
+    D:\Phase3\Projects\CampusSphere\frontend\package-lock.json/
+    D:\Phase3\Projects\CampusSphere\frontend\package.json/
+    D:\Phase3\Projects\CampusSphere\frontend\pages/
     … (+11 项)
+  rag-projects-analysis.html
   README.md
   scripts/
     check_css_classes.js
@@ -208,26 +230,27 @@ CampusSphere/
 
 | 模块 | 路由数 | router | service | schemas | 文档别名 |
 | --- | ---: | --- | --- | --- | --- |
-| `admin` | 36 | ✅ | ✅ | ✅ | 管理后台 |
+| `admin` | 47 | ✅ | ✅ | ✅ | 管理后台 |
 | `ai` | 5 | ✅ | ✅ | ✅ | AI |
+| `audit` | 2 | ✅ | ✅ | ✅ | — |
 | `auth` | 24 | ✅ | ✅ | ✅ | 认证 |
-| `canteen` | 4 | ✅ | ✅ | ✅ | 食堂 |
+| `canteen` | 5 | ✅ | ✅ | ✅ | 食堂 |
 | `course` | 5 | ✅ | ✅ | ✅ | 课程 |
 | `item` | 8 | ✅ | ✅ | ✅ | 二手 |
-| `job` | 4 | ✅ | ✅ | ✅ | 兼职 |
+| `job` | 5 | ✅ | ✅ | ✅ | 兼职 |
 | `launcher` | 3 | ✅ | — | — | 启动器 |
 | `message` | 4 | ✅ | ✅ | ✅ | 消息 |
 | `report` | 3 | ✅ | ✅ | ✅ | 举报 |
-| `share` | 3 | ✅ | ✅ | ✅ | 分享 |
+| `share` | 4 | ✅ | ✅ | ✅ | 分享 |
 | `storage` | 3 | ✅ | — | — | 对象存储 |
-| `teammate` | 4 | ✅ | ✅ | ✅ | 组队 |
+| `teammate` | 5 | ✅ | ✅ | ✅ | 组队 |
 | `user` | 4 | ✅ | ✅ | ✅ | 用户 |
 
-共 14 个业务模块。
+共 15 个业务模块。
 
 ## 前端页面
 
-共 16 个页面：`AdminDashboard`、`CanteenList`、`CanteenStall`、`CourseDetail`、`CourseReview`、`CourseSearch`、`HomePage`、`JobList`、`LoginPage`、`MarketDetail`、`MarketList`、`MarketPublish`、`MessageCenter`、`ShareFeed`、`TeammatePost`、`UserProfile`
+共 17 个页面：`AdminDashboard`、`AdminLoginPage`、`CanteenList`、`CanteenStall`、`CourseDetail`、`CourseReview`、`CourseSearch`、`HomePage`、`JobList`、`LoginPage`、`MarketDetail`、`MarketList`、`MarketPublish`、`MessageCenter`、`ShareFeed`、`TeammatePost`、`UserProfile`
 
 ## 依赖
 
@@ -275,6 +298,7 @@ CampusSphere/
 | `SMTP_PASS` | str | `""` | — |
 | `SMTP_FROM` | str | `""` | 发件人地址。留空时回退为 smtp_user（多数 SMTP 服务商要求两者一致）。 |
 | `SMTP_TIMEOUT` | int | `10` | 连接/读超时（秒）。SMTP 为同步阻塞调用，必须设上限，避免 worker 被拖死。 |
+| `EMAIL_DISPATCH_TIMEOUT` | int | `20` | 邮件任务**入队+兜底直发**的等待上限（秒）。 结果后端已禁用，broker 不可达时 delay() 约 2 秒内快速失败并降级为内联直发； 内联直发走 smtp_timeout（默认 10s）。本值需覆盖「broker 快速失败 + 内联 SMTP 发送」， 留出余量，避免正常内联发送被误判超时。 |
 | `SMTP_STARTTLS` | bool | None | `None` | True=强制 STARTTLS（587 等端口）；留为 None 时按端口推断：465 走 SSL，其余走 STARTTLS。 |
 | `CAPTCHA_ENABLED` | bool | `True` | 关闭后 /api/auth/send-code 不再要求票据（供测试与内网环境使用）。 |
 | `CAPTCHA_TOLERANCE_PX` | int | `6` | 缺口对齐容差（像素），过小会伤及真实用户体验 |
@@ -302,6 +326,10 @@ CampusSphere/
 | `COURSES` | dict[str, Any] | `{}` | — |
 | `AI` | dict[str, Any] | `{}` | — |
 | `ADMIN` | dict[str, Any] | `{}` | — |
+| `JOB` | dict[str, Any] | `{}` | 分类配置化（P1）：与 items.categories 同一套「yaml 默认 → DB 覆盖 → 公开端点下发 → 前端兜底」四层模式，消除前端写死分类。 |
+| `SHARE` | dict[str, Any] | `{}` | — |
+| `TEAMMATE` | dict[str, Any] | `{}` | — |
+| `CANTEEN` | dict[str, Any] | `{}` | 食堂维度枚举（P3）：学部 / 餐饮区 / 类型 / 学期。 |
 | `MINIO_ENDPOINT` | str | None | `None` | — |
 | `MINIO_ACCESS_KEY` | str | None | `None` | — |
 | `MINIO_SECRET_KEY` | str | None | `None` | — |
@@ -318,4 +346,4 @@ CampusSphere/
 
 ## 接口文档
 
-- API_Reference.md 抽取接口数：**88**
+- API_Reference.md 抽取接口数：**128**

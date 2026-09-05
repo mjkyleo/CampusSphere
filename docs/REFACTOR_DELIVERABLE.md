@@ -152,3 +152,58 @@ do_execute 接管改变真实执行的 SELECT 42→99 oracle）。
 ## 两个跨任务的可复用坑（已沉淀为 skill `sqlalchemy-testclient-gotchas`）
 1. SQL 注释注入必须用 `do_execute` 接管，`before_cursor_execute` 返回值无效。
 2. TestClient WS 测试必须排空发送方自身回声，否则级联 DB 死锁。
+
+---
+
+## Part 2 — P0-P4 全栈迭代交付（2026-09-05）
+
+> 在 Task 1-6 框架层重构之上，面向业务的功能迭代。提交 `1c4558b`。
+
+### P0 — 二手交易并发加固（item）
+
+- `create_trade_session` 从「先查状态再插入（check-then-act）」改为**带旧状态条件的 UPDATE 原子抢占**（`ON_SALE → RESERVED`），消除并发双买竞态；
+- 新增**部分唯一索引** `uq_trade_session_active_item`（SQLite/PostgreSQL `WHERE status IN (0,1)`）：同一物品同时最多一个"进行中"交易会话，作为并发安全的最后一道兜底；
+- 状态机补合法转移 `RESERVED → OFF_SHELF`（卖家在交易中下架的真实业务流程）。
+- 验证：`tests/test_e2e_flow.py` 全绿。
+
+### P1 — 分类四层统一（job / share / teammate）
+
+- 原二手分类已是配置驱动（`school.yaml` + 公开 GET + 管理 PUT），job / share / teammate 前端写死 → 统一为同一套"四层配置"模式：
+  - 数据源：`config/school.yaml` 的 `jobs.categories / shares.categories / teams.categories`；
+  - 公开端点：`GET /api/jobs/categories`、`/api/shares/categories`、`/api/teams/categories`；
+  - 管理端点：`GET/PUT /api/admin/{jobs,shares,teams}/categories`；
+  - 前端 JobList / ShareFeed / TeammatePost 改为动态拉取（含 mock 兜底）。
+
+### P2 — 课程院系按学部分组（course）
+
+- `school.yaml` 的 `courses.departments` 改为**按学部两级组织**（7 学部 × 38 院系，对齐武大）；
+- `GET /api/courses/departments` 返回 `{departments, groups: [{group, departments}]}`，前端 CourseSearch 实现学部 → 院系两级折叠联动；
+- alembic `0002_campus_config` 迁移（部门表结构/索引）。
+
+### P3 — 食堂配置化（canteen）
+
+- 模型扩维：`canteens` 新增 `campus / zone / canteen_type / floor / description / features(JsonList) / popular_dishes(JsonList) / opening_hours / semester` 9 个维度字段；
+- `GET /api/canteens/configs`：学部 / 餐饮区 / 类型 / 学期枚举（读 `school.yaml` canteen 段，与 seed 同源）；
+- 列表接口支持 `campus / zone / canteen_type / semester / keyword` 过滤；
+- `seed_canteens.py`：按武大实际结构灌入 13 家食堂（文理 4 / 工学 4 / 信息 3 / 医学 2，学期 2026-2027-1），幂等；
+- 前端 CanteenList 重构：学部 Tab + 类型 + 学期筛选 + 餐饮区分组；CanteenStall 展示新维度。
+
+### P4 — 消息体验优化（message）
+
+- `list_conversations` 消除 N+1：**4 条批量 SQL**（会话 JOIN 参与者 + 窗口函数取最后一条消息 + GROUP BY 未读数），会话数不再线性膨胀查询量；
+- 会话接口补充 `target_user`（对方昵称 / 头像），修复举报弹窗「与 undefined 的会话」（前端模板同步兜底）；
+- 前端 MessageCenter 历史消息**分页上拉加载**（滚动定位保护，prepend 不跳底）。
+
+### 配套 — 演示数据
+
+- `seed_demo_users.py`：一键灌入 `user01`~`user10`（密码 `123456`）及覆盖二手 / 课程 / 食堂 / 兼职 / 分享 / 组队 / 消息 / 举报全功能使用记录；幂等，可重复执行。
+
+### Part 2 验证总览
+
+| 范围 | 结果 |
+|------|------|
+| 后端全套 `pytest tests` | **373 passed**（较基线 371 + 2），零回归 |
+| 前端 `tsc --noEmit` | 0 错误 |
+| 前端 `vitest run` | 14 passed |
+| 前端 `vite build` + server.cjs | 构建成功 |
+| 浏览器实测 | 食堂学部 Tab/筛选、课程学部联动、四类动态分类、消息路由守卫全部生效 |

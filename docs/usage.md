@@ -187,7 +187,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 ## 7. API 与接口文档
 
 - **在线文档**：启动后端后访问 <http://localhost:8000/docs>（Swagger UI）；
-- **离线参考**：[docs/API_Reference.md](API_Reference.md)（88 个接口字段级说明）；机器可读：`docs/openapi.json`；
+- **离线参考**：[docs/API_Reference.md](API_Reference.md)（128 个接口端点字段级说明）；机器可读：`docs/openapi.json`；
 - **健康检查**：`GET /api/health`（前端层）/ `GET /health`（后端）/ `GET /metrics`（指标）。
 
 **接口约定**：业务错误统一返回 **HTTP 200**，错误码在响应体 `code` 字段：

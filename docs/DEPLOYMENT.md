@@ -333,7 +333,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info   # 另开终�
 
 - **启动即退出（SystemExit）**：多为密钥仍为占位值，见 §4 安全清单。本地联调可设 `DEBUG=true` 绕过（仅限开发）。
 - **验证码收不到**：检查 `SMTP_*` 是否配置；未配置时接口返回 `debug_code`。
-- **搜索无结果**：确认 Meilisearch 在线，或已触发 Celery 索引同步任务（离线自动降级 SQL）。
+- **搜索无结果**：确认 Meilisearch 在线（**注意：search_sync Celery 任务当前无 .delay() 调用方，发布物品不会自动触发索引同步**；离线自动降级 SQL LIKE）。
 - **WS 连接失败**：Nginx 需透传 `Upgrade`/`Connection`；多实例依赖 Redis 广播。
 - **端口占用**：后端 8000 / 前端 5173；Windows 下 3000 被 Hyper-V 保留，已固定用 5173。
 

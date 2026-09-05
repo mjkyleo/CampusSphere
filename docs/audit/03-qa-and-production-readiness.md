@@ -10,7 +10,7 @@
 | 维度 | 评分(0-5) | 结论 |
 |---|---|---|
 | 配置管理与环境变量隔离 | 2 | 多源配置清晰，但占位弱密钥被 compose 直接引用、无 staging、debug_code 泄露风险 |
-| 日志与监控体系 | 2 | structlog JSON 良好；`/metrics` 可用；**OTel 仅 Console 导出，追踪形同虚设**；无告警规则 |
+| 日志与监控体系 | 2 | structlog JSON 良好；`/metrics` 端点存在但 **Counter/Histogram 实例从未被 .inc()/.observe()**（grep 0 hits，2026-09-05 实测）；**OTel 仅 Console 导出，追踪形同虚设**；告警规则已定义但因埋点缺失不会触发 |
 | 错误处理与异常恢复 | 3 | 统一 BizError + 黑名单 + Celery 重试完善；但多处静默吞异常、外部依赖降级无统一可观测 |
 | 安全性加固 | 2 | 鉴权/IDOR/密码哈希扎实；**默认 SECRET_KEY、占位网关/MinIO/Meili 密钥、无 HTTPS、无 WAF/限流纵深** |
 | 性能瓶颈与可扩展性 | 2 | **0 处 selectinload（N+1 风险）、MinIO 同步阻塞事件循环**；无连接池调优、无缓存层 |

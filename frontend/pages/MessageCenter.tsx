@@ -364,7 +364,7 @@ const MessageCenter: React.FC = () => {
                       openReport(
                         'message',
                         activeConversation.id,
-                        `与 ${activeConversation.target_user?.nickname} 的会话`
+                        `与 ${activeConversation.target_user?.nickname || '对方'} 的会话`
                       )
                     }
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50 transition-colors"

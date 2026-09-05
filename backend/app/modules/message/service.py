@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.utils import PageResult
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
+from app.modules.auth.models import User
 from app.modules.message.models import Conversation, Message, Participant
 
 _logger = get_logger("message.service")
@@ -105,6 +106,29 @@ async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
     ).all()
     unread_by_conv = {str(cid): int(cnt) for cid, cnt in unread_rows}
 
+    # 批量取会话对方的用户信息（昵称/头像），一次 JOIN 避免按会话逐个查（N+1）
+    target_user_by_conv: dict[str, dict] = {}
+    peer_ids = [
+        next((p.user_id for p in parts_by_conv.get(str(c.id), []) if p.user_id != user_id), None)
+        for c in convs
+    ]
+    real_ids = [tid for tid in peer_ids if tid]
+    if real_ids:
+        users = (
+            await db.scalars(
+                select(User).where(User.id.in_(real_ids), User.deleted_at.is_(None))
+            )
+        ).all()
+        user_by_id = {u.id: u for u in users}
+        for c, tid in zip(convs, peer_ids):
+            u = user_by_id.get(tid) if tid else None
+            if u:
+                target_user_by_conv[str(c.id)] = {
+                    "id": u.id,
+                    "nickname": u.nickname or "校园用户",
+                    "avatar": u.avatar,
+                }
+
     result = []
     for c in convs:
         cid = str(c.id)
@@ -121,6 +145,7 @@ async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
                 for p in participants
             ],
             "last_message": MessageOut_wrap(msg_by_conv.get(cid)),
+            "target_user": target_user_by_conv.get(cid),
             "unread_count": unread_by_conv.get(cid, 0),
         })
     return result

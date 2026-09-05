@@ -56,7 +56,7 @@ backend/
     │   ├── test_messaging/   # WebSocket 消息
     │   ├── test_admin/       # 管理后台治理
     │   └── test_external/    # 邮件 / AI / 存储 / 搜索索引（mock 或降级）
-    └── test_*.py             # 既有回归用例（113 个）
+    └── test_*.py             # 既有回归用例（`pytest --collect-only` 实测 116 个用例 / 117 个 `test_` 函数；2026-09-05 修正：旧版文档"113 个"已过时）
 
 frontend/
 ├── vitest.config.ts          # jsdom + 覆盖率配置
@@ -218,7 +218,7 @@ Playwright 会通过 `webServer` **自动拉起**后端（uvicorn:8000）与前�
 
 | 端 | 用例数 | 语句覆盖 | 说明 |
 |---|---|---|---|
-| 后端 | 295（单元 77 + 集成 105 + 既有 113） | **70%**（4148 语句 / 1235 未覆盖） | 硬门禁 `--fail-under=70` |
+| 后端 | **373**（单元 + 集成 + 既有回归，2026-09-05 实测全绿） | **70%**（4148 语句 / 1235 未覆盖） | 硬门禁 `--fail-under=70` |
 | 前端 | 14 | 整体 **2.37%**；其中 `components/` **44.5%** | 仅上报，暂无硬门禁 |
 
 **为什么后端门槛是 70% 而不是 80%**
@@ -275,7 +275,7 @@ Playwright 会通过 `webServer` **自动拉起**后端（uvicorn:8000）与前�
 
 ### 8.1 aiosqlite 原生崩溃（Windows，偶发）
 
-把**全部 295 个用例放进同一个 pytest 进程**时，偶发
+把**全部 373 个用例放进同一个 pytest 进程**时，偶发
 `Fatal Python error: Aborted`，崩溃点在 `aiosqlite` 的后台连接工作线程，
 表现为进程直接退出、没有任何失败用例。
 

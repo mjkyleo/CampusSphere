@@ -33,6 +33,7 @@ class ConversationOut(BaseModel):
     participants: list[ParticipantOut] = []
     last_message: MessageOut | None = None
     unread_count: int = 0
+    target_user: dict | None = None
 
     model_config = {"from_attributes": True}
 
