@@ -24,15 +24,29 @@ from app.modules.canteen.schemas import (
 )
 
 
-async def list_canteens(db: AsyncSession) -> list:
+async def list_canteens(
+    db: AsyncSession,
+    *,
+    campus: str = "",
+    zone: str = "",
+    canteen_type: str = "",
+    semester: str = "",
+    keyword: str = "",
+) -> list:
     # N+1 修复：CanteenOut 嵌套 stalls->dishes，一次性 selectinload 加载，避免逐层再查
-    rows = (
-        await db.scalars(
-            select(Canteen)
-            .options(selectinload(Canteen.stalls).selectinload(Stall.dishes))
-            .order_by(Canteen.created_at.desc())
-        )
-    ).all()
+    stmt = select(Canteen).options(selectinload(Canteen.stalls).selectinload(Stall.dishes))
+    if campus:
+        stmt = stmt.where(Canteen.campus == campus)
+    if zone:
+        stmt = stmt.where(Canteen.zone == zone)
+    if canteen_type:
+        stmt = stmt.where(Canteen.canteen_type == canteen_type)
+    if semester:
+        # 学期为空表示"长期开放"，应与指定学期同时存在（OR 语义）
+        stmt = stmt.where((Canteen.semester == semester) | (Canteen.semester == ""))
+    if keyword:
+        stmt = stmt.where(Canteen.name.ilike(f"%{keyword}%"))
+    rows = (await db.scalars(stmt.order_by(Canteen.created_at.desc()))).all()
     return [CanteenOut.model_validate(c).model_dump() for c in rows]
 
 
@@ -59,9 +73,9 @@ async def get_canteen(db: AsyncSession, canteen_id: str) -> Canteen:
 
 async def update_canteen(db: AsyncSession, canteen_id: str, data: CanteenCreate) -> Canteen:
     c = await get_canteen(db, canteen_id)
-    c.name = data.name
-    c.location = data.location
-    c.image = data.image
+    payload = data.model_dump()
+    for field, value in payload.items():
+        setattr(c, field, value)
     await db.commit()
     await db.refresh(c)
     return c

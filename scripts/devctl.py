@@ -14,19 +14,31 @@ down     停止服务，优雅终止优先，超时强杀，并校验端口已�
 status   查看各服务监听状态与 PID
 restart  等价于 down + up
 
+幂等行为（up）
+--------------
+- 服务已在运行且健康：跳过启动并打印 PID；若是先前会话遗留、未被本脚本
+  管理的进程，会把其 PID 采纳进 .run/<name>.pid，便于后续 down/status 接管。
+- 端口被占但健康检查不通过：视为残留进程，需 ``--force`` 清理后才重启。
+- 因此重复执行 up / 忘记已启动时不会重复拉起进程或报错。
+
 常用参数
 --------
 --backend-only / --frontend-only   只操作其中一个服务
 --mode local|docker                local 直起进程（默认）；docker 走 compose
 --no-wait                          up 时不等待健康检查
 --wait-timeout N                   健康检查最长等待秒数（默认 90）
---force                            up 前自动清理占用端口的残留进程；down 时直接强杀
+--foreground                       前台驻留（类似 compose up）：任一子进程退出即结束，
+                                   配合 Ctrl+C 或另开终端执行 down 停止。适合在进程
+                                   会被回收的托管环境（如沙箱/CI 后台任务）使用。
+--force                            up：清理端口上健康检查未通过的残留进程后重启；
+                                   down：直接强杀
 --purge-logs                       down 时一并删除本次运行日志
 
 示例
 ----
 python scripts/devctl.py up
 python scripts/devctl.py up --backend-only --wait-timeout 120
+python scripts/devctl.py up --foreground      # 前台驻留（沙箱内请用后台任务托管）
 python scripts/devctl.py down --force
 python scripts/devctl.py status
 """
@@ -443,54 +455,115 @@ def cmd_up(args: argparse.Namespace) -> int:
     if args.mode == "docker":
         return _docker_up(args)
 
+    # 幂等启动：已运行且健康的服务直接跳过（含“先前会话遗留但未被本脚本管理”的进程，
+    # 会顺手把其 PID 采纳进 pid 文件，后续 down/status 可统一管理）；
+    # 端口被占但健康检查不通过 → 视为残留进程，清理后重启。
+    to_start: list[Service] = []
     for svc in targets:
+        if not _port_in_use(svc.port):
+            to_start.append(svc)
+            continue
+        healthy, detail = svc.check_health()
+        if healthy:
+            _skip_running(svc, detail)
+            continue
+        holders = sorted(_pids_on_port(svc.port))
+        if not args.force:
+            _fail(
+                f"端口 {svc.port} 被占用（PID {holders or '未知'}）且健康检查未通过"
+                f"（{detail}）。请先执行 down，或使用 --force 清理残留后重启。"
+            )
+            return 1
+        _warn(
+            f"端口 {svc.port} 被占用（PID {holders}）但健康检查未通过（{detail}），"
+            f"--force 清理残留进程后重启"
+        )
+        for stray in holders:
+            _terminate(stray, args.graceful_timeout, force=True)
+        deadline = time.time() + args.graceful_timeout
+        while time.time() < deadline and _port_in_use(svc.port):
+            time.sleep(0.3)
         if _port_in_use(svc.port):
-            holders = _pids_on_port(svc.port)
-            if not args.force:
-                _fail(
-                    f"端口 {svc.port} 已被占用（PID {sorted(holders) or '未知'}）。"
-                    f"请先执行 down，或使用 --force 自动清理。"
-                )
-                return 1
-            _warn(f"端口 {svc.port} 被占用，--force 自动清理（PID {sorted(holders)}）")
-            for stray in holders:
-                _terminate(stray, args.graceful_timeout, force=True)
-            deadline = time.time() + args.graceful_timeout
-            while time.time() < deadline and _port_in_use(svc.port):
-                time.sleep(0.3)
-            if _port_in_use(svc.port):
-                _fail(f"端口 {svc.port} 清理失败，放弃启动")
-                return 1
+            _fail(f"端口 {svc.port} 清理失败，放弃启动")
+            return 1
+        to_start.append(svc)
 
-    for svc in targets:
+    if not to_start:
+        _log("所有目标服务均已在运行，无需重复启动")
+        return 0
+
+    for svc in to_start:
         if _spawn(svc) is None:
-            # 启动失败时回滚已拉起的服务，避免半成品状态残留
-            for started in targets[: targets.index(svc)]:
+            # 启动失败时回滚本次新拉起的服务，避免半成品状态残留
+            for started in to_start[: to_start.index(svc)]:
                 _stop_service(started, args.graceful_timeout, force=True)
             return 1
 
     if args.no_wait:
         _log("--no-wait：跳过健康检查")
-        return 0
-
-    failed = False
-    for svc in targets:
-        healthy, detail = _wait_healthy(svc, args.wait_timeout)
-        if healthy:
-            _ok(f"{svc.name} 健康检查通过（{detail}）")
-        else:
-            _fail(f"{svc.name} 在 {args.wait_timeout}s 内未通过健康检查：{detail}")
-            _fail(f"请查看日志：{svc.log_file}")
-            failed = True
-
-    if failed:
-        _log("健康检查未通过，回滚本次启动的所有服务")
+    else:
+        failed = False
         for svc in targets:
-            _stop_service(svc, args.graceful_timeout, force=True)
-        return 1
+            healthy, detail = _wait_healthy(svc, args.wait_timeout)
+            if healthy:
+                _ok(f"{svc.name} 健康检查通过（{detail}）")
+            else:
+                _fail(f"{svc.name} 在 {args.wait_timeout}s 内未通过健康检查：{detail}")
+                _fail(f"请查看日志：{svc.log_file}")
+                failed = True
+
+        if failed:
+            _log("健康检查未通过，回滚本次启动的服务")
+            for svc in to_start:
+                _stop_service(svc, args.graceful_timeout, force=True)
+            return 1
 
     _print_ready(targets)
+
+    if args.foreground:
+        return _supervise(args, targets)
     return 0
+
+
+def _skip_running(service: Service, detail: str) -> None:
+    """服务端口已被健康进程占用时的幂等处理：优先采纳 PID 以便统一管理。"""
+    recorded = _read_pid(service)
+    owner = next((p for p in _pids_on_port(service.port) if p != os.getpid()), None)
+    if recorded and _pid_alive(recorded):
+        _ok(f"{service.name} 已在运行（PID={recorded}），健康检查通过（{detail}），跳过启动")
+    elif owner:
+        # 先前实例不在本脚本 PID 文件内：写入 PID，让 down/status 能接管
+        service.pid_file.write_text(str(owner), encoding="utf-8")
+        _ok(
+            f"{service.name} 已在运行（PID={owner}，先前实例），已记录 PID，"
+            f"跳过启动（{detail}）"
+        )
+    else:
+        _ok(f"{service.name} 已在运行，健康检查通过（{detail}），跳过启动")
+
+
+def _supervise(args: argparse.Namespace, targets: list[Service]) -> int:
+    """前台驻留：任一子进程退出即结束，返回其退出码对应状态。
+
+    供真实终端（Ctrl+C 停止）与本沙箱环境（后台任务托管，避免子进程被回收）使用。
+    另开终端执行 ``devctl down`` 也可停止全部服务并让本驻留自然退出。
+    """
+    _log("前台驻留模式：按 Ctrl+C 停止，或另开终端执行 devctl down")
+    _log(f"运行日志目录：{LOG_DIR}")
+    try:
+        while True:
+            for svc in targets:
+                pid = _read_pid(svc)
+                if not (pid and _pid_alive(pid)):
+                    _warn(
+                        f"{svc.name} 进程已退出（PID={pid}），驻留结束。"
+                        f"日志：{svc.log_file}"
+                    )
+                    return 1
+            time.sleep(2)
+    except KeyboardInterrupt:
+        _log("收到 Ctrl+C，正在停止服务...")
+        return cmd_down(args)
 
 
 def cmd_down(args: argparse.Namespace) -> int:
@@ -648,7 +721,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_up.add_argument("--no-wait", action="store_true", help="不等待健康检查")
     p_up.add_argument("--wait-timeout", type=float, default=90.0,
                       help="健康检查最长等待秒数（默认 90）")
-    p_up.add_argument("--force", action="store_true", help="自动清理占用端口的残留进程")
+    p_up.add_argument("--force", action="store_true",
+                      help="清理端口上健康检查未通过的残留进程后重启")
+    p_up.add_argument("--foreground", action="store_true",
+                      help="前台驻留：任一子进程退出即结束（配合 Ctrl+C 或另开终端 down）")
     _common(p_up)
     p_up.set_defaults(func=cmd_up)
 
@@ -666,7 +742,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_restart.add_argument("--no-wait", action="store_true", help="不等待健康检查")
     p_restart.add_argument("--wait-timeout", type=float, default=90.0,
                            help="健康检查最长等待秒数（默认 90）")
-    p_restart.add_argument("--force", action="store_true", help="强杀并按端口清理残留")
+    p_restart.add_argument("--force", action="store_true",
+                           help="清理端口上健康检查未通过的残留进程后重启")
+    p_restart.add_argument("--foreground", action="store_true",
+                           help="前台驻留：任一子进程退出即结束（配合 Ctrl+C 或另开终端 down）")
     p_restart.add_argument("--purge-logs", action="store_true", help="同时删除运行日志")
     _common(p_restart)
     p_restart.set_defaults(func=cmd_restart)

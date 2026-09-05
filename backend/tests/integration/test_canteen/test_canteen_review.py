@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import pytest
-
 from factories import CanteenFactory, CanteenReviewFactory, DishFactory, StallFactory
 from helpers import auth_header, register_login
 

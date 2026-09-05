@@ -4,14 +4,14 @@ import {
   TradeSessionOut, TradeStatus,
   ConversationOut, MessageOut, MessageType,
   CourseOut, CourseCreate, CourseReviewOut,
-  CanteenOut, StallOut, DishOut, CanteenReviewOut,
+  CanteenOut, StallOut, DishOut, CanteenReviewOut, CanteenConfig,
   JobOut, JobCreate, JobApplicationOut, ApplicationStatus, JobStatus,
   ShareOut, ShareCreate, ShareCommentOut,
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
   ReportOut, ReportTargetType, ReportStatus,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
   AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
-  SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig
+  SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig, GeetestValidate
 } from '../types.ts';
 
 // Storage keys
@@ -632,10 +632,18 @@ type RefreshResult =
  * Guarded against repeated calls and the login page itself.
  */
 function redirectToLogin(admin = false, reason?: string): void {
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+  // 管理员登录独立地址 /admin/login；已在该页或普通登录页时不重复跳转
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname !== '/login' &&
+    window.location.pathname !== '/admin/login'
+  ) {
+    if (admin) {
+      window.location.href = '/admin/login';
+      return;
+    }
     const params: string[] = [];
-    if (admin) params.push('admin=1');
-    else if (reason) params.push(`reason=${encodeURIComponent(reason)}`);
+    if (reason) params.push(`reason=${encodeURIComponent(reason)}`);
     window.location.href = `/login${params.length > 0 ? `?${params.join('&')}` : ''}`;
   }
 }
@@ -859,6 +867,58 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
       items = items.filter((i: ItemOut) => i.title.includes(keyword) || i.description.includes(keyword));
     }
     return { code: 0, message: 'ok', data: { total: items.length, items } as any };
+  }
+
+  // Items: Categories (mock 兜底，与 FALLBACK_CATEGORIES 对齐)
+  if (path === '/api/items/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['电子数码', '日常用品', '书籍教材', '运动装备', '宿舍好物', '衣帽鞋包', '票券卡券', '其他'] } as any };
+  }
+
+  // Jobs: Categories (mock 兜底)
+  if (path === '/api/jobs/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['助教/助管', '家教辅导', '校园代理', '技术开发', '设计剪辑', '活动执行', '文案编辑', '其他'] } as any };
+  }
+
+  // Shares: Categories (mock 兜底)
+  if (path === '/api/shares/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['期末复习题', '考研考证', '课件PPT', '实验报告模版', '竞赛真题', '开源代码', '其他'] } as any };
+  }
+
+  // Teammates: Categories (mock 兜底)
+  if (path === '/api/teams/categories' && method === 'GET') {
+    return { code: 0, message: 'ok', data: { categories: ['学术竞赛', '考研考公', '运动健身', '游戏开黑', '旅行逛街', '期末自习', '其他'] } as any };
+  }
+
+  // Canteens: Configs (mock 兜底，含学部/餐饮区/类型/学期)
+  if (path === '/api/canteens/configs' && method === 'GET') {
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        campuses: ['文理学部', '工学部', '信息学部', '医学部'],
+        zones: {
+          文理学部: ['梅园', '桂园', '枫园'],
+          工学部: ['湖滨', '工学部', '田园'],
+          信息学部: ['信息学部', '星园'],
+          医学部: ['医学部'],
+        },
+        types: ['学生大伙食堂', '风味食堂', '教工食堂'],
+        semesters: ['2026-2027-1', '2026-2027-2'],
+        current_semester: '2026-2027-1',
+      } as any,
+    };
+  }
+
+  // Courses: Departments (mock 兜底，含学部分组)
+  if (path === '/api/courses/departments' && method === 'GET') {
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        departments: ['计算机学院', '软件学院', '数学科学学院', '经济管理学院', '外国语学院', '通识教育中心'],
+        groups: [],
+      } as any,
+    };
   }
 
   // Items: Get detail
@@ -1158,6 +1218,13 @@ export const api = {
         body: JSON.stringify({ token, offset_x: offsetX, track, elapsed_ms: elapsedMs }),
       }),
 
+    // 极验行为验证：前端拿到验证结果后交服务端做二次校验换票据
+    captchaGeetestVerify: (validate: GeetestValidate) =>
+      request<SliderVerifyResult>('/api/auth/captcha/geetest/verify', {
+        method: 'POST',
+        body: JSON.stringify(validate),
+      }),
+
     emailConfig: () =>
       request<EmailRegisterConfig>('/api/auth/email-config'),
     
@@ -1220,6 +1287,34 @@ export const api = {
     categories: () => request<{ categories: string[] }>('/api/items/categories')
   },
 
+  // Jobs (兼职)
+  jobs: {
+    list: (
+      params?: string | { keyword?: string; category?: string; page?: number; page_size?: number },
+      status?: number,
+      page = 1,
+      page_size = 20
+    ) => {
+      const q = new URLSearchParams();
+      if (typeof params === 'string') {
+        if (params) q.set('keyword', params);
+        if (status !== undefined) q.set('status', status.toString());
+        q.set('page', page.toString());
+        q.set('page_size', page_size.toString());
+      } else if (params && typeof params === 'object') {
+        if (params.keyword) q.set('keyword', params.keyword);
+        if (params.category) q.set('category', params.category);
+        if (params.page) q.set('page', params.page.toString());
+        if (params.page_size) q.set('page_size', params.page_size.toString());
+      }
+      return request<{ total: number; items: JobOut[] }>(`/api/jobs?${q.toString()}`);
+    },
+    create: (data: JobCreate) => request<JobOut>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
+    apply: (jobId: string, note?: string) => request<JobApplicationOut>(`/api/jobs/${jobId}/apply`, { method: 'POST', body: JSON.stringify({ note }) }),
+    applications: (jobId: string) => request<JobApplicationOut[]>(`/api/jobs/${jobId}/applications`),
+    categories: () => request<{ categories: string[] }>('/api/jobs/categories')
+  },
+
   // Messages (会话与实时消息)
   messages: {
     conversations: () => request<ConversationOut[]>('/api/messages/conversations'),
@@ -1260,7 +1355,7 @@ export const api = {
       return res as unknown as ApiResponse<CourseOut & { reviews: CourseReviewOut[] }>;
     },
     create: (data: CourseCreate) => request<CourseOut>('/api/courses', { method: 'POST', body: JSON.stringify(data) }),
-    departments: () => request<{ departments: string[] }>('/api/courses/departments'),
+    departments: () => request<{ departments: string[]; groups: { group: string; departments: string[] }[] }>('/api/courses/departments'),
     getReviews: async (courseId: string) => {
       // Backend has no dedicated reviews list endpoint; reviews come from the detail endpoint
       const res = await request<{ course: CourseOut; reviews: CourseReviewOut[] }>(`/api/courses/${courseId}`);
@@ -1287,7 +1382,16 @@ export const api = {
 
   // Canteens (食堂与菜品)
   canteens: {
-    list: () => request<CanteenOut[]>('/api/canteens'),
+    list: (params?: { campus?: string; zone?: string; canteen_type?: string; semester?: string; keyword?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.campus) q.set('campus', params.campus);
+      if (params?.zone) q.set('zone', params.zone);
+      if (params?.canteen_type) q.set('canteen_type', params.canteen_type);
+      if (params?.semester) q.set('semester', params.semester);
+      if (params?.keyword) q.set('keyword', params.keyword);
+      return request<CanteenOut[]>(`/api/canteens?${q.toString()}`);
+    },
+    configs: () => request<CanteenConfig>('/api/canteens/configs'),
     get: (id: string) => request<CanteenOut>(`/api/canteens/${id}`),
     getDish: (dishId: string) => request<DishOut>(`/api/canteens/dishes/${dishId}`),
     getReviews: (canteenId: string, stallId?: string) =>
@@ -1298,32 +1402,7 @@ export const api = {
       request<CanteenReviewOut>(`/api/canteens/dishes/${dishId}/reviews`, { method: 'POST', body: JSON.stringify({ rating, content }) })
   },
 
-  // Jobs (兼职)
-  jobs: {
-    list: (
-      params?: string | { keyword?: string; category?: string; page?: number; page_size?: number },
-      status?: number,
-      page = 1,
-      page_size = 20
-    ) => {
-      const q = new URLSearchParams();
-      if (typeof params === 'string') {
-        if (params) q.set('keyword', params);
-        if (status !== undefined) q.set('status', status.toString());
-        q.set('page', page.toString());
-        q.set('page_size', page_size.toString());
-      } else if (params && typeof params === 'object') {
-        if (params.keyword) q.set('keyword', params.keyword);
-        if (params.category) q.set('category', params.category);
-        if (params.page) q.set('page', params.page.toString());
-        if (params.page_size) q.set('page_size', params.page_size.toString());
-      }
-      return request<{ total: number; items: JobOut[] }>(`/api/jobs?${q.toString()}`);
-    },
-    create: (data: JobCreate) => request<JobOut>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
-    apply: (jobId: string, note?: string) => request<JobApplicationOut>(`/api/jobs/${jobId}/apply`, { method: 'POST', body: JSON.stringify({ note }) }),
-    applications: (jobId: string) => request<JobApplicationOut[]>(`/api/jobs/${jobId}/applications`)
-  },
+  // Jobs block defined earlier (api.jobs)
 
   // Share (资源共享)
   shares: {
@@ -1366,12 +1445,22 @@ export const api = {
     getComments: (id: string) =>
       request<{ total: number; items: ShareCommentOut[] }>(`/api/shares/${id}/comments`),
     addComment: (id: string, content: string) =>
-      request<ShareCommentOut>(`/api/shares/${id}/comments`, { method: 'POST', body: JSON.stringify({ content }) })
+      request<ShareCommentOut>(`/api/shares/${id}/comments`, { method: 'POST', body: JSON.stringify({ content }) }),
+    categories: () => request<{ categories: string[] }>('/api/shares/categories')
   },
 
   // Teammates (组队搭子)
   teammates: {
-    list: (page = 1, page_size = 20) => request<{ total: number; items: TeamOut[] }>(`/api/teams?page=${page}&page_size=${page_size}`),
+    list: (params?: { category?: string; page?: number; page_size?: number }) =>
+      request<{ total: number; items: TeamOut[] }>(
+        (() => {
+          const q = new URLSearchParams();
+          if (params?.category) q.set('category', params.category);
+          if (params?.page) q.set('page', params.page.toString());
+          if (params?.page_size) q.set('page_size', params.page_size.toString());
+          return `/api/teams?${q.toString()}`;
+        })()
+      ),
     get: async (id: string) => {
       // Backend returns { team: TeamOut, members: TeamMemberOut[] }
       // Flatten to match frontend expectation (team fields + members array)
@@ -1394,7 +1483,8 @@ export const api = {
         saveMockDB(db);
       }
       return Promise.resolve({ code: 0, message: '已关闭招募', data: null });
-    }
+    },
+    categories: () => request<{ categories: string[] }>('/api/teams/categories')
   },
 
   // Reports (举报投诉)
@@ -1433,21 +1523,29 @@ export const api = {
     dashboard: () => request<any>('/api/admin/dashboard'),
     getOverview: () => api.admin.dashboard(),
     getReports: (status?: number) => api.admin.reports(status),
-    getLogs: () => {
-      // No dedicated audit-log endpoint in backend; keep mock for now
-      return Promise.resolve({
-        code: 0,
-        message: 'ok',
-        data: {
-          total: 3,
-          items: [
-            { id: 'log-1', admin_username: 'superadmin', action: '下架违规商品', target_type: 'item', target_id: 'itm-99', details: '虚假宣传已做下架处理', created_at: '2025-02-24 11:30' },
-            { id: 'log-2', admin_username: 'moderator_01', action: '封禁违规账号', target_type: 'user', target_id: 'usr-999', details: '批量发送垃圾兼职信息', created_at: '2025-02-24 10:15' },
-            { id: 'log-3', admin_username: 'superadmin', action: '审核通过课程评价', target_type: 'course_review', target_id: 'crev-12', details: '内容符合社区规范', created_at: '2025-02-23 18:20' }
-          ]
-        }
-      });
+    // 审计日志：真实后端接口（记录登录/注册/发送验证码/管理员操作等全量动作）
+    getLogs: (params: {
+      action?: string;
+      actor_type?: string;
+      result?: string;
+      keyword?: string;
+      limit?: number;
+      offset?: number;
+    } = {}) => {
+      const q = new URLSearchParams();
+      if (params.action) q.set('action', params.action);
+      if (params.actor_type) q.set('actor_type', params.actor_type);
+      if (params.result) q.set('result', params.result);
+      if (params.keyword) q.set('keyword', params.keyword);
+      if (params.limit) q.set('limit', String(params.limit));
+      if (params.offset) q.set('offset', String(params.offset));
+      const qs = q.toString();
+      return request<{ total: number; items: any[]; limit: number; offset: number }>(
+        `/api/admin/audit-logs${qs ? `?${qs}` : ''}`
+      );
     },
+    getAuditActions: () =>
+      request<{ value: string; label: string }[]>('/api/admin/audit-logs/actions'),
     getUsers: (page = 1, page_size = 20) => api.admin.users(page, page_size),
     handleReport: (reportId: string, data: { status: number; action: any; feedback: string }) =>
       api.reports.handle(reportId, data.action, data.feedback),

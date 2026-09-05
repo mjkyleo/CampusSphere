@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
-from app.modules.message.models import Message
-
 from helpers import auth_header, register_login, run_async
+
+from app.modules.message.models import Message
 
 
 def test_conversation_unread_and_read(client, session_factory):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
@@ -83,10 +84,13 @@ class PageResult(Generic[T]):
 
 
 def generate_code(length: int = 6) -> str:
-    """生成数字验证码。"""
-    import random
+    """生成数字验证码。
 
-    return "".join(random.choice("0123456789") for _ in range(length))
+    必须用 ``secrets``（密码学安全随机源）：全局 ``random`` 的 Mersenne
+    Twister 状态可被推断，攻击者拿到若干验证码后可预测后续码，
+    6 位码的组合空间本就只有 100 万，经不起再打折。
+    """
+    return "".join(secrets.choice("0123456789") for _ in range(length))
 
 
 def safe_int(value: Any, default: int = 0) -> int:

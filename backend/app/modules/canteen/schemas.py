@@ -11,6 +11,15 @@ class CanteenCreate(BaseModel):
     name: str
     location: str = ""
     image: str = ""
+    campus: str = ""
+    zone: str = ""
+    canteen_type: str = ""
+    floor: str = ""
+    description: str = ""
+    features: list[str] = []
+    popular_dishes: list[str] = []
+    opening_hours: str = ""
+    semester: str = ""
 
 
 class StallCreate(BaseModel):
@@ -56,6 +65,15 @@ class CanteenOut(BaseModel):
     name: str
     location: str
     image: str
+    campus: str = ""
+    zone: str = ""
+    canteen_type: str = ""
+    floor: str = ""
+    description: str = ""
+    features: list[str] = []
+    popular_dishes: list[str] = []
+    opening_hours: str = ""
+    semester: str = ""
     stalls: list[StallOut] = []
 
     model_config = {"from_attributes": True}

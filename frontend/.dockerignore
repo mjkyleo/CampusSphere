@@ -1,0 +1,34 @@
+# 前端构建上下文排除清单
+
+# ---- 凭据与本地配置 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- 依赖与构建产物 ----
+# 依赖在容器内用 npm ci 安装；把宿主机的 node_modules 传进上下文
+# 既无意义（体积巨大）也可能混入与容器平台不符的原生二进制
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# ---- 测试与覆盖率 ----
+__tests__/
+coverage/
+playwright-report/
+test-results/
+
+# ---- 缓存与开发工具 ----
+.cache/
+.vite/
+.turbo/
+.eslintcache
+*.local
+.idea/
+.vscode/
+.DS_Store
+npm-debug.log*
+yarn-error.log*

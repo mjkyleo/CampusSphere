@@ -25,7 +25,12 @@ async def list_shares(db: AsyncSession, category: str = "", page: int = 1, page_
 
 
 async def create_share(db: AsyncSession, owner: User, data: ShareCreate) -> ShareResource:
-    sr = ShareResource(owner_id=str(owner.id), **data.model_dump())
+    # 分类收敛到后台配置列表内（见 job.service.create_job 同名说明）
+    from app.modules.admin.service import normalize_category
+
+    payload = data.model_dump()
+    payload["category"] = await normalize_category(db, "share", payload.get("category", ""))
+    sr = ShareResource(owner_id=str(owner.id), **payload)
     db.add(sr)
     await db.commit()
     await db.refresh(sr)

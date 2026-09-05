@@ -5,21 +5,24 @@ import { api } from '../services/api.ts';
 import { CourseOut } from '../types.ts';
 import { useToast } from '../context/ToastContext.tsx';
 
-// 兜底院系：后端 /api/courses/departments 不可达时的默认值
+// 兜底：后端 /api/courses/departments 不可达时的默认值（与 school.yaml 对齐）
 const FALLBACK_DEPARTMENTS = ['计算机学院', '软件学院', '数学科学学院', '经济管理学院', '外国语学院', '通识教育中心'];
+const FALLBACK_GROUPS: { group: string; departments: string[] }[] = [];
 
 const CourseSearch: React.FC = () => {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [departments, setDepartments] = useState<string[]>(FALLBACK_DEPARTMENTS);
-  const [selectedDept, setSelectedDept] = useState('全部院系');
+  const [groups, setGroups] = useState<{ group: string; departments: string[] }[]>(FALLBACK_GROUPS);
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedDept, setSelectedDept] = useState('');
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      const res = await api.courses.list(keyword.trim(), 1, 20, selectedDept === '全部院系' ? '' : selectedDept);
+      const res = await api.courses.list(keyword.trim(), 1, 20, selectedDept);
       if (res.code === 0 && res.data) {
         setCourses(res.data.items || []);
       }
@@ -30,12 +33,13 @@ const CourseSearch: React.FC = () => {
     }
   };
 
-  // 动态拉取后台配置的院系列表（含 school.yaml 兜底）
+  // 动态拉取后台配置的院系列表（含学部分组，school.yaml 兜底）
   useEffect(() => {
     api.courses.departments()
       .then((res) => {
         if (res.code === 0 && res.data?.departments?.length) {
           setDepartments(res.data.departments);
+          if (res.data.groups?.length) setGroups(res.data.groups);
         }
       })
       .catch(() => { /* 后端不可达时使用兜底院系 */ });
@@ -49,6 +53,11 @@ const CourseSearch: React.FC = () => {
     e.preventDefault();
     fetchCourses();
   };
+
+  // 当前学部下可直接点的院系集合（全部学部时展示全部院系）
+  const visibleDepartments = selectedGroup
+    ? (groups.find((g) => g.group === selectedGroup)?.departments || [])
+    : departments;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
@@ -91,9 +100,48 @@ const CourseSearch: React.FC = () => {
           </button>
         </form>
 
-        {/* Department Pills */}
+        {/* 学部 Tab（一级） */}
+        {groups.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+            <button
+              onClick={() => { setSelectedGroup(''); setSelectedDept(''); }}
+              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                selectedGroup === ''
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+              }`}
+            >
+              全部学部
+            </button>
+            {groups.map((g) => (
+              <button
+                key={g.group}
+                onClick={() => { setSelectedGroup(g.group); setSelectedDept(''); }}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  selectedGroup === g.group
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+                }`}
+              >
+                {g.group}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 院系 chips（二级） */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-          {['全部院系', ...departments].map((dept) => (
+          <button
+            onClick={() => setSelectedDept('')}
+            className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              selectedDept === ''
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+            }`}
+          >
+            全部院系
+          </button>
+          {visibleDepartments.map((dept) => (
             <button
               key={dept}
               onClick={() => setSelectedDept(dept)}

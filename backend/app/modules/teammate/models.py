@@ -19,6 +19,10 @@ class Team(Base, PKMixin, TimestampMixin):
     description: Mapped[str] = mapped_column(Text, default="")
     required_roles: Mapped[str] = mapped_column(String(255), default="")
     status: Mapped[int] = mapped_column(Integer, default=TeamStatus.RECRUITING.value, index=True)
+    # 分类由后台配置驱动（teammate.categories），与二手 / 兼职 / 资料同一套模式
+    category: Mapped[str] = mapped_column(String(32), default="其他", index=True)
+    max_members: Mapped[int] = mapped_column(Integer, default=3)
+    contact_info: Mapped[str] = mapped_column(String(255), default="")
 
     members: Mapped[list[TeamMember]] = relationship(
         back_populates="team", cascade="all, delete-orphan", lazy="selectin"

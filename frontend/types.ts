@@ -115,6 +115,18 @@ export interface SliderVerifyResult {
 
 export interface CaptchaConfig {
   enabled: boolean;
+  /** 当前生效的验证提供方：geetest=极验行为验证；builtin=服务端拼图滑块 */
+  provider?: 'geetest' | 'builtin';
+  /** provider=geetest 时下发，供前端 initGeetest4 初始化 */
+  geetest_id?: string;
+}
+
+/** 极验前端验证通过后 getValidate() 的原始结果 */
+export interface GeetestValidate {
+  lot_number: string;
+  captcha_output: string;
+  pass_token: string;
+  gen_time: string;
 }
 
 export interface UserOut {
@@ -330,7 +342,24 @@ export interface CanteenOut {
   rating?: number;
   image?: string;
   status?: string;
+  // 维度字段（与武大学部/餐饮区/类型/学期结构对齐）
+  campus?: string;
+  zone?: string;
+  canteen_type?: string;
+  floor?: string;
+  features?: string[];
+  popular_dishes?: string[];
+  semester?: string;
   stalls?: StallOut[];
+}
+
+// 食堂维度枚举配置（由后台 canteen.config 下发，前端筛选控件的数据源）
+export interface CanteenConfig {
+  campuses: string[];
+  zones: Record<string, string[]>;
+  types: string[];
+  semesters: string[];
+  current_semester: string;
 }
 
 export interface CanteenReviewOut {

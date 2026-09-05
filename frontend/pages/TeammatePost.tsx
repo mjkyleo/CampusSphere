@@ -8,20 +8,22 @@ import { TeamOut, TeamStatus } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 
-const categories = ['全部', '学术竞赛', '考研考公', '运动健身', '游戏开黑', '旅行逛街', '期末自习', '其他'];
+// 兜底分类：后端不可达时使用（真实值由 /api/teams/categories 下发）
+const FALLBACK_CATEGORIES = ['学术竞赛', '考研考公', '运动健身', '游戏开黑', '旅行逛街', '期末自习', '其他'];
 
 const TeammatePost: React.FC = () => {
   const { user } = useAuth();
   const { success, error, info } = useToast();
 
   const [teams, setTeams] = useState<TeamOut[]>([]);
+  const [categories, setCategories] = useState<string[]>(['全部', ...FALLBACK_CATEGORIES]);
   const [selectedCat, setSelectedCat] = useState('全部');
   const [loading, setLoading] = useState(true);
 
   // New post modal / collapse
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('学术竞赛');
+  const [category, setCategory] = useState(FALLBACK_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [requiredRoles, setRequiredRoles] = useState('');
   const [contactInfo, setContactInfo] = useState('');
@@ -32,16 +34,31 @@ const TeammatePost: React.FC = () => {
   const [applyingTeamId, setApplyingTeamId] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState('');
 
+  // 动态拉取搭子分类（后台可配置，含 school.yaml 兜底）；失败则用前端兜底常量
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.teammates.categories();
+        if (res.code === 0 && res.data?.categories?.length) {
+          setCategories(['全部', ...res.data.categories]);
+          setCategory(res.data.categories[0]);
+        }
+      } catch {
+        // 保留兜底分类
+      }
+    })();
+  }, []);
+
   const fetchTeams = async () => {
     setLoading(true);
     try {
-      const res = await api.teammates.list(1, 30);
+      const res = await api.teammates.list({
+        category: selectedCat === '全部' ? undefined : selectedCat,
+        page: 1,
+        page_size: 30,
+      });
       if (res.code === 0 && res.data) {
-        let list = res.data.items || [];
-        if (selectedCat !== '全部') {
-          list = list.filter((t) => t.category === selectedCat);
-        }
-        setTeams(list);
+        setTeams(res.data.items || []);
       }
     } catch {
       // Mock fallback

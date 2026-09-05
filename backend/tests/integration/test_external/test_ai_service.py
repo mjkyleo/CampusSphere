@@ -14,10 +14,10 @@
 from __future__ import annotations
 
 import pytest
+from helpers import auth_header, register_login
 
 import app.modules.ai.service as ai_service
 from app.core.exceptions import BizError, ErrorCode
-from helpers import auth_header, register_login
 
 pytestmark = pytest.mark.integration
 

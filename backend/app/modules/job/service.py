@@ -32,7 +32,13 @@ async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = No
 
 
 async def create_job(db: AsyncSession, poster: User, data: JobCreate) -> Job:
-    job = Job(poster_id=str(poster.id), **data.model_dump())
+    # 分类收敛到后台配置列表内（运营下线某个分类后，旧客户端传来的值不至于
+    # 变成筛选页里点不动的僵尸分类）
+    from app.modules.admin.service import normalize_category
+
+    payload = data.model_dump()
+    payload["category"] = await normalize_category(db, "job", payload.get("category", ""))
+    job = Job(poster_id=str(poster.id), **payload)
     db.add(job)
     await db.commit()
     await db.refresh(job)

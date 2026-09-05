@@ -46,6 +46,9 @@ ruff_out.txt
 .codebuddy/
 .workbuddy/
 
+# ---- 工具预览快照（CodeBuddy 等生成，不入版本库） ----
+.preview/
+
 # ---- 运行期产物 / 临时文件 ----
 # devctl 启停脚本的 PID 与日志（.run/backend.pid、.run/logs/*.log）
 .run/
@@ -73,3 +76,6 @@ e2e/test-results/
 backend/e2e_test.db
 # 受限环境下 npm 的临时缓存目录
 npm-cache-tmp/
+
+# AI 任务日志(本地开发记录,不入库)
+.task_records/

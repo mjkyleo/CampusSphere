@@ -1,99 +1,327 @@
-# 单校一键起：app + worker + pg + redis + minio + meili + nginx
-# 用法：docker compose -f deploy/docker-compose.yml --env-file deploy/.env.example up -d
+# 单校一键起：前端构建 → app + worker + pg + redis + minio + meili（+ nginx）
+#
+# 用法：
+#   cp deploy/.env.example deploy/.env   # 先填真实配置（SMTP / 密钥 / 域名）
+#   docker compose -f deploy/docker-compose.yml --profile build run --rm frontend-builder
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# 注意：env_file 指向 deploy/.env（**不是** .env.example）。
+# 该文件缺失时 compose 会直接报错退出 —— 有意为之，避免用占位密钥上线。
+#
+# ---------------------------------------------------------------------------
+# Profile 说明
+# ---------------------------------------------------------------------------
+# 默认组（不加任何 profile）：postgres / redis / minio / meilisearch / app / worker
+#   build     : frontend-builder（一次性构建，完成后退出）
+#   gateway   : nginx 容器（自带网关时为 80/443 入口）
+#
+# ---------------------------------------------------------------------------
+# 两种网关模式
+# ---------------------------------------------------------------------------
+# A) 自带 nginx 容器（适合纯净服务器）
+#       docker compose --profile build --profile gateway -f deploy/docker-compose.yml up -d
+#    证书：把 fullchain.pem / privkey.pem 放到 deploy/nginx/ssl/ 下；
+#          暂无证书时可用 HTTP-only 配置：NGINX_CONF=./nginx/nginx.http-only.conf
+#
+# B) 外部 nginx 反代（适合已装宝塔/已有 nginx 的服务器）**本仓库生产采用的是这个**
+#       # 1) 先单独构建前端（构建峰值约 1G 内存，与常驻服务错开）
+#       docker compose --profile build -f deploy/docker-compose.yml run --rm frontend-builder
+#       # 2) 再启动常驻服务（不加 gateway，跳过 nginx 避免 80/443 冲突）
+#       docker compose -f deploy/docker-compose.yml up -d
+#    后端只监听 127.0.0.1:8000，由外部 nginx 转发 /api 与 /ws。
+#    前端产物路径用 FRONTEND_DIST 指定（需为宿主机绝对路径），例如：
+#       FRONTEND_DIST=/www/wwwroot/campussphere
+#    参考配置见 deploy/nginx/external-proxy.conf.example
+#
+# 为何要用 profile 而不是直接删掉 nginx：两种拓扑都是合理的生产方案，
+# 硬选一个会让另一类服务器无法使用；profile 让同一份文件兼容两者。
+#
+# ---------------------------------------------------------------------------
+# 前端的两种运行方式（重要）
+# ---------------------------------------------------------------------------
+# frontend/server.ts 在 NODE_ENV=production 下本身就是一个完整服务：
+# 托管 dist/ 静态资源 + 把 /api 与 /ws 反代到后端。也就是说它**可以**
+# 作为唯一入口直接对外（npm start，监听 5173）。
+#
+# 但生产更推荐上面 B 的"纯静态托管"：由 nginx 直接托管 dist/ 并反代 /api、/ws，
+# 少一跳 Express，省掉一个常驻 Node 进程（约 80~150MB）。代价是前端 server.ts
+# 里那段本地 /api/health 不走前端了 —— 该路由由 nginx 转发给后端，
+# 后端根路径 / 即健康端点，语义一致，无需额外配置。
 
 services:
+  # ---------------------------------------------------------------------------
+  # 内存约束
+  # ---------------------------------------------------------------------------
+  # 目标机型为 2 核 2G（可用约 1.3G + 1G swap）。不设上限时，任一服务内存泄漏
+  # 或索引膨胀都会触发宿主机 OOM Killer —— 而它挑进程杀的顺序不看重要性，
+  # 很可能先杀掉 postgres 或 app。因此逐个设硬上限：
+  # 单个服务失控时只会自杀（restart: unless-stopped 拉起），不会拖垮全站。
+  #
+  # 上限按"正常用量 × 约 1.5"留余量，不是精确配额。上线后请用
+  #   docker stats
+  # 观察实际用量再调整；若长期贴近上限说明该扩容而非加限制。
+  # ---------------------------------------------------------------------------
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: campus
-      POSTGRES_PASSWORD: campus
-      POSTGRES_DB: campus
+      POSTGRES_USER: ${POSTGRES_USER:-campus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campus}
+      POSTGRES_DB: ${POSTGRES_DB:-campus}
+      # 小内存机型调优：默认 shared_buffers=128MB 之外的 work_mem 是按**每个
+      # 排序操作**分配的，并发一高就会成倍膨胀。这里显式压到 4MB，
+      # 并把连接相关的缓存压小，避免 2G 机器上被连接数打爆。
+      POSTGRES_SHARED_BUFFERS: ${PG_SHARED_BUFFERS:-128MB}
+      POSTGRES_WORK_MEM: ${PG_WORK_MEM:-4MB}
+      POSTGRES_MAINTENANCE_WORK_MEM: ${PG_MAINTENANCE_WORK_MEM:-64MB}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-128MB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-4MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-512MB}
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-60}
+    deploy:
+      resources:
+        limits:
+          memory: ${PG_MEM_LIMIT:-512M}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U campus"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campus}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7
+    restart: unless-stopped
+    # 仅内网可达，不对外映射端口；如确需外部调试再临时加 ports
+    # maxmemory 必须显式设置：Redis 默认**不限内存**，在 2G 机器上缓存写满后
+    # 会直接把宿主机拖到 OOM。allkeys-lru 保证写满时淘汰旧键而非拒绝写入。
+    command: redis-server --maxmemory ${REDIS_MAXMEMORY:-160mb} --maxmemory-policy allkeys-lru --save 60 1
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEM_LIMIT:-256M}
     volumes:
       - redisdata:/data
 
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      # 凭据与 app 侧的 MINIO_ACCESS_KEY / MINIO_SECRET_KEY 保持一致
+      # 加引号：值里的 `?` 是 YAML 复杂键指示符，不引用会导致解析失败
+      MINIO_ROOT_USER: "${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in deploy/.env}"
+      MINIO_ROOT_PASSWORD: "${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in deploy/.env}"
     volumes:
       - miniodata:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${MINIO_MEM_LIMIT:-384M}
+    # 控制台只绑本机：MinIO 控制台是**完整管理界面**（能删桶、改凭据），
+    # 暴露到公网等于把对象存储的管理权放在扫描器面前。
+    # 需要临时访问时走 SSH 端口转发：ssh -L 9001:127.0.0.1:9001 root@<host>
     ports:
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
 
   meilisearch:
     image: getmeili/meilisearch:v1.11
+    restart: unless-stopped
     environment:
-      MEILI_MASTER_KEY: masterKey
-      MEILI_ENV: development
+      MEILI_MASTER_KEY: "${MEILI_API_KEY:?set MEILI_API_KEY in deploy/.env}"
+      # 生产用 production：development 模式下索引会打印详细日志且放宽部分限制
+      MEILI_ENV: ${MEILI_ENV:-production}
+      # 索引大小上限（字节）。小内存机型务必设置：Meilisearch 用 LMDB 做 mmap，
+      # 索引增长会持续吃内存，不封顶迟早 OOM。256MB 对校园站点规模足够。
+      MEILI_MAX_INDEX_SIZE: ${MEILI_MAX_INDEX_SIZE:-256Mb}
+      MEILI_MAX_TASK_DB_SIZE: ${MEILI_MAX_TASK_DB_SIZE:-512Mb}
+    deploy:
+      resources:
+        limits:
+          memory: ${MEILI_MEM_LIMIT:-448M}
     volumes:
       - meildata:/meili_data
 
+  # ---------------------------------------------------------------------------
+  # 证书初始化：保证 nginx **总能启动**
+  #   - 已放置 fullchain.pem / privkey.pem → 原样使用
+  #   - 未放置 → 生成自签名证书，让 HTTPS 链路先跑通（浏览器会告警，仅联调用）
+  # 生产请替换为真实证书，否则用户会遇到"证书不受信"告警。
+  #
+  # 列入 gateway profile：只有自带 nginx 容器（拓扑 A）才需要它。
+  # 拓扑 B 下证书由外部 nginx/宝塔负责签发，这里再跑一遍纯属多余，
+  # 还会往 deploy/nginx/ssl/ 写入无人使用的自签证书，误导后续运维。
+  # ---------------------------------------------------------------------------
+  cert-init:
+    profiles: ["gateway"]
+    image: alpine:3.20
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /ssl
+        if [ -f /ssl/fullchain.pem ] && [ -f /ssl/privkey.pem ]; then
+          echo "[cert-init] 检测到已有证书，直接使用"
+        else
+          echo "[cert-init] 未找到证书，正在生成自签名证书（***** 仅供联调，生产必须替换 *****）"
+          apk add --no-cache openssl >/dev/null 2>&1
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /ssl/privkey.pem -out /ssl/fullchain.pem \
+            -days 365 -subj "/CN=localhost" 2>/dev/null
+          echo "[cert-init] 已生成 deploy/nginx/ssl/fullchain.pem 与 privkey.pem"
+        fi
+    volumes:
+      - ./nginx/ssl:/ssl
+
+  # ---------------------------------------------------------------------------
+  # 前端构建：产出 dist/ 供 nginx 托管（拓扑 A：nginx 直出静态 + 反代 API/WS）
+  # 构建完成即退出（service_completed_successfully），不常驻占用资源。
+  #
+  # 为何也要挂 profile：Vite/TS 构建峰值约 1G 内存。拓扑 B 下没有任何服务
+  # depends_on 它，若留在默认组则会与 postgres/meili 等**同时启动**争抢内存，
+  # 在 2G 机器上足以触发 OOM。独立成 build profile 后，构建是一个**单独的步骤**：
+  #   docker compose --profile build run --rm frontend-builder
+  # 构建完内存即释放，再启动常驻服务 —— 峰值不叠加。
+  #
+  # 注意：prod 依赖（dependencies）也在镜像里，因为 `npm run build` 需要
+  # esbuild 打包 server.ts，两者缺一不可。
+  # ---------------------------------------------------------------------------
+  frontend-builder:
+    profiles: ["build"]
+    # Node 22 而非 20：jsdom / http-proxy-middleware / undici 等依赖的 engines
+    # 字段要求 Node >= 22（npm ci 会刷 EBADENGINE 警告）。选择依据见 package.json。
+    # 用 slim（glibc）而非 alpine：esbuild 等原生二进制在 musl 上有兼容风险。
+    image: node:22-slim
+    working_dir: /app
+    command: sh -c "npm ci && npm run build"
+    volumes:
+      - ../frontend:/app
+      # 关键：把 node_modules 放进**匿名卷**。
+      # 否则 npm ci 会写入宿主机的 frontend/node_modules，用 Linux 原生二进制
+      # （esbuild 等）覆盖掉宿主机 Windows 版本的依赖，导致本地开发跑不起来。
+      - /app/node_modules
+      # 产物输出路径：默认写入 compose 同级目录的 frontend-dist/（拓扑 A 由 nginx 容器托管）；
+      # 拓扑 B（外部 nginx 反代）时设为宿主机**绝对**路径，例如
+      #   FRONTEND_DIST=/www/wwwroot/campussphere
+      # 即可让外部 nginx 直接托管前端产物。
+      - ${FRONTEND_DIST:-./frontend-dist}:/app/dist
+
   app:
+    # 注意路径基准：compose 中的相对路径一律以**本文件所在目录**（deploy/）解析，
+    # 不是执行 docker compose 命令的工作目录。因此这里是 ../backend 而非 ./backend。
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
+      target: app
+      # 镜像源加速：Docker Desktop 的代理**对容器内 apt/pip 无效**，
+      # 而官方源在国内仅约 60 kB/s（装完 gcc 依赖需 30 分钟以上）。
+      # 国内部署请在 deploy/.env 设置这两个变量；留空则回退官方源（海外 CI 适用）。
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
+    image: campusphere-backend:latest
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEM_LIMIT:-512M}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     env_file:
-      - ./deploy/.env.example
+      - ./.env
     environment:
-      DB_URL: postgresql+asyncpg://campus:campus@postgres:5432/campus
+      DB_URL: postgresql+asyncpg://${POSTGRES_USER:-campus}:${POSTGRES_PASSWORD:-campus}@postgres:5432/${POSTGRES_DB:-campus}
       REDIS_URL: redis://redis:6379/0
       SCHOOL_CONFIG_PATH: /app/config/school.yaml
     volumes:
-      - ./config:/app/config:ro
+      - ../config:/app/config:ro
+    # 仅对**本机**暴露：拓扑 B 下后端只接受来自同机 nginx 的转发，
+    # 不直接暴露到公网（避免绕过网关的限流与 HTTPS 强制）。
+    # 拓扑 A 也适用 —— 同机 nginx 容器经 docker 网络访问即可。
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     command: >
       sh -c "alembic upgrade head && uvicorn app.asgi:app --host 0.0.0.0 --port 8000"
 
   worker:
     build:
-      context: ./backend
-      dockerfile: ../deploy/Dockerfile.worker
+      context: ../backend
+      dockerfile: Dockerfile
+      target: worker
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
+    image: campusphere-worker:latest
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEM_LIMIT:-384M}
+    # Celery worker 默认会**预拷贝**子进程且长期运行，Python 内存碎片会让 RSS
+    # 单调增长。max-tasks-per-child 让子进程处理 N 个任务后自动回收。
+    command: >
+      celery -A app.tasks.celery_app.celery_app worker
+      --loglevel=info -Q email,notify,search,default
+      --max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD:-100}
+      --concurrency=${CELERY_CONCURRENCY:-1}
     depends_on:
       redis:
         condition: service_started
       postgres:
         condition: service_healthy
     env_file:
-      - ./deploy/.env.example
+      - ./.env
     environment:
-      DB_URL: postgresql+asyncpg://campus:campus@postgres:5432/campus
+      DB_URL: postgresql+asyncpg://${POSTGRES_USER:-campus}:${POSTGRES_PASSWORD:-campus}@postgres:5432/${POSTGRES_DB:-campus}
       REDIS_URL: redis://redis:6379/0
       SCHOOL_CONFIG_PATH: /app/config/school.yaml
     volumes:
-      - ./config:/app/config:ro
+      - ../config:/app/config:ro
 
   nginx:
     image: nginx:1.25
+    restart: unless-stopped
+    # 列入 gateway profile：**默认不启动**。
+    # 需要自带网关时显式加 `--profile gateway`（拓扑 A）；
+    # 由外部 nginx（如宝塔）反代时保持默认即可（拓扑 B），避免 80/443 端口冲突。
+    profiles: ["gateway"]
+    # 统一用映射形式：短横线列表项与映射不能在同一缩进层级混用
     depends_on:
-      - app
+      app:
+        condition: service_started
+      frontend-builder:
+        condition: service_completed_successfully
+      cert-init:
+        condition: service_completed_successfully
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # 无证书时改用：NGINX_CONF=./nginx/nginx.http-only.conf
+      - ${NGINX_CONF:-./nginx/nginx.conf}:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      # 与 frontend-builder 共用同一变量，保证两边指向同一份产物
+      - ${FRONTEND_DIST:-./frontend-dist}:/usr/share/nginx/html:ro
 
 volumes:
   pgdata:
   redisdata:
   miniodata:
   meildata:
+  # 前端产物默认走宿主机目录（见 FRONTEND_DIST），仅拓扑 A 需要时可改用命名卷。
+  # 这里保留声明是为了向后兼容历史部署；当前 compose 已不再引用它。
+  frontend_dist:

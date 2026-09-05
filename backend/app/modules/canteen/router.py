@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.response import ApiResponse
+from app.modules.admin.service import get_canteen_config
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.canteen.schemas import (
@@ -31,9 +32,30 @@ from app.modules.canteen.service import (
 router = APIRouter(prefix="/api/canteens", tags=["canteen"])
 
 
+# NOTE: 静态路径需声明在 /{canteen_id} 之前，否则 "campuses"/"configs" 会被当作 canteen_id 匹配
+@router.get("/configs", response_model=ApiResponse[dict])
+async def canteen_configs(db: AsyncSession = Depends(get_db)):
+    """公开读取食堂维度枚举（学部 / 餐饮区 / 类型 / 学期）。
+
+    前端首页 Tab、筛选 chip 的数据源，全部由后台 ``canteen.config`` 下发，
+    不再写死常量。
+    """
+    return ApiResponse.ok(data=await get_canteen_config(db))
+
+
 @router.get("", response_model=ApiResponse[list])
-async def list_all(db: AsyncSession = Depends(get_db)):
-    return ApiResponse.ok(data=await list_canteens(db))
+async def list_all(
+    campus: str = Query(default=""),
+    zone: str = Query(default=""),
+    canteen_type: str = Query(default=""),
+    semester: str = Query(default=""),
+    keyword: str = Query(default=""),
+    db: AsyncSession = Depends(get_db),
+):
+    return ApiResponse.ok(data=await list_canteens(
+        db, campus=campus, zone=zone, canteen_type=canteen_type,
+        semester=semester, keyword=keyword,
+    ))
 
 
 @router.get("/dishes/{dish_id}", response_model=ApiResponse[dict])

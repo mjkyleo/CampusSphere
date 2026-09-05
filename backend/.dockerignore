@@ -1,0 +1,51 @@
+# 构建上下文排除清单
+#
+# 核心目的：**绝不能把 .env 打进镜像**。
+# backend/.env 存有真实 SMTP 账号密码、SECRET_KEY 等生产凭据；
+# 虽然 Dockerfile 只 COPY 了 pyproject.toml 与 app/，但缺少本文件时，
+# 整个 backend 目录（含 .env）都会被发送给 Docker 守护进程，
+# 一旦有人改动 Dockerfile 为 `COPY . .`，凭据就会**永久留在镜像层里**
+# （删掉文件也抹不掉历史层）。这里从源头切断。
+
+# ---- 凭据与本地配置（最高优先级）----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- 数据库与运行时产物 ----
+*.db
+*.sqlite3
+*.sqlite
+dev_log.txt
+dev_err.txt
+
+# ---- Python 缓存与虚拟环境 ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# ---- 测试与覆盖率（镜像无需携带）----
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 开发工具与临时文件 ----
+scripts/
+examples/
+docs/
+.idea/
+.vscode/
+.DS_Store
+*.log
