@@ -10,7 +10,7 @@ import {
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
   ReportOut, ReportTargetType, ReportStatus,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
-  AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
+  AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate, AiGreeting,
   SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig, GeetestValidate
 } from '../types.ts';
 
@@ -1608,6 +1608,10 @@ export const api = {
   // AI 智能助手（Gemini）
   ai: {
     status: () => request<AiStatusOut>('/api/ai/status'),
+    // 首页问候：softAuth=true —— 未登录/刷新失败时不强制跳转登录页，
+    // 由 aiService 降级到本地模板，保证首页对游客同样零阻塞。
+    greeting: (body: { mood?: string; focus?: string; clientSeed?: string; regenerate?: boolean }) =>
+      request<AiGreeting>('/api/ai/greeting', { method: 'POST', body: JSON.stringify(body) }, true),
     getInsights: (topic: string) =>
       request<{ text: string }>('/api/ai/insights', { method: 'POST', body: JSON.stringify({ topic }) }),
     generateItemDescription: (title: string, category: string) =>
@@ -1615,7 +1619,7 @@ export const api = {
     summarizeCourseReviews: (reviewTexts: string[]) =>
       request<{ text: string }>('/api/ai/course-summary', { method: 'POST', body: JSON.stringify({ reviewTexts }) }),
     categorizePost: (content: string) =>
-      request<{ category: string; isSafe: boolean; summary: string }>('/api/ai/categorize', { method: 'POST', body: JSON.stringify({ content }) }),
+      request<{ category: string; isSafe: boolean; summary: string; source: string }>('/api/ai/categorize', { method: 'POST', body: JSON.stringify({ content }) }),
     // AI 配置（管理端路由 /api/admin/ai/config，需管理员权限，与 admin.* 同一后端）
     getConfig: () => request<AiConfig>('/api/admin/ai/config'),
     updateConfig: (config: AiConfigUpdate) =>

@@ -1,6 +1,6 @@
 # CampusSphere · 校园生活平台
 
-一站式校园生活服务平台（Python 重写 · 模块化单体架构），覆盖二手交易、课程评价、食堂、兼职、资源共享、队友招募、即时消息、举报与管理后台等核心校园场景，并内置基于 Gemini 的 AI 智能助手。
+一站式校园生活服务平台（Python 重写 · 模块化单体架构），覆盖二手交易、课程评价、食堂、兼职、资源共享、队友招募、即时消息、举报与管理后台等核心校园场景，并内置可开关、可降级的 AI 能力（OpenAI 兼容模型接入，未配置 Key 时前端自动隐藏入口、主流程零阻塞）。
 
 - **后端**：FastAPI 模块化单体（认证 / 用户 / 二手 / 消息 / 课程 / 食堂 / 兼职 / 分享 / 组队 / 举报 / 管理后台 / 对象存储 / 启动器）
 - **前端**：React 19 + TypeScript + Vite，Express 代理层统一转发 `/api` 与 WebSocket
@@ -20,14 +20,14 @@
 | 即时消息 | WebSocket 实时私信，Redis 广播，跨实例支持；会话列表 **N+1 合并查询**（窗口函数），历史消息**分页上拉** |
 | 举报系统 | 多目标举报（user / item / message / share / comment）、自动封禁策略、工单升级 |
 | 管理后台 | 数据看板、举报处理、审核配置、邮箱注册规则动态覆盖 |
-| AI 助手 | 校园智能洞察、物品文案生成、课程评价摘要、帖子分类（Gemini 多模型自动兜底，无 Key 时降级为内置文案） |
+| AI 助手 | 校园智能洞察、物品文案生成、课程评价摘要、帖子分类、首页趣味问候；OpenAI 兼容模型接入，三层降级（开关 → 能力级 → 模型链 + 熔断），未配置 Key 时主流程零阻塞、前端按 `/api/ai/status` 能力级状态自动隐藏入口 |
 | 基础设施 | Celery 异步任务、MinIO 对象存储、Meilisearch 全文搜索、OpenTelemetry 可观测、structlog 结构化日志 |
 | 演示数据 | `backend/scripts/seed_demo_users.py` 一键灌入 10 个演示账号（`user01`~`user10` / `123456`）及全功能使用记录 |
 
 ## 技术栈
 
 - **后端**：Python 3.12+ / FastAPI / SQLAlchemy 2（async）/ pydantic-settings / alembic / Celery / Redis / structlog
-- **前端**：React 19 / TypeScript / Vite 6 / Tailwind CSS / Express 5（代理层）/ http-proxy-middleware / @google/genai
+- **前端**：React 19 / TypeScript / Vite 6 / Tailwind CSS / Express 5（代理层）/ http-proxy-middleware
 - **基础设施**：PostgreSQL 16 / Redis 7 / MinIO / Meilisearch / Nginx
 - **可观测**：OpenTelemetry（OTLP）、`/metrics` 指标端点
 
@@ -50,8 +50,8 @@ campusLifePlatform-py/
 │   └── .env.example
 ├── frontend/                # React 前端 + Express 代理层
 │   ├── pages/               # 16 个业务页面
-│   ├── services/            # api.ts / websocket.ts / geminiService.ts
-│   ├── server.ts            # Express：/api/ai/* 本地处理 + /api 与 /ws 反代后端
+│   ├── services/            # api.ts / websocket.ts / aiService.ts（统一 AI 客户端，含能力级 gating）
+│   ├── server.ts            # Express：仅作 /api 与 /ws 反代（AI 由后端统一处理，前端不直连大模型）
 │   ├── vite.config.ts
 │   └── package.json
 ├── config/
@@ -231,7 +231,7 @@ npm test                                 # 8 个核心用户旅程场景
 | **集成** | `.../test_course/`、`test_canteen/` | 课程搜索与评价、食堂档口菜品评分，含跨课程/菜品的数据隔离 |
 | **集成** | `.../test_messaging/` | WebSocket 消息落库与越权拒绝 |
 | **集成** | `.../test_admin/` | 管理员登录、举报列表、封禁/解封 |
-| **集成** | `.../test_external/` | 邮件任务参数、AI（Gemini）mock 与降级、对象存储上传回读、搜索索引同步与降级 |
+| **集成** | `.../test_external/` | 邮件任务参数、AI（OpenAI 兼容）mock 与三层降级、对象存储上传回读、搜索索引同步与降级 |
 | **端到端** | `e2e/tests/` | 首页浏览、注册、登录会话、未登录重定向、发布与议价、即时消息、管理后台、课程评价 |
 
 测试数据由 `backend/tests/factories.py`（factory_boy）生成，

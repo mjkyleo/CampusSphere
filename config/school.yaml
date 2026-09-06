@@ -233,12 +233,36 @@ canteen:
 # AI 智能助手（Gemini）—— 可在后台 /api/admin/ai/config 动态覆盖开关与模型
 ai:
   # 功能总开关：false=前端隐藏所有 AI 入口（个人开发者无 API 额度时的默认态）
-  #             true=开放首页灵感/物品润色/课程画像等 AI 能力
+  #             true=开放首页问候/智能灵感/物品润色/课程画像等 AI 能力
   feature:
     enabled: false
-    # Gemini 模型名（如 gemini-2.0-flash / gemini-2.0-flash-lite）
-    model: "gemini-2.0-flash"
-  # API Key 推荐用环境变量 GEMINI_API_KEY 注入；此处仅作兜底配置位
+  # ---- OpenAI Chat Completions 标准接入 ----
+  # 只认 POST {base_url}/chat/completions + Bearer 鉴权，因此以下服务可零改动切换：
+  #   DeepSeek  https://api.deepseek.com/v1          deepseek-chat
+  #   通义 Qwen https://dashscope.aliyuncs.com/compatible-mode/v1   qwen-turbo
+  #   智谱 GLM  https://open.bigmodel.cn/api/paas/v4  glm-4-flash
+  #   Kimi      https://api.moonshot.cn/v1            moonshot-v1-8k
+  #   本地 Ollama http://localhost:11434/v1           qwen2.5:7b
+  provider: "openai_compatible"
+  base_url: "https://api.deepseek.com/v1"
+  model: "deepseek-chat"
+  # 主模型失败（超时/429/5xx）时依次尝试的降级链；全部失败再走能力级降级
+  fallback_models: ["qwen-turbo", "glm-4-flash"]
+  timeout_ms: 8000
+  max_retries: 1
+  # 连续失败 threshold 次后熔断 cooldown 秒，期间直接走降级，避免雪崩
+  circuit_breaker:
+    threshold: 5
+    cooldown_sec: 60
+  # 能力级开关：degradable=true 表示失败可走模板/规则降级（当前仅问候）；
+  # false 表示失败即友好提示，绝不返回假文案（润色/画像）或转规则引擎（内容预审）
+  capabilities:
+    greeting: { enabled: true, degradable: true }
+    insights: { enabled: true, degradable: false }
+    item_description: { enabled: true, degradable: false }
+    course_summary: { enabled: true, degradable: false }
+    moderation: { enabled: true, degradable: true }
+  # API Key 推荐用环境变量 AI_API_KEY 注入；此处仅作兜底配置位（留空）
   api_key: ""
 
 # 管理员后台入口与安全（与 school.yaml 同源，部署时用 .env 覆盖更敏感字段）

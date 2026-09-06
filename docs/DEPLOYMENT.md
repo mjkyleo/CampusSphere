@@ -83,7 +83,7 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 | MinIO | 最新 | 不需要（本地磁盘兜底） | 必需 | 对象存储（或用兼容 S3） | 图片 / 文件 |
 | Meilisearch | v1.11+ | 不需要（DB LIKE 兜底） | 推荐 | 全文搜索 | 物品 / 用户搜索 |
 | SMTP 服务 | — | 可选（开启回传则无需） | **必需** | 注册验证码邮件 | 邮箱验证 |
-| Gemini API Key | — | 不需要（AI 入口隐藏） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
+| AI API Key（OpenAI 兼容） | — | 不需要（未配置 Key 时 AI 入口隐藏、主流程零阻塞） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
 
 > 开发模式（SQLite + 无 Redis/MinIO/Meili）**开箱即跑**；生产环境缺 Redis/Celery 会降级，但**验证码邮件、WS 广播、搜索**等依赖外部服务的特性将不可用。
 
@@ -99,7 +99,7 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 | `config/logging.yaml` | structlog 结构化日志配置 | 是 | 调 `loggers.campus.level` 控制日志级别 |
 | `deploy/.env.example` | 生产 Docker 模板 | 是 | `cp` 为 `deploy/.env` 后改敏感值 |
 | `deploy/.env` | 生产环境变量 | **否（gitignore）** | 仅本地 / CI 使用 |
-| `frontend/.env.example` | 前端环境变量模板 | 是 | 当前仅 `GEMINI_API_KEY`（可选） |
+| `frontend/.env.example` | 前端环境变量模板 | 是 | 含可选 `AI_API_KEY`（OpenAI 兼容，不配置则 AI 入口隐藏） |
 
 **配置叠加顺序**（后者覆盖前者）：
 `环境变量 / .env` → `config/school.yaml` → 管理后台动态配置（`app_config` 表，DB 优先于 yaml）。
@@ -246,7 +246,7 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 
 | 变量 | 默认值 | 用途 | 生产 |
 |------|--------|------|------|
-| `GEMINI_API_KEY` | （空） | Gemini AI 助手密钥（前端 Express 层消费）；空则 AI 入口隐藏 | 可选 |
+| `AI_API_KEY` | （空） | OpenAI 兼容模型密钥（**后端**消费，不下发前端）；不配置则 AI 入口隐藏、主流程零阻塞 | 可选 |
 
 ### 3.17 第三方 OAuth 凭证（school.yaml，非环境变量）
 

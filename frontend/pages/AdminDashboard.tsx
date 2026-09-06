@@ -19,7 +19,7 @@ import {
 } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
-import { invalidateAiStatusCache } from '../services/geminiService.ts';
+import { invalidateAiStatusCache } from '../services/aiService.ts';
 
 type AdminTab = 'overview' | 'reports' | 'users' | 'items' | 'email' | 'ai' | 'config' | 'canteen' | 'logs';
 

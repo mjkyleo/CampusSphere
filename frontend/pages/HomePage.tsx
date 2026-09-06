@@ -5,10 +5,11 @@ import {
   BookOpen, ShoppingBag, Utensils, Users, MessageSquare,
   Briefcase, Share2, Search, ArrowRight, ShieldCheck, Tag
 } from 'lucide-react';
-import { getSmartCampusInsights } from '../services/geminiService.ts';
+import { getSmartCampusInsights, getAiStatus, isCapabilityAvailable } from '../services/aiService.ts';
 import { api, formatPrice } from '../services/api.ts';
 import { ItemOut, CourseOut, TeamOut, JobOut, ShareOut } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
+import AiGreetingCard from '../components/AiGreetingCard.tsx';
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -28,15 +29,14 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchInsight = async () => {
       try {
-        // 先检查 AI 功能是否可用
-        const statusRes = await api.ai.status();
-        if (statusRes.code === 0 && statusRes.data?.available) {
-          setAiAvailable(true);
+        // 先检查 AI 功能是否可用（能力级 gating）
+        const status = await getAiStatus();
+        const on = isCapabilityAvailable(status, 'insights');
+        setAiAvailable(on);
+        if (on) {
           const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-          const res = await api.ai.getInsights(randomTopic);
-          if (res.code === 0 && res.data?.text) {
-            setInsight(res.data.text);
-          }
+          const text = await getSmartCampusInsights(randomTopic);
+          if (text) setInsight(text);
         }
       } catch (error) {
         console.warn('AI insights fetch failed:', error);
@@ -144,6 +144,9 @@ const HomePage: React.FC = () => {
           <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
             你好，{user?.nickname || '同学'} <span className="inline-block animate-pulse">👋</span>
           </h1>
+
+          {/* 每日问候 · 微采集（可降级到本地模板，主流程永不空白） */}
+          <AiGreetingCard />
 
           {aiLoading ? (
             <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">

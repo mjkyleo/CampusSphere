@@ -118,7 +118,7 @@ E2E 通过环境变量把后端指向独立的 `e2e_test.db`，**绝不污染开
 | Redis | 根 conftest 主动禁用真实连接，强制走 `app/core/redis.py` 的内存降级 |
 | MinIO | `StorageClient` 懒连接失败即降级为本地磁盘目录（测试中重定向到 `tmp_path`） |
 | Meilisearch | `SearchClient.enabled=False`，索引操作静默跳过 |
-| SMTP / Gemini | 分别用 monkeypatch 替换 `send_email` 与 `_call_gemini` |
+| SMTP / AI | 分别用 monkeypatch 替换 `send_email` 与 `_call_llm` |
 
 ### 5.2 需要真实外部服务时（可选）
 

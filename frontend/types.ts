@@ -563,10 +563,31 @@ export interface AiFeatureConfig {
   model: string;
 }
 
+/** 单个 AI 能力的可用状态：available 决定是否渲染入口，degraded 表示上游熔断中 */
+export interface AiCapabilityState {
+  available: boolean;
+  degraded: boolean;
+}
+
 export interface AiStatusOut {
   enabled: boolean;
   available: boolean;
+  provider?: string;
+  model?: string;
+  /** 能力级开关：greeting / insights / item_description / course_summary / moderation */
+  capabilities?: Record<string, AiCapabilityState>;
   message: string;
+}
+
+/** 首页每日问候（/api/ai/greeting）。source=fallback 表示降级文案，正常渲染即可 */
+export interface AiGreeting {
+  text: string;
+  emoji: string;
+  source: 'llm' | 'fallback';
+  period: string;
+  mood: string;
+  focus: string;
+  attempt: number;
 }
 
 /** 管理端获取 AI 配置：配置项 + 实时运行状态（/api/admin/ai/config GET） */

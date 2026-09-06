@@ -114,8 +114,7 @@ npm run dev
 
 前端 Express 层（`server.ts`）监听 **5173**，职责：
 
-- 本地处理 `/api/ai/*`（Gemini 智能助手）与 `/api/health`；
-- 其余 `/api/*` 反代到后端 `http://127.0.0.1:8000`；
+- 反代 `/api/*`（含 AI 接口）与 `/api/health` 到后端 `http://127.0.0.1:8000`；
 - `/ws` WebSocket 升级转发到后端（实时消息）。
 
 打开 <http://localhost:5173> 即可访问。
@@ -168,16 +167,18 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 - **多方式绑定**（登录后）：绑定邮箱 / 手机 / QQ / 微信，冲突时返回 `40900` 拒绝绑定；
 - **Token**：JWT 双 Token（access 15 分钟 + refresh 7 天），刷新走 `/api/auth/refresh`。
 
-### 6.2 AI 助手（前端本地端点，无需登录）
+### 6.2 AI 助手（后端接口，需登录）
 
 | 端点 | 功能 |
 | --- | --- |
+| `POST /api/ai/status` | 读取 AI 总开关与各项能力状态（可用 / 已降级），前端据此显示或隐藏 AI 入口 |
+| `POST /api/ai/greeting` | 首页趣味问候（趣味信息采集模式，未配置 Key 时走内置模板） |
 | `POST /api/ai/insights` | 校园智能生活洞察（按主题生成一句话指南） |
 | `POST /api/ai/item-description` | 二手物品转让文案生成 |
 | `POST /api/ai/course-summary` | 课程评价深度摘要 |
 | `POST /api/ai/categorize` | 校园帖子分类与安全校验 |
 
-配置环境变量 `GEMINI_API_KEY`（或 `API_KEY`）启用真实模型调用；模型按 `gemini-2.5-flash → gemini-3.1-flash-lite → gemini-flash-latest` 自动降级；未配置 Key 或模型不可用时自动返回内置兜底文案（响应带 `fallback: true`）。
+AI 能力由**后端**统一处理（前端不直连大模型）。模型接入遵循 **OpenAI 兼容**协议（兼容 DeepSeek / Qwen / Kimi / GLM / Ollama 等），通过后端环境变量 `AI_API_KEY` + `AI_BASE_URL` + `AI_MODEL`（或 `config/school.yaml` 的 `ai:` 段）配置；并支持 `fallback_models` 模型链与熔断。**三层降级**：L0 总开关（`ai.feature.enabled`）→ L1 能力级（可降级能力失败回退模板/规则，不可降级能力返回友好错误、绝不返回假数据）→ L2 模型链 + 重试 + 熔断。未配置 Key 时系统完整运行，前端按 `/api/ai/status` 自动隐藏 AI 入口、主流程零阻塞；`/api/ai/status` 不返回任何密钥本身。
 
 ### 6.3 消息与举报
 
@@ -238,7 +239,7 @@ Windows Hyper-V 会保留部分端口段（如 2948-3047，含 3000），绑定�
 开发模式下部分功能（验证码、广播）依赖 Redis。无 Redis 时可先运行 `python scripts/fake_redis_server.py`；生产环境必须配置真实 Redis。
 
 **Q：AI 功能返回固定兜底文案？**
-未配置 `GEMINI_API_KEY` 或模型服务不可用时会降级。设置环境变量后重启前端即可。
+未配置 `AI_API_KEY`（或 `config/school.yaml` 的 `ai:` 段）或模型服务不可用时，按三层降级策略处理：问候 / 分类两类可降级能力回退内置模板与规则引擎，洞察 / 文案 / 摘要等不可降级能力返回友好错误（绝不返回假数据）。配置在**后端**环境变量或 `school.yaml`，改后重启后端即可；未配置 Key 时系统完整运行、主流程零阻塞。
 
 **Q：邮箱注册被拒绝？**
 检查 `config/school.yaml` 的 `auth.email_register.domains` 白名单；管理员可在后台动态覆盖该规则。

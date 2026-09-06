@@ -6212,7 +6212,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "default": "gemini-2.0-flash"
+            "default": "deepseek-chat"
           }
         },
         "type": "object",
