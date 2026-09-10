@@ -67,7 +67,6 @@ CampusSphere/
         email.py
         notify.py
         search_sync.py
-        summary.py
     Dockerfile
     pyproject.toml
     README.md
@@ -113,6 +112,7 @@ CampusSphere/
       test_websocket.py
       unit/
         __init__.py
+        test_notify_unit.py
         conftest.py
         test_captcha_thread_offload_unit.py
         test_captcha_unit.py
@@ -260,7 +260,7 @@ CampusSphere/
 
 ## 测试
 
-后端测试文件 19 个：`test_admin_gateway.py`、`test_arch_imports.py`、`test_auth.py`、`test_auth_email.py`、`test_auth_login.py`、`test_captcha.py`、`test_celery_summary.py`、`test_course_canteen.py`、`test_e2e_flow.py`、`test_idor.py`、`test_item.py`、`test_item_review.py`、`test_lifecycle.py`、`test_message.py`、`test_p1.py`、`test_shutdown_resources.py`、`test_smoke.py`、`test_user.py`、`test_websocket.py`
+后端测试文件 19 个：`test_admin_gateway.py`、`test_arch_imports.py`、`test_auth.py`、`test_auth_email.py`、`test_auth_login.py`、`test_captcha.py`、`test_course_canteen.py`、`test_e2e_flow.py`、`test_idor.py`、`test_item.py`、`test_item_review.py`、`test_lifecycle.py`、`test_message.py`、`test_notify_dispatch.py`、`test_p1.py`、`test_shutdown_resources.py`、`test_smoke.py`、`test_user.py`、`test_websocket.py`
 
 ## 配置项清单（来自 config.py）
 

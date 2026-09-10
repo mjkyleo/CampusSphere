@@ -224,7 +224,6 @@ alembic upgrade head
 | `email` | `app.tasks.email.send_welcome` / `send_email` | 注册欢迎邮件 / 通用邮件 |
 | `notify` | `app.tasks.notify.send_notify` | 站内通知投递 |
 | `search` | `app.tasks.search_sync.sync_item` / `sync_user` / `delete_doc` | Meilisearch 文档同步 |
-| `default` | `app.tasks.summary.generate_trade_summary` | 交易会话摘要 |
 
 启动 worker：
 

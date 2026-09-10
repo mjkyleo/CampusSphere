@@ -36,10 +36,11 @@
 | test_course_canteen.py | course / canteen | 集成 |
 | test_message.py / test_websocket.py | message(含 WS) | 集成 |
 | test_admin_gateway.py | admin(网关隐藏) | 集成 |
-| test_celery_summary.py | tasks/ai | 集成 |
+| test_notify_dispatch.py | tasks/notify | 集成 |
+| test_notify_unit.py | tasks/notify | 单元 |
 
 ### 1.2 缺口
-- **零测试的模块（7/14）**：`job`、`share`、`teammate`、`report`、`storage`、`launcher`，`ai` 仅经 celery_summary 间接覆盖。
+- **零测试的模块（7/14）**：`report`、`storage`、`launcher`；`job`/`teammate` 已通过 notify 派发集成测试间接覆盖，`share`/`ai` 仍缺直接测试。
 - **断言质量**：以集成测试为主，多断言 `code==0`/HTTP 200；业务语义断言（如「越权返回 403」「PENDING 对他人 404」）仅 item/admin 少量覆盖。
 - **边界/异常用例**：限流触发、黑名单登出、WebSocket 断线补偿、Celery 失败重试缺乏专门用例。
 - **前端测试**：**无任何测试框架**（无 jest/vitest/playwright），仅靠 `tsc --noEmit` 类型检查。
