@@ -135,3 +135,15 @@ class ItemReviewRejectRequest(BaseModel):
     """拒绝审核时的原因说明。"""
 
     reason: str = ""
+
+
+class ContentModerationConfig(BaseModel):
+    """内容预审（AI 分类 + 敏感词）开关与处置方式。
+
+    enabled: 是否对 share/team/job 新发布内容做自动预审。
+    action: 命中敏感词时的处置方式，"reject"=直接拒绝发布，"pending"=进入待审核
+    （当前仅实现 reject，pending 为预留扩展）。
+    """
+
+    enabled: bool = False
+    action: str = "reject"

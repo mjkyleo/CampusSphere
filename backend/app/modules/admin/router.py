@@ -21,6 +21,7 @@ from app.modules.admin.schemas import (
     AiFeatureConfig,
     BanRequest,
     CanteenConfig,
+    ContentModerationConfig,
     CourseDepartmentGroupsConfig,
     CourseDepartmentsConfig,
     EmailRegisterConfig,
@@ -40,6 +41,7 @@ from app.modules.admin.service import (
     cleanup_orphan_files,
     dashboard,
     get_canteen_config,
+    get_content_moderation_config,
     get_course_department_groups,
     get_course_departments,
     get_email_register_config,
@@ -56,6 +58,7 @@ from app.modules.admin.service import (
     reject_item,
     unban_user,
     update_canteen_config,
+    update_content_moderation_config,
     update_course_department_groups,
     update_course_departments,
     update_email_register_config,
@@ -369,6 +372,28 @@ async def admin_put_ai_config(
 
     payload = await update_ai_feature_config(db, data.model_dump())
     return ApiResponse.ok(data=AiFeatureConfig(**payload))
+
+
+# ------------------------------------------------------------------
+# 内容预审配置（AI 分类 + 敏感词）：share / team / job 发布前自动审核
+# ------------------------------------------------------------------
+
+
+@router.get("/content-moderation/config", response_model=ApiResponse[ContentModerationConfig])
+async def admin_get_content_moderation_config(
+    db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """读取内容预审开关与处置方式。"""
+    return ApiResponse.ok(data=ContentModerationConfig(**await get_content_moderation_config(db)))
+
+
+@router.put("/content-moderation/config", response_model=ApiResponse[ContentModerationConfig])
+async def admin_put_content_moderation_config(
+    data: ContentModerationConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+):
+    """更新内容预审开关与处置方式（写 DB，实时生效）。"""
+    payload = await update_content_moderation_config(db, data.model_dump())
+    return ApiResponse.ok(data=ContentModerationConfig(**payload))
 
 # ------------------------------------------------------------------
 # Canteen management (admin CRUD: canteens / stalls / dishes)

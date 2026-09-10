@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import ApplicationStatus, JobStatus
 from app.core.exceptions import BizError, ErrorCode
+from app.modules.ai.service import check_content_safety
 from app.modules.auth.models import User
 from app.modules.job.models import Job, JobApplication
 from app.modules.job.schemas import (
@@ -15,6 +16,8 @@ from app.modules.job.schemas import (
     JobCreate,
     JobOut,
 )
+
+_logger = get_logger("job.service")
 
 
 async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = None, page: int = 1, page_size: int = 20) -> dict:

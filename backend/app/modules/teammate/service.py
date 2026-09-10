@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import MemberStatus, TeamStatus
 from app.core.exceptions import BizError, ErrorCode
+from app.modules.ai.service import check_content_safety
 from app.modules.auth.models import User
 from app.modules.teammate.models import Team, TeamMember
 from app.modules.teammate.schemas import TeamCreate, TeamOut
+
 
 
 async def list_teams(db: AsyncSession, page: int = 1, page_size: int = 20, category: str = "") -> dict:
@@ -36,6 +38,16 @@ async def create_team(db: AsyncSession, creator: User, data: TeamCreate) -> Team
 
     payload = data.model_dump()
     payload["category"] = await normalize_category(db, "teammate", payload.get("category", ""))
+
+    # 内容预审：命中敏感词时拒绝发布（默认关闭，可在后台开启）
+    moderation_text = "\n".join(
+        str(payload.get(k, ""))
+        for k in ("title", "description", "required_roles", "contact_info")
+    ).strip()
+    moderation = await check_content_safety(db, moderation_text)
+    if not moderation["safe"]:
+        raise BizError(ErrorCode.FORBIDDEN, "发布内容涉嫌违规，请修改后重试")
+
     team = Team(creator_id=str(creator.id), **payload, status=TeamStatus.RECRUITING.value)
     db.add(team)
     await db.flush()

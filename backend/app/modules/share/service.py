@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BizError, ErrorCode
 from app.core.storage import storage_client
+from app.modules.ai.service import check_content_safety
 from app.modules.auth.models import User
 from app.modules.share.models import ShareResource
 from app.modules.share.schemas import ShareCreate, ShareOut
@@ -30,6 +31,13 @@ async def create_share(db: AsyncSession, owner: User, data: ShareCreate) -> Shar
 
     payload = data.model_dump()
     payload["category"] = await normalize_category(db, "share", payload.get("category", ""))
+
+    # 内容预审：命中敏感词时拒绝发布（默认关闭，可在后台开启）
+    moderation_text = f"{payload.get('title', '')}\n{payload.get('description', '')}".strip()
+    moderation = await check_content_safety(db, moderation_text)
+    if not moderation["safe"]:
+        raise BizError(ErrorCode.FORBIDDEN, "发布内容涉嫌违规，请修改后重试")
+
     sr = ShareResource(owner_id=str(owner.id), **payload)
     db.add(sr)
     await db.commit()

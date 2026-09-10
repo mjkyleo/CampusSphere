@@ -554,6 +554,35 @@ def _rule_moderation(content: str) -> dict:
     }
 
 
+async def check_content_safety(db: AsyncSession, text: str) -> dict:
+    """业务发布路径统一安全预审入口。
+
+    与 ``/api/ai/categorize`` 的差异：
+    * 受独立开关 ``content.moderation`` 控制，**不依赖 AI 总开关**；
+    * 即使 AI 总开关关闭或 API Key 未配，仍走规则引擎兜底；
+    * 返回结构化结果，供调用方决定拒绝/通过。
+
+    返回 ``{"safe": bool, "action": "pass"|"reject"|"pending", "category": str}``。
+    """
+    from app.modules.admin.service import get_content_moderation_config
+
+    cfg = await get_content_moderation_config(db)
+    if not cfg["enabled"]:
+        return {"safe": True, "action": "pass", "category": ""}
+
+    content = text.strip()[:_MAX_CONTENT_LEN]
+    try:
+        result = await categorize_content(db, content)
+    except BizError as exc:
+        # AI 总开关关闭或 moderation 能力关闭时，降级为纯规则引擎
+        _logger.warning("content_safety_ai_disabled_fallback_rule", error=str(exc))
+        result = _rule_moderation(content)
+
+    if not result.get("isSafe", True):
+        return {"safe": False, "action": cfg["action"], "category": result.get("category", "")}
+    return {"safe": True, "action": "pass", "category": result.get("category", "")}
+
+
 # ------------------------------------------------------------------
 # 业务能力：首页问候（可降级到模板，永不阻塞）
 # ------------------------------------------------------------------

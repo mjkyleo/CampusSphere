@@ -283,6 +283,45 @@ async def update_item_review_config(db: AsyncSession, data: dict) -> dict:
     _logger.info("admin_update_item_review", config=payload)
     return payload
 
+_CONTENT_MODERATION_KEY = "content.moderation"
+
+
+async def get_content_moderation_config(db: AsyncSession) -> dict:
+    """读取内容预审（AI 分类 + 敏感词）配置：DB 优先，缺省关闭。"""
+    default = {"enabled": False, "action": "reject"}
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _CONTENT_MODERATION_KEY)
+    )
+    if not cfg:
+        return default
+    merged = dict(default)
+    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
+    action = str(merged.get("action") or "reject").lower()
+    merged["action"] = action if action in ("reject", "pending") else "reject"
+    return merged
+
+
+async def update_content_moderation_config(db: AsyncSession, data: dict) -> dict:
+    """后台更新内容预审开关与处置方式（写 DB，实时生效）。"""
+    action = str(data.get("action") or "reject").lower()
+    if action not in ("reject", "pending"):
+        action = "reject"
+    payload = {
+        "enabled": bool(data.get("enabled", False)),
+        "action": action,
+    }
+    cfg = await db.scalar(
+        select(AppConfig).where(AppConfig.key == _CONTENT_MODERATION_KEY)
+    )
+    if cfg:
+        cfg.value = payload
+    else:
+        db.add(AppConfig(key=_CONTENT_MODERATION_KEY, value=payload))
+    await db.commit()
+    _logger.info("admin_update_content_moderation", config=payload)
+    return payload
+
+
 _ITEM_CATEGORIES_KEY = "item.categories"
 
 # 兜底分类（school.yaml 与 DB 均未配置时的最小集合）
