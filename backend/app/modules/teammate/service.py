@@ -5,13 +5,16 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.tasks.notify as notify_tasks
 from app.common.enums import MemberStatus, TeamStatus
 from app.core.exceptions import BizError, ErrorCode
+from app.core.logging import get_logger
 from app.modules.ai.service import check_content_safety
 from app.modules.auth.models import User
 from app.modules.teammate.models import Team, TeamMember
 from app.modules.teammate.schemas import TeamCreate, TeamOut
 
+_logger = get_logger("teammate.service")
 
 
 async def list_teams(db: AsyncSession, page: int = 1, page_size: int = 20, category: str = "") -> dict:
@@ -80,6 +83,15 @@ async def join_team(db: AsyncSession, team: Team, user: User, role: str = "") ->
     db.add(member)
     await db.commit()
     await db.refresh(member)
+    try:
+        notify_tasks.send_notify.delay(
+            str(team.creator_id),
+            f"{user.nickname or user.username} 申请加入 {team.title}",
+            f"角色：{role or '成员'}，请尽快在「队友招募」中处理。",
+            channel="inapp",
+        )
+    except Exception as exc:
+        _logger.warning("notify_dispatch_failed", team_id=str(team.id), error=str(exc))
     return member
 
 

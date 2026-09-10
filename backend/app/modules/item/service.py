@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 # 以模块形式导入 Celery 任务，避免循环导入并便于测试 monkeypatch
+import app.tasks.notify as notify_tasks
 import app.tasks.search_sync as search_sync_tasks
 from app.common.enums import ItemStatus, TradeStatus
 from app.core.cache import NULL_SENTINEL, cache_get_json, cache_set_json, invalidate_namespace
@@ -28,9 +29,12 @@ _ITEM_REVIEW_KEY = "item.review"
 _ITEM_INDEX_NAME = "items"
 
 
+def _notify_user(user_id: str, title: str, content: str) -> None:
     """站内通知：broker 不可达时不阻塞主流程，仅记 warning 日志。"""
     try:
+        notify_tasks.send_notify.delay(user_id, title, content, channel="inapp")
     except Exception as exc:
+        _logger.warning("notify_dispatch_failed", user_id=user_id, error=str(exc))
 
 
 def item_search_doc(item: Item) -> dict:
@@ -321,6 +325,7 @@ async def create_trade_session(
     # 状态已变更，列表缓存需立即失效，否则广场上仍显示"在售"
     await invalidate_namespace("items")
     sync_item_search(item)
+    _notify_user(
         str(item.owner_id),
         "有人想购买你的闲置",
         f"买家 {buyer.nickname or buyer.username} 对「{item.title}」发起了交易，快去看看吧",
