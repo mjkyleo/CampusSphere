@@ -508,7 +508,7 @@ def _clean_department_groups(raw: list[dict]) -> list[dict]:
                 raise BizError(ErrorCode.BAD_REQUEST, f"院系名称「{name}」过长（最多 30 个字符）")
             depts.append(name)
     if len(merged) > 20:
-        raise BizError(ErrorCode.BAD_REQUEST, f"学部分组数量过多（最多 20 个）")
+        raise BizError(ErrorCode.BAD_REQUEST, "学部分组数量过多（最多 20 个）")
     return [{"group": g, "departments": d} for g, d in merged.items() if d]
 
 
