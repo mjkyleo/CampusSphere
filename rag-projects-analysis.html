@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Engineering Hub — RAG 项目全景对比分析</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2e3d;
+    --text: #e4e6ef; --muted: #8b8fa3; --accent: #6c8cff;
+    --green: #4ade80; --yellow: #facc15; --red: #f87171;
+    --orange: #fb923c; --purple: #c084fc; --cyan: #22d3ee;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; line-height:1.7; padding:2rem; }
+  .container { max-width:1400px; margin:0 auto; }
+  h1 { font-size:2rem; margin-bottom:.5rem; background:linear-gradient(135deg,var(--accent),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .subtitle { color:var(--muted); margin-bottom:2rem; font-size:.95rem; }
+  h2 { font-size:1.4rem; margin:2.5rem 0 1rem; padding-bottom:.5rem; border-bottom:2px solid var(--accent); display:inline-block; }
+  h3 { font-size:1.1rem; margin:1.5rem 0 .75rem; color:var(--accent); }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin:1.5rem 0; }
+  .stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.2rem; text-align:center; }
+  .stat-card .num { font-size:2rem; font-weight:700; color:var(--accent); }
+  .stat-card .label { font-size:.8rem; color:var(--muted); margin-top:.3rem; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.85rem; background:var(--card); border-radius:8px; overflow:hidden; }
+  th { background:#232735; padding:.7rem .6rem; text-align:left; font-weight:600; color:var(--accent); white-space:nowrap; border-bottom:2px solid var(--border); }
+  td { padding:.6rem; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:hover td { background:#1f2330; }
+  .tag { display:inline-block; padding:.15rem .5rem; border-radius:4px; font-size:.75rem; font-weight:600; margin:1px; }
+  .tag-beginner { background:#166534; color:var(--green); }
+  .tag-intermediate { background:#854d0e; color:var(--yellow); }
+  .tag-advanced { background:#7f1d1d; color:var(--red); }
+  .tag-free { background:#166534; color:var(--green); }
+  .tag-paid { background:#7f1d1d; color:var(--red); }
+  .tag-partial { background:#854d0e; color:var(--yellow); }
+  .score { font-weight:700; }
+  .score-high { color:var(--green); }
+  .score-mid { color:var(--yellow); }
+  .score-low { color:var(--red); }
+  .project-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.2rem; margin:1rem 0; }
+  .project-card h4 { font-size:1rem; color:var(--cyan); margin-bottom:.5rem; }
+  .project-card .meta { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.7rem; }
+  .project-card p { margin:.3rem 0; font-size:.9rem; }
+  .project-card .field-label { color:var(--muted); font-weight:600; display:inline-block; min-width:80px; }
+  .top-card { background:linear-gradient(135deg,#1a1d27,#232735); border:1px solid var(--accent); border-radius:12px; padding:1.5rem; margin:1rem 0; position:relative; overflow:hidden; }
+  .top-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--accent); }
+  .top-card .rank { position:absolute; top:1rem; right:1.2rem; font-size:2.5rem; font-weight:800; color:var(--accent); opacity:.3; }
+  .top-card h3 { color:var(--accent); margin-top:0; }
+  .top-card .reason { background:#0f1117; border-radius:6px; padding:.8rem; margin-top:.7rem; font-size:.88rem; border-left:3px solid var(--green); }
+  .dim-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; margin:1rem 0; }
+  .dim-box { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:1rem; }
+  .dim-box h4 { color:var(--orange); font-size:.9rem; margin-bottom:.4rem; }
+  .dim-box p { font-size:.85rem; }
+  .note { background:#1a1d27; border-left:3px solid var(--yellow); padding:.8rem 1rem; border-radius:0 6px 6px 0; margin:1rem 0; font-size:.88rem; color:var(--muted); }
+  .toc { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.2rem 1.5rem; margin:1.5rem 0; }
+  .toc a { color:var(--accent); text-decoration:none; font-size:.9rem; }
+  .toc a:hover { text-decoration:underline; }
+  .toc ul { list-style:none; columns:2; column-gap:2rem; }
+  .toc li { padding:.2rem 0; }
+  @media(max-width:768px) { .toc ul { columns:1; } body { padding:1rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🔍 AI Engineering Hub — RAG 项目全景对比分析</h1>
+<p class="subtitle">仓库：patchy631/ai-engineering-hub &nbsp;|&nbsp; 覆盖 32 个 RAG 相关项目 &nbsp;|&nbsp; 基于各项目 README 实际内容分析 &nbsp;|&nbsp; 2026-09</p>
+
+<div class="stats">
+  <div class="stat-card"><div class="num">32</div><div class="label">RAG 相关项目总数</div></div>
+  <div class="stat-card"><div class="num">7</div><div class="label">项目类别</div></div>
+  <div class="stat-card"><div class="num">8</div><div class="label">可完全本地运行</div></div>
+  <div class="stat-card"><div class="num">5</div><div class="label">MCP 协议项目</div></div>
+  <div class="stat-card"><div class="num">6</div><div class="label">维度对比分析</div></div>
+</div>
+
+<div class="toc">
+  <strong>📑 目录</strong>
+  <ul>
+    <li><a href="#overview">一、总览矩阵</a></li>
+    <li><a href="#basic">二、基础 RAG（7个）</a></li>
+    <li><a href="#agentic">三、Agentic / 进阶 RAG（9个）</a></li>
+    <li><a href="#voice">四、语音/音频 RAG（3个）</a></li>
+    <li><a href="#multimodal">五、多模态 RAG（2个）</a></li>
+    <li><a href="#mcp">六、MCP RAG（5个）</a></li>
+    <li><a href="#eval">七、评测与模型对比（3个）</a></li>
+    <li><a href="#advanced">八、高级/垂直场景（3个）</a></li>
+    <li><a href="#top">九、Top 5 推荐项目</a></li>
+    <li><a href="#summary">十、选型决策总结</a></li>
+  </ul>
+</div>
+
+<!-- ==================== 总览矩阵 ==================== -->
+<h2 id="overview">一、总览矩阵</h2>
+<p>以下为全部 32 个项目的核心维度速查表。<strong>简历价值</strong>为 1-5 分综合评估（技术深度 × 差异化 × 可展示性）。</p>
+
+<table>
+<thead>
+<tr><th>项目</th><th>类别</th><th>核心框架</th><th>向量库</th><th>LLM</th><th>付费依赖</th><th>难度</th><th>简历价值</th></tr>
+</thead>
+<tbody>
+<tr><td>simple-rag-workflow</td><td>基础RAG</td><td>LlamaIndex</td><td>内存</td><td>Ollama(Llama3.2)</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-beginner">入门</span></td><td class="score score-low">2/5</td></tr>
+<tr><td>document-chat-rag</td><td>基础RAG</td><td>LlamaIndex</td><td>Qdrant</td><td>Ollama(Llama3.3)</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-beginner">入门+</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>fastest-rag-stack</td><td>基础RAG</td><td>LlamaIndex</td><td>Qdrant</td><td>SambaNova(Llama3.3)</td><td><span class="tag tag-paid">SambaNova</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>github-rag</td><td>基础RAG</td><td>LlamaIndex</td><td>默认</td><td>Ollama/OpenAI</td><td><span class="tag tag-free">可零付费</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>modernbert-rag</td><td>基础RAG</td><td>LlamaIndex</td><td>默认</td><td>Ollama(Llama3.2)</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>llama-4-rag</td><td>基础RAG</td><td>LlamaIndex</td><td>待补充</td><td>Cerebras(Llama4)</td><td><span class="tag tag-paid">Cerebras</span></td><td><span class="tag tag-beginner">入门+</span></td><td class="score score-mid">3/5</td></tr>
+<tr><td>video-rag-gemini</td><td>基础RAG</td><td>无(直调API)</td><td>无</td><td>Gemini</td><td><span class="tag tag-paid">Gemini</span></td><td><span class="tag tag-beginner">入门</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>agentic_rag</td><td>Agentic</td><td>CrewAI</td><td>Qdrant</td><td>DeepSeek-R1/Llama3.2</td><td><span class="tag tag-partial">FireCrawl</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>agentic_rag_deepseek</td><td>Agentic</td><td>CrewAI</td><td>GroundX</td><td>DeepSeek</td><td><span class="tag tag-paid">GroundX+SERPER+DeepSeek</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>deploy-agentic-rag</td><td>Agentic</td><td>CrewAI+LitServe</td><td>待补充</td><td>Ollama(Qwen3)</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-beginner">入门+</span></td><td class="score score-mid">3/5</td></tr>
+<tr><td>firecrawl-agent</td><td>Agentic</td><td>LlamaIndex</td><td>Milvus</td><td>OpenAI/Ollama</td><td><span class="tag tag-partial">FireCrawl+OpenAI(可选)</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>rag-sql-router</td><td>Agentic</td><td>LlamaIndex</td><td>Milvus</td><td>OpenRouter(Qwen)</td><td><span class="tag tag-paid">OpenRouter+Cleanlab</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4.5/5</td></tr>
+<tr><td>fastest-rag-milvus-groq</td><td>Agentic</td><td>LlamaIndex</td><td>Milvus(二值量化)</td><td>Groq(Kimi K2)</td><td><span class="tag tag-paid">Groq+Beam</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>rag-with-dockling</td><td>进阶RAG</td><td>LlamaIndex</td><td>默认</td><td>Ollama(Qwen3)</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>trustworthy-rag</td><td>进阶RAG</td><td>LlamaIndex</td><td>默认</td><td>Cleanlab TLM</td><td><span class="tag tag-paid">TLM+LlamaParse</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>chat-with-code</td><td>进阶RAG</td><td>LlamaIndex</td><td>Milvus</td><td>OpenRouter(Qwen3-Coder)</td><td><span class="tag tag-paid">OpenRouter+Cleanlab</span></td><td><span class="tag tag-advanced">高级</span></td><td class="score score-high">4.5/5</td></tr>
+<tr><td>rag-voice-agent</td><td>语音RAG</td><td>LiveKit</td><td>待补充</td><td>OpenAI/Ollama(Gemma3)</td><td><span class="tag tag-paid">Cartesia+OpenAI/AssemblyAI</span></td><td><span class="tag tag-advanced">高级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>chat-with-audios</td><td>语音RAG</td><td>LlamaIndex</td><td>Qdrant</td><td>SambaNova/Ollama</td><td><span class="tag tag-partial">AssemblyAI</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>multimodal-rag-assemblyai</td><td>语音RAG</td><td>CrewAI Flows</td><td>Milvus</td><td>OpenAI</td><td><span class="tag tag-paid">AssemblyAI+OpenAI</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>deepseek-multimodal-RAG</td><td>多模态</td><td>自研</td><td>Qdrant</td><td>Janus-Pro(本地)</td><td><span class="tag tag-free">零付费(需GPU)</span></td><td><span class="tag tag-advanced">高级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>Colivara-deepseek-website-RAG</td><td>多模态</td><td>自研</td><td>ColiVara</td><td>Janus-Pro(本地)</td><td><span class="tag tag-paid">ColiVara+Firecrawl</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>eyelevel-mcp-rag</td><td>MCP</td><td>MCP SDK</td><td>GroundX</td><td>客户端侧</td><td><span class="tag tag-paid">GroundX</span></td><td><span class="tag tag-beginner">入门</span></td><td class="score score-mid">3/5</td></tr>
+<tr><td>llamaindex-mcp</td><td>MCP</td><td>LlamaIndex+MCP</td><td>SQLite</td><td>Ollama/OpenAI</td><td><span class="tag tag-free">零付费</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4.5/5</td></tr>
+<tr><td>mcp-agentic-rag</td><td>MCP</td><td>MCP SDK</td><td>Qdrant</td><td>Cursor侧</td><td><span class="tag tag-paid">Bright Data</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>mcp-agentic-rag-firecrawl</td><td>MCP</td><td>MCP SDK</td><td>Qdrant</td><td>Cursor侧</td><td><span class="tag tag-partial">Firecrawl</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>mcp-video-rag</td><td>MCP</td><td>MCP SDK</td><td>Ragie</td><td>Cursor侧</td><td><span class="tag tag-paid">Ragie</span></td><td><span class="tag tag-beginner">入门+</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>eval-and-observability</td><td>评测</td><td>LlamaIndex</td><td>待补充</td><td>OpenAI</td><td><span class="tag tag-paid">OpenAI+Opik</span></td><td><span class="tag tag-beginner">入门+</span></td><td class="score score-mid">3/5</td></tr>
+<tr><td>llama-4_vs_deepseek-r1</td><td>评测</td><td>LlamaIndex</td><td>待补充</td><td>Groq+OpenAI(o1)</td><td><span class="tag tag-paid">Groq+OpenAI</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3/5</td></tr>
+<tr><td>qwen3_vs_deepseek-r1</td><td>评测</td><td>LlamaIndex</td><td>待补充</td><td>Ollama(双模型)</td><td><span class="tag tag-partial">Opik</span></td><td><span class="tag tag-intermediate">中级</span></td><td class="score score-mid">3.5/5</td></tr>
+<tr><td>notebook-lm-clone</td><td>高级</td><td>自研(模块化)</td><td>Milvus</td><td>OpenAI</td><td><span class="tag tag-paid">OpenAI+AssemblyAI+Firecrawl+Zep</span></td><td><span class="tag tag-advanced">高级</span><td class="score score-high">4.5/5</td></tr>
+<tr><td>paralegal-agent-crew</td><td>高级</td><td>CrewAI</td><td>Milvus</td><td>OpenAI</td><td><span class="tag tag-partial">OpenAI+Firecrawl(可选)</span></td><td><span class="tag tag-intermediate">中高级</span></td><td class="score score-high">4/5</td></tr>
+<tr><td>context-engineering-workflow</td><td>高级</td><td>CrewAI Flows</td><td>Milvus</td><td>OpenAI</td><td><span class="tag tag-paid">5个云API</span></td><td><span class="tag tag-advanced">高级</span></td><td class="score score-high">4/5</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+  <strong>📌 说明：</strong>"可完全本地运行"指 LLM 推理、嵌入、向量库均不依赖付费云 API。部分项目标注"可零付费"表示存在本地替代方案但 README 默认路径含付费选项。所有分析基于各项目 README 实际内容，标注"待补充"表示 README 中未明确说明。
+</div>
+
+<!-- ==================== 基础 RAG ==================== -->
+<h2 id="basic">二、基础 RAG（7个）</h2>
+<p>这类项目聚焦 RAG 核心流程的最小实现，适合入门学习和快速搭建原型。</p>
+
+<div class="project-card">
+  <h4>1. simple-rag-workflow</h4>
+  <div class="meta"><span class="tag tag-beginner">入门</span><span class="tag tag-free">零付费</span><span class="score score-low">简历价值 2/5</span></div>
+  <p><span class="field-label">用处：</span>最精简的 RAG 入门实现，纯 Notebook 形式演示检索增强生成核心流程。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Ollama (Llama 3.2) + Jupyter Notebook，无独立向量库。</p>
+  <p><span class="field-label">亮点：</span>7 个项目中代码量最少，零外部依赖，适合零基础理解 RAG 四步（加载→切分→嵌入→检索→生成）。</p>
+  <p><span class="field-label">局限：</span>无 UI、无向量库、无生产级组件，简历展示价值极低。</p>
+</div>
+
+<div class="project-card">
+  <h4>2. document-chat-rag</h4>
+  <div class="meta"><span class="tag tag-beginner">入门+</span><span class="tag tag-free">零付费</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>带 Web UI 的文档对话 RAG，支持文档上传和问答交互。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Qdrant (Docker) + Ollama (Llama 3.3) + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>"本地 LLM + 生产级向量库 + Web UI"完整三件套，Qdrant 是 Rust 高性能向量数据库。</p>
+  <p><span class="field-label">局限：</span>嵌入模型未明确说明，README 较简略。</p>
+</div>
+
+<div class="project-card">
+  <h4>3. fastest-rag-stack</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">SambaNova 付费</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>主打低延迟的文档对话 RAG，使用专用 AI 推理芯片加速。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Qdrant + SambaNova (Llama 3.3 云推理) + Streamlit + SSE 流式。</p>
+  <p><span class="field-label">亮点：</span>唯一涉及专用 AI 硬件推理服务（SambaNova）的项目，差异化明显。</p>
+  <p><span class="field-label">局限：</span>SambaNova API 需申请，可及性有限；嵌入模型未说明。</p>
+</div>
+
+<div class="project-card">
+  <h4>4. github-rag ⭐</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-free">可零付费</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>100% 本地运行的代码仓库问答 RAG——输入 GitHub 仓库地址，自动解析代码并支持语义问答。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + GitIngest (仓库→Markdown) + Ollama/OpenAI + HuggingFace 嵌入 + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>唯一面向代码仓库场景的基础 RAG；GitIngest 自动结构化代码库；支持本地/云端 LLM 灵活切换。</p>
+  <p><span class="field-label">局限：</span>向量库使用 LlamaIndex 默认，未接入生产级向量数据库。</p>
+</div>
+
+<div class="project-card">
+  <h4>5. modernbert-rag</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-free">零付费</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>文档对话 RAG，核心特色是使用微软 ModernBert 作为嵌入模型提升检索质量。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + ModernBert (HuggingFace) + Ollama (Llama 3.2) + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>唯一明确指定嵌入模型的项目；ModernBert 在长文本检索上优于传统 BERT；聚焦"嵌入选型对 RAG 质量的影响"。</p>
+  <p><span class="field-label">局限：</span>需从 GitHub 源码安装 transformers，复现不稳定性高；未说明具体 ModernBert 变体。</p>
+</div>
+
+<div class="project-card">
+  <h4>6. llama-4-rag</h4>
+  <div class="meta"><span class="tag tag-beginner">入门+</span><span class="tag tag-paid">Cerebras 付费</span><span class="score score-mid">简历价值 3/5</span></div>
+  <p><span class="field-label">用处：</span>基于 Meta Llama 4 的文档对话 RAG。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Cerebras API (Llama 4) + Streamlit + uv 包管理。</p>
+  <p><span class="field-label">亮点：</span>使用最新 Llama 4 模型；Cerebras 晶圆级引擎主打超低延迟；uv 包管理体现工程规范。</p>
+  <p><span class="field-label">局限：</span>README 极度简略（仅 270 token），嵌入模型和向量库均未说明，技术深度展示有限。</p>
+</div>
+
+<div class="project-card">
+  <h4>7. video-rag-gemini</h4>
+  <div class="meta"><span class="tag tag-beginner">入门</span><span class="tag tag-paid">Gemini 付费</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>上传视频文件并与之对话，利用 Gemini 多模态能力直接理解视频内容。</p>
+  <p><span class="field-label">技术栈：</span>Google Gemini File API + Streamlit，支持 MP4/AVI/MOV/MKV/WEBM。</p>
+  <p><span class="field-label">亮点：</span>唯一多模态视频问答应用；功能完整（会话管理、流式响应、进度反馈）；README 最详尽。</p>
+  <p><span class="field-label">局限：</span>严格来说不是传统 RAG（无分块/嵌入/向量检索），而是端到端多模态理解；强依赖 Gemini API。</p>
+</div>
+
+<!-- ==================== Agentic RAG ==================== -->
+<h2 id="agentic">三、Agentic / 进阶 RAG（9个）</h2>
+<p>这类项目在基础 RAG 上引入 Agent 编排、智能路由、纠错检索、SQL 混合查询等进阶能力。</p>
+
+<div class="project-card">
+  <h4>8. agentic_rag</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-partial">FireCrawl 付费</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>CrewAI 驱动的 Agentic RAG，文档检索不到答案时自动 fallback 到 Web 搜索。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI + crewai-tools + Qdrant + FastEmbed + MarkItDown + FireCrawl + Streamlit；支持 DeepSeek-R1 或 Llama 3.2 本地运行。</p>
+  <p><span class="field-label">亮点：</span>文档检索 + Web 搜索的双路 fallback 机制；提供 DeepSeek 和 Llama 两种本地 LLM 入口；chonkie 语义分块。</p>
+  <p><span class="field-label">局限：</span>Web 搜索强依赖 FireCrawl API；README 较简短。</p>
+</div>
+
+<div class="project-card">
+  <h4>9. agentic_rag_deepseek</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">3个付费API</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>企业级 Agentic RAG，将 GroundX 文档解析检索系统作为 CrewAI 自定义工具。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI + GroundX (EyeLevel) + SERPER API + DeepSeek + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>GroundX 专为复杂文档设计的解析检索（优于通用文本切分）；支持完全本地私有化部署；CrewAI Agent 多步推理。</p>
+  <p><span class="field-label">局限：</span>需配置 3 个 API Key；DeepSeek 模型具体用法 README 说明不足。</p>
+</div>
+
+<div class="project-card">
+  <h4>10. deploy-agentic-rag</h4>
+  <div class="meta"><span class="tag tag-beginner">入门+</span><span class="tag tag-free">零付费</span><span class="score score-mid">简历价值 3/5</span></div>
+  <p><span class="field-label">用处：</span>100% 私有的 Agentic RAG API 服务，CrewAI + LitServe 构建可部署的推理端点。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI + LitServe + Ollama (Qwen3)，Server-Client 架构。</p>
+  <p><span class="field-label">亮点：</span>完全本地私有化，零付费；LitServe 是轻量高性能推理服务框架；展示了 RAG 从脚本到 API 服务的部署能力。</p>
+  <p><span class="field-label">局限：</span>实现极简（README 仅 259 token），无向量库细节、无 UI，功能单薄。</p>
+</div>
+
+<div class="project-card">
+  <h4>11. firecrawl-agent ⭐</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-partial">FireCrawl+OpenAI(可选)</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>完整的 Corrective RAG（纠错 RAG）工作流：文档检索 → 相关性评估 → 不足时触发 Web 搜索 → 综合生成。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + FireCrawl + Milvus + FastEmbed (BGE-large-en-v1.5) + Streamlit；支持 OpenAI/Ollama/LMStudio。</p>
+  <p><span class="field-label">亮点：</span>仓库中最完整的 Corrective RAG 实现，含工作流架构图；相关性过滤机制提升回答准确率；Milvus 生产级向量库；多 LLM 提供商兼容。</p>
+  <p><span class="field-label">局限：</span>默认路径需 OpenAI + FireCrawl 双 API；本地 LLM 替代需自行配置。</p>
+</div>
+
+<div class="project-card">
+  <h4>12. rag-sql-router ⭐⭐</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">OpenRouter+Cleanlab</span><span class="score score-high">简历价值 4.5/5</span></div>
+  <p><span class="field-label">用处：</span>智能路由 Agent——根据查询自动选择走向量库 RAG 检索还是 SQL 数据库查询，并对回答做可信度验证。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Docling (IBM 文档解析) + Milvus (自托管) + Cleanlab Codex (回答验证) + OpenRouter (Qwen) + Streamlit + Notebook。</p>
+  <p><span class="field-label">亮点：</span>RAG + SQL 双引擎路由是差异化最强的设计；Cleanlab Codex（MIT 团队）提供自动响应验证、信任评分、SME 干预闭环，直击 Agent 输出可靠性痛点；Milvus 自托管展示运维能力；Notebook + App 双入口。</p>
+  <p><span class="field-label">局限：</span>依赖 OpenRouter 和 Cleanlab 两个付费服务；SQL 引擎部分细节 README 未展开。</p>
+</div>
+
+<div class="project-card">
+  <h4>13. fastest-rag-milvus-groq</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">Groq+Beam</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>极致性能 RAG，宣称检索延迟 &lt;15ms，使用二值量化 + Groq 高速推理。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Milvus (Binary Quantization) + Groq (Kimi K2) + Beam (Serverless 部署) + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>Milvus 二值量化索引大幅降低检索延迟和存储；Groq LPU 推理引擎速度极快；Beam 云原生 Serverless 部署。</p>
+  <p><span class="field-label">局限：</span>Groq 和 Beam 均为付费云服务；性能指标依赖特定硬件环境；功能较单一（纯速度优化）。</p>
+</div>
+
+<div class="project-card">
+  <h4>14. rag-with-dockling</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-free">零付费</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>对 Excel/PPT/复杂版式文档构建 RAG，利用 IBM Docling 做高质量文档解析。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + IBM Docling (Reader + Node Parser) + Ollama (Qwen3) + HuggingFace 嵌入。</p>
+  <p><span class="field-label">亮点：</span>Docling 专为表格/PPT/版式文档设计，解析质量优于 PyPDF；全链路可本地运行零付费；Docling Node Parser 保留表格结构语义。</p>
+  <p><span class="field-label">局限：</span>README 极其简短（仅安装步骤），缺少运行示例和架构说明；Docling 是较新的库，API 可能变动。</p>
+</div>
+
+<div class="project-card">
+  <h4>15. trustworthy-rag</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">TLM+LlamaParse</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>可信 RAG 系统，使用 Cleanlab TLM 为生成结果提供置信度评分和推理依据，解决幻觉问题。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Cleanlab TLM + LlamaParse + HuggingFace 嵌入 + Streamlit (含可信分数 glow UI)。</p>
+  <p><span class="field-label">亮点：</span>核心差异化是 TLM 置信度评分——不仅给答案，还给可信程度和推理过程；直接回应 RAG 幻觉这一企业核心痛点；UI 对可信分数有视觉高亮。</p>
+  <p><span class="field-label">局限：</span>TLM 和 LlamaParse 均为托管 API，无本地替代；README 较简短。</p>
+</div>
+
+<div class="project-card">
+  <h4>16. chat-with-code ⭐⭐</h4>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="tag tag-paid">OpenRouter+Cleanlab</span><span class="score score-high">简历价值 4.5/5</span></div>
+  <p><span class="field-label">用处：</span>代码仓库自然语言问答系统，使用 Qwen3-Coder 专用代码模型生成回答，Cleanlab Codex 验证正确性。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Milvus (Docker) + OpenRouter (Qwen3-Coder) + Cleanlab Codex + Streamlit + uv + Jupyter Notebook。</p>
+  <p><span class="field-label">亮点：</span>代码 RAG 是 AI 开发工具方向的核心场景；Qwen3-Coder 是最新专用代码模型；"生成→验证"闭环（Cleanlab Codex）极具差异化；Milvus 自托管 + uv 展示工程规范；Notebook + App 双入口完整度高。</p>
+  <p><span class="field-label">局限：</span>依赖 OpenRouter 和 Cleanlab 两个付费服务；纯本地复现需自行改造 LLM 层。</p>
+</div>
+
+<!-- ==================== 语音 RAG ==================== -->
+<h2 id="voice">四、语音/音频 RAG（3个）</h2>
+<p>这类项目将语音/音频作为输入或交互模态，扩展 RAG 的感知边界。</p>
+
+<div class="project-card">
+  <h4>17. rag-voice-agent</h4>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="tag tag-paid">Cartesia+STT</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>实时语音 RAG Agent，用户语音交互，系统实时完成 STT→RAG→TTS 全链路低延迟对话。</p>
+  <p><span class="field-label">技术栈：</span>双方案——①OpenAI STT + Cartesia TTS + LiveKit；②AssemblyAI + Ollama/Gemma3 + Cartesia + LiveKit。前端：LiveKit Agents Playground。</p>
+  <p><span class="field-label">亮点：</span>真正的实时语音交互（非录音→转写模式）；云端/本地 LLM 双路径；LiveKit 低延迟实时音频流；Cartesia 高质量自然语音合成。</p>
+  <p><span class="field-label">局限：</span>复现需多个付费 API；RAG 部分 README 未详细展开；环境配置复杂度高。</p>
+</div>
+
+<div class="project-card">
+  <h4>18. chat-with-audios</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-partial">AssemblyAI</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>对音频文件构建 RAG——先转写为文本，再建向量索引，实现音频内容语义检索问答。</p>
+  <p><span class="field-label">技术栈：</span>AssemblyAI (转写) + LlamaIndex + Qdrant (Docker) + SambaNova/Ollama + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>音频→文本→RAG 完整垂直管线；AssemblyAI 支持说话人分离；Qdrant 高性能向量库；LLM 层支持 SambaNova 或本地 Ollama 切换。</p>
+  <p><span class="field-label">局限：</span>整体管线偏标准，差异化不够突出；README 较简短，缺少架构图。</p>
+</div>
+
+<div class="project-card">
+  <h4>19. multimodal-rag-assemblyai</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">AssemblyAI+OpenAI</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>多模态 Agentic RAG——支持音频+文本数据摄入，用户语音提问，经转录→检索→双 Agent 编排后输出。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI Flows + AssemblyAI + Milvus (Docker) + OpenAI (LLM+嵌入)。</p>
+  <p><span class="field-label">亮点：</span>端到端语音交互；CrewAI 双 Agent 分工（Research Agent 分析 + Response Agent 综合）；支持音频+文本多模态摄入；代码结构完整（docker-compose）。</p>
+  <p><span class="field-label">局限：</span>两个付费 API 依赖；OpenAI 同时做嵌入和 LLM，成本较高。</p>
+</div>
+
+<!-- ==================== 多模态 RAG ==================== -->
+<h2 id="multimodal">五、多模态 RAG（2个）</h2>
+<p>这类项目直接对图像/文档页面进行多模态理解和检索，不经过 OCR 转文本的中间步骤。</p>
+
+<div class="project-card">
+  <h4>20. deepseek-multimodal-RAG</h4>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="tag tag-free">零付费(需GPU)</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>基于 DeepSeek-Janus-Pro 的多模态 RAG，支持对含图像的文档（PDF）进行语义检索问答。</p>
+  <p><span class="field-label">技术栈：</span>DeepSeek-Janus-Pro (本地) + ColPali (视觉编码器) + Qdrant + fastembed + Streamlit + flash-attn。</p>
+  <p><span class="field-label">亮点：</span>全程本地运行零 API 费用；ColPali late-interaction 检索无需 OCR；Janus-Pro 原生多模态理解；代码完整（app.py + rag_code.py）。</p>
+  <p><span class="field-label">局限：</span>硬件门槛高（Janus-Pro 需 GPU 显存）；flash-attn 编译需 CUDA 环境；本地部署复现成本大。</p>
+</div>
+
+<div class="project-card">
+  <h4>21. Colivara-deepseek-website-RAG</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">ColiVara+Firecrawl</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>面向网站的多模态 RAG——Firecrawl 抓取网页 → ColiVara 文档理解检索 → Janus-Pro 多模态生成回答。</p>
+  <p><span class="field-label">技术栈：</span>DeepSeek-Janus-Pro (本地) + ColiVara (文档检索) + Firecrawl (网页抓取) + Streamlit + streamlit-pdf-viewer + fastembed。</p>
+  <p><span class="field-label">亮点：</span>ColiVara 工业级文档解析检索（专为复杂文档优化）；"网页→结构化文档→多模态问答"全链路；PDF 查看器可溯源展示原文页面。</p>
+  <p><span class="field-label">局限：</span>两个第三方 SaaS 依赖增加复现成本；Janus 本地部署仍需 GPU。</p>
+</div>
+
+<!-- ==================== MCP RAG ==================== -->
+<h2 id="mcp">六、MCP RAG（5个）</h2>
+<p>这类项目通过 MCP（Model Context Protocol）协议将 RAG 能力封装为标准工具，供 Cursor、Claude Desktop 等 MCP 客户端调用。</p>
+
+<div class="project-card">
+  <h4>22. eyelevel-mcp-rag</h4>
+  <div class="meta"><span class="tag tag-beginner">入门</span><span class="tag tag-paid">GroundX</span><span class="score score-mid">简历价值 3/5</span></div>
+  <p><span class="field-label">用处：</span>MCP 服务器封装 GroundX 文档搜索能力，对复杂真实文档做 RAG 并通过 MCP 协议暴露。</p>
+  <p><span class="field-label">技术栈：</span>GroundX/EyeLevel + Python MCP SDK + uv。</p>
+  <p><span class="field-label">亮点：</span>专门针对复杂文档优化；以 MCP 标准协议封装，可直接接入 Cursor/Claude Desktop；项目极简。</p>
+  <p><span class="field-label">局限：</span>代码量极少（README 仅 297 token），主要是对 GroundX API 的 MCP 封装，深度有限。</p>
+</div>
+
+<div class="project-card">
+  <h4>23. llamaindex-mcp ⭐⭐</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-free">零付费</span><span class="score score-high">简历价值 4.5/5</span></div>
+  <p><span class="field-label">用处：</span>用 LlamaIndex 构建本地 MCP 客户端——连接本地 MCP 服务器（暴露 SQLite 等工具），通过自然语言与工具调用 Agent 交互。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Python MCP SDK (服务器+客户端双端) + SQLite + Ollama/OpenAI + uv + pyproject.toml。</p>
+  <p><span class="field-label">亮点：</span><strong>唯一可完全本地运行且零付费的 MCP 项目</strong>；同时实现 MCP 服务器（SQLite 工具）和 MCP 客户端（LlamaIndex Agent），完整展示协议两端；SSE 传输模式；代码完整（server.py + ollama_client.ipynb）。</p>
+  <p><span class="field-label">局限：</span>示例场景（SQLite 查询）相对简单，需要自行扩展到更复杂的 RAG 场景。</p>
+</div>
+
+<div class="project-card">
+  <h4>24. mcp-agentic-rag</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">Bright Data</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>MCP 驱动的 Agentic RAG（Cursor IDE 客户端）——Bright Data 抓取网页→存 Qdrant→MCP 服务器暴露→向量检索+Web fallback。</p>
+  <p><span class="field-label">技术栈：</span>Bright Data (SERP API) + Qdrant (Docker) + Python MCP SDK + Cursor IDE + Jupyter Notebook (建库)。</p>
+  <p><span class="field-label">亮点：</span>Cursor IDE 作为 MCP 客户端的实战案例；向量库检索 + Web 搜索 fallback 混合策略；Bright Data 代理级 SERP 抓取质量高。</p>
+  <p><span class="field-label">局限：</span>Bright Data 付费门槛较高；与项目 #25 架构高度相似（仅抓取工具不同）。</p>
+</div>
+
+<div class="project-card">
+  <h4>25. mcp-agentic-rag-firecrawl</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-partial">Firecrawl</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>与 #24 架构相同，网页抓取工具从 Bright Data 替换为 Firecrawl。</p>
+  <p><span class="field-label">技术栈：</span>Firecrawl + Qdrant (Docker) + Python MCP SDK + Cursor IDE + Jupyter Notebook。</p>
+  <p><span class="field-label">亮点：</span>Firecrawl 专为 LLM 优化（自动转 Markdown、JS 渲染、批量爬取），比 Bright Data SERP 更适合 RAG 数据摄入；API 配置更简单（仅需一个 Key）。</p>
+  <p><span class="field-label">局限：</span>与 #24 技术栈高度重复，差异化仅在抓取工具；作为独立项目展示价值有限。</p>
+</div>
+
+<div class="project-card">
+  <h4>26. mcp-video-rag</h4>
+  <div class="meta"><span class="tag tag-beginner">入门+</span><span class="tag tag-paid">Ragie</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>基于 Ragie 的视频 RAG，通过 MCP 集成到 Cursor——支持视频摄入、语义检索、问答，并能根据查询自动生成视频片段。</p>
+  <p><span class="field-label">技术栈：</span>Ragie (video-RAG 专用服务) + Python MCP SDK + Cursor IDE + uv (Python 3.12+)。</p>
+  <p><span class="field-label">亮点：</span><strong>唯一的视频 RAG 项目</strong>，差异化极强；3 个 MCP 工具设计（摄入/检索/生成视频片段）；"检索→自动剪片"全流程有创意；MCP 工具定义清晰，代码完整。</p>
+  <p><span class="field-label">局限：</span>核心能力完全依赖 Ragie SaaS，自建替代方案难度大。</p>
+</div>
+
+<!-- ==================== 评测 ==================== -->
+<h2 id="eval">七、评测与模型对比（3个）</h2>
+<p>这类项目不直接构建 RAG 应用，而是聚焦 RAG 系统的质量评估、可观测性和模型横向对比。</p>
+
+<div class="project-card">
+  <h4>27. eval-and-observability</h4>
+  <div class="meta"><span class="tag tag-beginner">入门+</span><span class="tag tag-paid">OpenAI+Opik</span><span class="score score-mid">简历价值 3/5</span></div>
+  <p><span class="field-label">用处：</span>为 RAG 应用构建 E2E 评测与可观测性管道，使用 CometML Opik 追踪全链路表现。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + OpenAI + CometML Opik + Jupyter Notebook (demo.ipynb + data_gen.ipynb)。</p>
+  <p><span class="field-label">亮点：</span>聚焦"评测+可观测性"这一 RAG 生产化关键缺口；Opik 100% 开源可自托管；适合学习评测指标设计。</p>
+  <p><span class="field-label">局限：</span>代码以 notebook 形式组织，README 极简（无架构图、无指标说明），工程化程度低。</p>
+</div>
+
+<div class="project-card">
+  <h4>28. llama-4_vs_deepseek-r1</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-paid">Groq+OpenAI</span><span class="score score-mid">简历价值 3/5</span></div>
+  <p><span class="field-label">用处：</span>在同一 RAG 检索上下文中对比 Llama 4 与 DeepSeek-R1 的回答质量。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Groq (双模型推理) + OpenAI o1 (作为 judge) + Opik (评测) + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>同题对比两大热门开源模型；Groq 高速推理降低延迟；LLM-as-judge 评测方法（o1 做裁判）有展示价值。</p>
+  <p><span class="field-label">局限：</span>README 仅 359 token，无评测指标、无对比结论、无架构说明；需自行补充分析。</p>
+</div>
+
+<div class="project-card">
+  <h4>29. qwen3_vs_deepseek-r1</h4>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="tag tag-partial">Opik</span><span class="score score-mid">简历价值 3.5/5</span></div>
+  <p><span class="field-label">用处：</span>对比 Qwen3 与 DeepSeek-R1 在同一 RAG 任务上的表现，两个模型均通过 Ollama 本地运行。</p>
+  <p><span class="field-label">技术栈：</span>LlamaIndex + Ollama (Qwen3 + DeepSeek-R1 双本地模型) + Opik (评测) + Streamlit + uv。</p>
+  <p><span class="field-label">亮点：</span><strong>两个对比模型完全本地运行</strong>，零 LLM API 费用；与 #28 形成"云端 vs 本地"对照实验模板；本地模型推理显著降低复现门槛。</p>
+  <p><span class="field-label">局限：</span>README 同样极简，无评测维度和结果；本地运行大模型对显存/内存有要求。</p>
+</div>
+
+<!-- ==================== 高级 ==================== -->
+<h2 id="advanced">八、高级/垂直场景（3个）</h2>
+<p>这类项目架构最复杂、功能最完整，代表 RAG 技术的产品级落地形态。</p>
+
+<div class="project-card">
+  <h4>30. notebook-lm-clone ⭐⭐</h4>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="tag tag-paid">4个付费API</span><span class="score score-high">简历价值 4.5/5</span></div>
+  <p><span class="field-label">用处：</span>Google NotebookLM 的开源复刻——多格式文档上传、引用溯源回答、跨会话记忆、AI 播客生成。</p>
+  <p><span class="field-label">技术栈：</span>PyMuPDF (文档解析) + AssemblyAI (音频转写+说话人分离) + Firecrawl (网页抓取) + Milvus (向量库) + Zep (时序知识图谱记忆层) + Kokoro (开源 TTS) + Streamlit (三栏 NotebookLM 风格 UI)。</p>
+  <p><span class="field-label">亮点：</span>仓库中功能最完整的 RAG 应用——多格式摄入（PDF/文本/音频/YouTube/网页）、引用优先（每条回答带来源页码）、Zep 时序知识图谱记忆、AI 播客生成（多说话人 TTS）、模块化项目结构（src/ 下 8 个子模块）、有测试目录。</p>
+  <p><span class="field-label">局限：</span>需 4 个付费 API（OpenAI + AssemblyAI + Firecrawl + Zep）；复现成本高；组件多导致排错面广。</p>
+</div>
+
+<div class="project-card">
+  <h4>31. paralegal-agent-crew</h4>
+  <div class="meta"><span class="tag tag-intermediate">中高级</span><span class="tag tag-partial">OpenAI+Firecrawl(可选)</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>智能律师助理——上传 PDF 法律文档，通过高级 RAG + Web Search Fallback 提供带引用的综合回答。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI + Milvus (binary quantization, embedded/Docker) + OpenAI + BGE-large-en-v1.5 + Firecrawl + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>智能路由（自动评估 RAG 回答质量，不足时触发 Web Search）；Milvus 二值量化降本提速；法律垂直场景有辨识度；回答带 citations；Milvus WebUI 管理（:9091）。</p>
+  <p><span class="field-label">局限：</span>强依赖 OpenAI，无本地 LLM 替代方案；Python 3.13+ 要求较高。</p>
+</div>
+
+<div class="project-card">
+  <h4>32. context-engineering-workflow</h4>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="tag tag-paid">5个云API</span><span class="score score-high">简历价值 4/5</span></div>
+  <p><span class="field-label">用处：</span>研究助理——基于 CrewAI Flows 的 6 Agent 架构，并行聚合文档 RAG、对话记忆、网络搜索、外部 API 四路上下文，经评估过滤后合成带置信度的回答。</p>
+  <p><span class="field-label">技术栈：</span>CrewAI Flows + TensorLake (文档解析) + Milvus + OpenAI GPT (结构化输出) + Voyage Context 3 (嵌入) + Zep Cloud (记忆层) + Firecrawl (Web 搜索) + ArXiv (学术搜索) + YAML 配置驱动 + Streamlit。</p>
+  <p><span class="field-label">亮点：</span>6 Agent 协作（RAG/Memory/Web/Tool 并行 → Evaluator 过滤 → Synthesizer 合成）；Context Engineering 理念（多源上下文聚合+评估+合成）；扩展引用含相关性分数；Zep Cloud 持久化记忆跨会话；YAML 配置化 Agent/Task 定义工程化程度高；项目目录分层清晰。</p>
+  <p><span class="field-label">局限：</span>需 5 个付费云 API（TensorLake+Voyage+OpenAI+Zep+Firecrawl），几乎无法离线运行；复现成本最高。</p>
+</div>
+
+<!-- ==================== Top 5 ==================== -->
+<h2 id="top">九、Top 5 最值得做的推荐项目</h2>
+
+<p>结合你的背景（武大大数据专业、SQL/MySQL 强项、TypeScript 全栈、正在学 OpenAI Agents SDK + MCP、秋招简历项目需求），以下 5 个项目综合<strong>技术深度、差异化、可重建性、付费成本、与你技能栈的匹配度</strong>最优：</p>
+
+<div class="top-card">
+  <span class="rank">#1</span>
+  <h3>🥇 rag-sql-router — RAG + SQL 智能路由 + 回答验证</h3>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="score score-high">简历价值 4.5/5</span><span class="tag tag-paid">OpenRouter+Cleanlab</span></div>
+  <div class="reason">
+    <strong>推荐理由：</strong>这是全仓库中与你技能栈匹配度最高的项目。<strong>SQL 路由</strong>直接发挥你的 MySQL 强项，在简历上形成"大数据专业 + SQL + RAG"的差异化标签；Cleanlab Codex 的回答验证闭环是全仓库独有的设计，面试时可以深入讨论"如何保证 Agent 输出可靠性"这一高频话题；LlamaIndex + Milvus + Docling 的组合是当前 RAG 生产级主流栈。你可以在此基础上扩展：将 SQL 引擎换成你熟悉的 MySQL、加入查询性能优化、用 TypeScript 重写前端。
+  </div>
+</div>
+
+<div class="top-card">
+  <span class="rank">#2</span>
+  <h3>🥈 llamaindex-mcp — 零付费全本地 MCP 全栈</h3>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="score score-high">简历价值 4.5/5</span><span class="tag tag-free">零付费</span></div>
+  <div class="reason">
+    <strong>推荐理由：</strong>你正在学 MCP，这个项目是<strong>唯一零付费、可完全本地运行的 MCP 全栈实现</strong>（服务器+客户端双端），复现成本为零。它同时覆盖 MCP 协议两端、LlamaIndex Agent tool-calling、SSE 传输，技术点密集且都是 2025 年最热方向。你可以将 SQLite 示例扩展为完整的 RAG 知识库 MCP 服务器，接入你的 CampusSphere 项目数据，形成"个人项目 + MCP 扩展"的连贯故事线。与 OpenAI Agents SDK 的学习也能形成互补。
+  </div>
+</div>
+
+<div class="top-card">
+  <span class="rank">#3</span>
+  <h3>🥉 chat-with-code — 代码 RAG + Qwen3-Coder + 验证闭环</h3>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="score score-high">简历价值 4.5/5</span><span class="tag tag-paid">OpenRouter+Cleanlab</span></div>
+  <div class="reason">
+    <strong>推荐理由：</strong>代码 RAG 是 AI 开发工具方向的核心赛道，与你的 TypeScript 全栈背景天然契合。Qwen3-Coder 是最新专用代码模型，Cleanlab Codex 的"生成→验证"闭环极具差异化。Milvus 自托管 + uv 包管理 + Notebook/App 双入口展示了完整的工程规范。你可以直接索引自己的 CampusSphere 代码库做演示，面试时"用 AI 问答自己的项目代码"是非常有说服力的展示。建议将 LLM 层改造为本地模型以降低付费依赖。
+  </div>
+</div>
+
+<div class="top-card">
+  <span class="rank">#4</span>
+  <h3>4️⃣ firecrawl-agent — 完整 Corrective RAG 工作流</h3>
+  <div class="meta"><span class="tag tag-intermediate">中级</span><span class="score score-high">简历价值 4/5</span><span class="tag tag-partial">FireCrawl+OpenAI(可选)</span></div>
+  <div class="reason">
+    <strong>推荐理由：</strong>这是仓库中<strong>最完整的 Corrective RAG 实现</strong>，包含文档检索→相关性评估→Web 搜索 fallback→综合生成的完整工作流，有架构图和清晰的项目结构。LlamaIndex + Milvus + FastEmbed 的组合是生产级 RAG 的标准配置。支持 Ollama 本地 LLM 意味着可以零付费运行（仅 FireCrawl 需免费额度）。Corrective RAG 是论文级的 RAG 进阶范式，面试中能讲清楚"检索质量评估→动态纠错"的逻辑会非常加分。
+  </div>
+</div>
+
+<div class="top-card">
+  <span class="rank">#5</span>
+  <h3>5️⃣ notebook-lm-clone — 产品级全功能 RAG 应用</h3>
+  <div class="meta"><span class="tag tag-advanced">高级</span><span class="score score-high">简历价值 4.5/5</span><span class="tag tag-paid">4个付费API</span></div>
+  <div class="reason">
+    <strong>推荐理由：</strong>仓库中功能最完整、架构最清晰的 RAG 产品——多格式摄入、引用溯源、时序知识图谱记忆、AI 播客生成、模块化代码结构（8 个子模块）、有测试目录。如果你的目标是做一个"能演示、能讲故事、能展示全栈工程能力"的简历项目，这是最佳模板。你可以用 TypeScript/React 重写前端（替换 Streamlit），与你的 CampusSphere 技术栈统一。主要顾虑是 4 个付费 API 的复现成本，建议逐步替换为本地/开源替代（如用 Whisper 替代 AssemblyAI、本地 Ollama 替代 OpenAI）。
+  </div>
+</div>
+
+<!-- ==================== 总结 ==================== -->
+<h2 id="summary">十、选型决策总结</h2>
+
+<div class="dim-grid">
+  <div class="dim-box">
+    <h4>💰 零成本优先</h4>
+    <p>选 <strong>llamaindex-mcp</strong>（唯一零付费 MCP 全栈）或 <strong>github-rag</strong>（代码仓库问答，可全本地）。两者均无需任何付费 API 即可完整运行。</p>
+  </div>
+  <div class="dim-box">
+    <h4>🎯 差异化优先</h4>
+    <p>选 <strong>rag-sql-router</strong>（SQL+RAG 双路由，匹配你的大数据背景）或 <strong>mcp-video-rag</strong>（唯一视频 RAG，检索→自动剪片）。</p>
+  </div>
+  <div class="dim-box">
+    <h4>🏗️ 工程深度优先</h4>
+    <p>选 <strong>notebook-lm-clone</strong>（8 模块产品级架构）或 <strong>context-engineering-workflow</strong>（6 Agent 并行 + Context Engineering）。</p>
+  </div>
+  <div class="dim-box">
+    <h4>🔧 技术前沿优先</h4>
+    <p>选 <strong>mcp-agentic-rag-firecrawl</strong>（MCP+Cursor+Agentic RAG）或 <strong>deepseek-multimodal-RAG</strong>（ColPali+Janus-Pro 本地多模态）。</p>
+  </div>
+  <div class="dim-box">
+    <h4>📊 评测方法论优先</h4>
+    <p>选 <strong>qwen3_vs_deepseek-r1</strong>（本地双模型对比 + Opik 评测）或 <strong>trustworthy-rag</strong>（TLM 置信度评分 + 幻觉治理）。</p>
+  </div>
+  <div class="dim-box">
+    <h4>⚡ 性能优化优先</h4>
+    <p>选 <strong>fastest-rag-milvus-groq</strong>（Milvus 二值量化 + Groq LPU，&lt;15ms 检索）。适合在简历中写"RAG 系统性能调优"。</p>
+  </div>
+</div>
+
+<div class="note" style="border-left-color:var(--accent);">
+  <strong>💡 给你的秋招建议：</strong>不要贪多。选择 <strong>1 个主项目</strong>（推荐 rag-sql-router 或 llamaindex-mcp）深入做 2-3 周，在原项目基础上做 <strong>2-3 个有说服力的扩展</strong>（如：用 TypeScript 重写前端、接入 MySQL 替换 SQL 引擎、加入评测管道、部署到 Docker），比浅尝辄止跑通 5 个项目更有简历价值。主项目跑通后，可以用 <strong>firecrawl-agent</strong> 的 Corrective RAG 思路做技术升级，形成"基础版→进阶版"的项目演进故事。
+</div>
+
+</div>
+</body>
+</html>
