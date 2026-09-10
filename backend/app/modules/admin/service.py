@@ -25,7 +25,7 @@ from app.modules.auth.models import User
 from app.modules.canteen.models import Canteen, Dish, Stall
 from app.modules.item.models import Item, ItemImage
 from app.modules.item.schemas import ItemUpdate
-from app.modules.item.service import cas_item_status
+from app.modules.item.service import cas_item_status, sync_item_search
 from app.modules.item.statemachine import validate_transition
 from app.modules.report.models import Report
 
@@ -801,6 +801,7 @@ async def admin_update_item(db: AsyncSession, item_id: str, data: ItemUpdate) ->
         await cas_item_status(db, str(item.id), item.status, data.status)
     await db.commit()
     await db.refresh(item)
+    sync_item_search(item)
     _logger.info("admin_update_item", item_id=item_id, status=item.status)
     return item
 
@@ -816,6 +817,7 @@ async def admin_delete_item(db: AsyncSession, item_id: str) -> None:
         raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
     item.deleted_at = datetime.now(UTC)
     await db.commit()
+    sync_item_search(item)
     _logger.warning("admin_delete_item", item_id=item_id)
 
 
@@ -832,6 +834,7 @@ async def approve_item(db: AsyncSession, item_id: str) -> Item:
         )
         await db.commit()
         await db.refresh(item)
+        sync_item_search(item)
         _logger.info("admin_approve_item", item_id=item_id)
     return item
 
@@ -849,5 +852,6 @@ async def reject_item(db: AsyncSession, item_id: str, reason: str = "") -> Item:
         )
         await db.commit()
         await db.refresh(item)
+        sync_item_search(item)
         _logger.info("admin_reject_item", item_id=item_id, reason=reason)
     return item

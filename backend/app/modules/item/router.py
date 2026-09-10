@@ -63,6 +63,9 @@ async def search(
 
     if search_client and search_client.enabled:
         hits = await search_client.search("items", q, limit=limit)
+        # 索引中理论上只保留在售物品，但防御性地再过滤一次，
+        # 避免异步任务延迟/异常时返回未审核或已下架的物品。
+        hits = [h for h in hits if h.get("status") == ItemStatus.ON_SALE.value]
         return ApiResponse.ok(data=hits)
     result = await list_items(db, keyword=q, page_size=limit)
     return ApiResponse.ok(data=result["items"])

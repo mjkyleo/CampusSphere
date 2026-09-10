@@ -7,6 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+# 以模块形式导入 Celery 任务，避免循环导入并便于测试 monkeypatch
+import app.tasks.search_sync as search_sync_tasks
 from app.common.enums import ItemStatus, TradeStatus
 from app.core.cache import NULL_SENTINEL, cache_get_json, cache_set_json, invalidate_namespace
 from app.core.config import settings
@@ -21,6 +23,49 @@ from app.modules.item.statemachine import validate_transition
 _logger = get_logger("item.service")
 
 _ITEM_REVIEW_KEY = "item.review"
+
+# Meilisearch 索引名（硬编码字符串，避免从 search.client 循环导入）
+_ITEM_INDEX_NAME = "items"
+
+
+    """站内通知：broker 不可达时不阻塞主流程，仅记 warning 日志。"""
+    try:
+    except Exception as exc:
+
+
+def item_search_doc(item: Item) -> dict:
+    """构造物品搜索索引文档。"""
+    return {
+        "id": str(item.id),
+        "title": item.title,
+        "description": item.description,
+        "category": item.category,
+        "price": item.price,
+        "status": item.status,
+        "owner_id": item.owner_id,
+        "created_at": item.created_at.isoformat() if item.created_at else "",
+    }
+
+
+def sync_item_search(item: Item | None) -> None:
+    """将物品状态同步到 Meilisearch 索引。
+
+    只有「在售且未软删除」的物品才进入索引；其他状态（下架/已售/待审核/删除）
+    从索引中移除，避免搜索结果泄露未审核或已下架的物品。
+
+    同步任务投递失败（如本地未起 Redis/Celery broker 不可达）时不阻塞主流程，
+    仅记 warning 日志，由后续重建脚本或任务重试补偿。
+    """
+    if item is None:
+        return
+    item_id = str(item.id)
+    try:
+        if item.status == ItemStatus.ON_SALE.value and item.deleted_at is None:
+            search_sync_tasks.sync_item.delay(item_id, item_search_doc(item))
+        else:
+            search_sync_tasks.delete_doc.delay(_ITEM_INDEX_NAME, item_id)
+    except Exception as exc:
+        _logger.warning("search_sync_dispatch_failed", item_id=item_id, error=str(exc))
 
 
 async def _item_review_enabled(db: AsyncSession) -> bool:
@@ -52,6 +97,7 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
     await db.refresh(item)
     # 写操作：整体失效「物品列表」缓存，避免新发布不立即可见
     await invalidate_namespace("items")
+    sync_item_search(item)
     _logger.info("item_created", item_id=str(item.id), owner=str(owner.id))
     return item
 
@@ -199,14 +245,20 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
     await db.refresh(item)
     # 写操作：失效物品列表缓存（状态/标题变更会影响广场展示）
     await invalidate_namespace("items")
+    sync_item_search(item)
     return item
 
 
 async def delete_item(db: AsyncSession, item: Item) -> None:
+    item_id = str(item.id)
     await db.delete(item)
     await db.commit()
     # 写操作：失效物品列表缓存
     await invalidate_namespace("items")
+    try:
+        search_sync_tasks.delete_doc.delay(_ITEM_INDEX_NAME, item_id)
+    except Exception as exc:
+        _logger.warning("search_sync_dispatch_failed", item_id=item_id, error=str(exc))
 
 
 async def create_trade_session(
@@ -268,5 +320,10 @@ async def create_trade_session(
     await db.refresh(item)
     # 状态已变更，列表缓存需立即失效，否则广场上仍显示"在售"
     await invalidate_namespace("items")
+    sync_item_search(item)
+        str(item.owner_id),
+        "有人想购买你的闲置",
+        f"买家 {buyer.nickname or buyer.username} 对「{item.title}」发起了交易，快去看看吧",
+    )
     _logger.info("trade_session_created", trade_id=str(ts.id), conv=str(conv.id))
     return ts
