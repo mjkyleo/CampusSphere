@@ -1,3 +1,17 @@
+# ⚠️ 已废弃，请勿继续使用本文件
+#
+# Worker 镜像现由 **backend/Dockerfile 的 `worker` target** 构建：
+#     docker build --target worker -t campusphere-worker:latest backend/
+#     # 或 docker compose -f deploy/docker-compose.yml build worker
+#
+# 合并原因：app 与 worker 的编译依赖、venv、alembic、非 root 用户等 95% 内容完全相同，
+# 拆成两份文件必然产生漂移（改一处忘另一处，导致"worker 缺依赖"只在生产暴露）。
+#
+# 本文件保留仅为兼容历史脚本/文档的引用，其内容已不再维护。
+# 构建上下文需为 backend/：`docker build -f deploy/Dockerfile.worker backend`
+#
+# ---------------- 以下为历史内容 ----------------
+
 # Celery Worker 镜像 —— 多阶段构建 + 非 root + 健康检查
 #
 # 阶段划分与后端一致：builder 编译依赖并打包 app，runtime 仅携带 venv 与 alembic 配置，

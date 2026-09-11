@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Sparkles, TrendingUp, Zap, Clock, ChevronRight,
   BookOpen, ShoppingBag, Utensils, Users, MessageSquare,
   Briefcase, Share2, Search, ArrowRight, ShieldCheck, Tag
 } from 'lucide-react';
-import { getSmartCampusInsights } from '../services/geminiService.ts';
+import { getSmartCampusInsights, getAiStatus, isCapabilityAvailable } from '../services/aiService.ts';
 import { api, formatPrice } from '../services/api.ts';
-import { ItemOut, CourseOut, TeamOut } from '../types.ts';
+import { ItemOut, CourseOut, TeamOut, JobOut, ShareOut } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
+import AiGreetingCard from '../components/AiGreetingCard.tsx';
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -19,6 +20,8 @@ const HomePage: React.FC = () => {
   const [items, setItems] = useState<ItemOut[]>([]);
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [teams, setTeams] = useState<TeamOut[]>([]);
+  const [jobs, setJobs] = useState<JobOut[]>([]);
+  const [shares, setShares] = useState<ShareOut[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const topics = ['考试周高效复习技巧', '一食堂今日招牌美食推荐', '大三找实习与竞赛组队策略', '二手闲置避坑与面交安全'];
@@ -26,15 +29,14 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchInsight = async () => {
       try {
-        // 先检查 AI 功能是否可用
-        const statusRes = await api.ai.status();
-        if (statusRes.code === 0 && statusRes.data?.available) {
-          setAiAvailable(true);
+        // 先检查 AI 功能是否可用（能力级 gating）
+        const status = await getAiStatus();
+        const on = isCapabilityAvailable(status, 'insights');
+        setAiAvailable(on);
+        if (on) {
           const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-          const res = await api.ai.getInsights(randomTopic);
-          if (res.code === 0 && res.data?.text) {
-            setInsight(res.data.text);
-          }
+          const text = await getSmartCampusInsights(randomTopic);
+          if (text) setInsight(text);
         }
       } catch (error) {
         console.warn('AI insights fetch failed:', error);
@@ -55,9 +57,17 @@ const HomePage: React.FC = () => {
         if (crsRes.code === 0 && crsRes.data) {
           setCourses(crsRes.data.items || []);
         }
-        const tmRes = await api.teammates.list(1, 3);
+        const tmRes = await api.teammates.list({ page: 1, page_size: 3 });
         if (tmRes.code === 0 && tmRes.data) {
           setTeams(tmRes.data.items || []);
+        }
+        const jobRes = await api.jobs.list({ page: 1, page_size: 3 });
+        if (jobRes.code === 0 && jobRes.data) {
+          setJobs(jobRes.data.items || []);
+        }
+        const shareRes = await api.shares.list({ page: 1, page_size: 3 });
+        if (shareRes.code === 0 && shareRes.data) {
+          setShares(shareRes.data.items || []);
         }
       } catch {
         // Fallbacks in mock engine
@@ -66,6 +76,43 @@ const HomePage: React.FC = () => {
 
     loadPreviewData();
   }, []);
+
+  // 校园热搜榜：基于各模块真实数据动态生成
+  const trendingTags = useMemo(() => {
+    const tags: { tag: string; path: string }[] = [];
+
+    const topItems = [...items]
+      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      .slice(0, 2);
+    topItems.forEach((item) => tags.push({ tag: item.title.slice(0, 18), path: `/market/${item.id}` }));
+
+    const topCourses = [...courses]
+      .sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0))
+      .slice(0, 2);
+    topCourses.forEach((course) => tags.push({ tag: `${course.name} ${course.teacher || ''}`.trim().slice(0, 18), path: `/courses/${course.id}` }));
+
+    teams.slice(0, 1).forEach((team) => tags.push({ tag: team.title.slice(0, 18), path: `/teammates/${team.id}` }));
+
+    const topShares = [...shares]
+      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+      .slice(0, 1);
+    topShares.forEach((share) => tags.push({ tag: share.title.slice(0, 18), path: `/share/${share.id}` }));
+
+    jobs.slice(0, 1).forEach((job) => tags.push({ tag: job.title.slice(0, 18), path: `/jobs/${job.id}` }));
+
+    // Fallback presets if backend returns empty
+    if (tags.length === 0) {
+      return [
+        { tag: '考研数学高分资料', path: '/share' },
+        { tag: '数据结构张伟老师', path: '/courses' },
+        { tag: '一食堂招牌牛肉拉面', path: '/canteens' },
+        { tag: '国赛数学建模3缺1', path: '/teammates' },
+        { tag: '图书馆兼职助理', path: '/jobs' },
+        { tag: '九号电动车转让', path: '/market' }
+      ];
+    }
+    return tags;
+  }, [items, courses, teams, shares, jobs]);
 
   const quickLinks = [
     { label: '闲置市集', icon: ShoppingBag, color: 'bg-amber-50 text-amber-600 border-amber-100', path: '/market', desc: '真实面交 信用保障' },
@@ -97,6 +144,9 @@ const HomePage: React.FC = () => {
           <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
             你好，{user?.nickname || '同学'} <span className="inline-block animate-pulse">👋</span>
           </h1>
+
+          {/* 每日问候 · 微采集（可降级到本地模板，主流程永不空白） */}
+          <AiGreetingCard />
 
           {aiLoading ? (
             <p className="text-base md:text-lg text-slate-300 leading-relaxed font-normal bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xs">
@@ -289,14 +339,7 @@ const HomePage: React.FC = () => {
               校园热搜榜
             </h2>
             <div className="bg-white p-5 rounded-3xl border border-slate-200/80 flex flex-wrap gap-2 shadow-xs">
-              {[
-                { tag: '考研数学高分资料', path: '/share' },
-                { tag: '数据结构张伟老师', path: '/courses' },
-                { tag: '一食堂招牌牛肉拉面', path: '/canteens' },
-                { tag: '国赛数学建模3缺1', path: '/teammates' },
-                { tag: '图书馆兼职助理', path: '/jobs' },
-                { tag: '九号电动车转让', path: '/market' }
-              ].map((item) => (
+              {trendingTags.map((item) => (
                 <Link
                   key={item.tag}
                   to={item.path}

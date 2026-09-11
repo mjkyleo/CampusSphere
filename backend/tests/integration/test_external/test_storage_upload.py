@@ -10,9 +10,8 @@ from __future__ import annotations
 import io
 
 import pytest
-from PIL import Image
-
 from helpers import auth_header, register_login
+from PIL import Image
 
 # 文件上传涉及真实磁盘 IO 与 10MB 体积校验，相对较慢；
 # 标为 slow 后可在日常开发中用 `-m "not slow"` 跳过，CI 里单独跑。

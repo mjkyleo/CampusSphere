@@ -23,7 +23,6 @@ import asyncio
 from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
-
 from helpers import run_lifespan
 
 

@@ -30,10 +30,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from helpers import auth_header, register_login, run_lifespan
 from sqlalchemy import select
 
 from app.modules.admin.models import AdminUser
-from helpers import auth_header, register_login, run_lifespan
 
 # 满足严格校验用的强密钥（≥16 位且非占位值），避免误触发其他的校验分支
 _STRONG_GATEWAY_KEY = "test-gateway-key-0123456789"

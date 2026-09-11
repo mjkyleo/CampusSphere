@@ -1,11 +1,26 @@
 # CampusSphere CI — GitHub Actions
 #
-# 触发：推送到 main / 对 main 开 PR
-# 阶段：后端(lint · test · 镜像) → 前端(lint · build) → Worker 镜像 → 密钥扫描
+# 触发：推送到 main / dev、对 main / dev 开 PR，或手动 workflow_dispatch。
+# 并发：同一 ref 只跑最新一次；PR 会取消正在进行的旧运行，main/dev 推送不取消（保证发布链路完整）。
 #
-# 范围（按用户选择）：静态校验 + 测试 + 构建。
-# 自动部署**不在**本流水线（需仓库密钥/凭据，建议作为第二阶段单独加）。
-# 密钥扫描(gitleaks)为附加项，对应审计 P0-3「secrets 扫描」；如不需要可删 secret-scan job。
+# 阶段：后端(lint → 测试分片并行 → 覆盖率合并) → 镜像 → 前端(lint · test · build)
+#       → E2E(Playwright) → Worker 镜像 → 迁移校验 → 依赖审计 → 密钥扫描
+#
+# 后端测试为什么要「分片并行」：
+#   全量 `pytest tests` 在本机实测约 12 分钟（>10 分钟会被环境中断），
+#   串行跑既慢又无法定位瓶颈。按**目录 + 标记**切成 4 个分片后：
+#     - unit        纯逻辑，实测 147 用例 / ~3s
+#     - integration DB/降级集成，实测 ~129 用例 / ~348s（Celery .delay 在无 broker 时的连接重试是主要耗时）
+#     - regression  根回归业务链路，实测 ~113 用例 / ~385s
+#     - slow        文件上传等长 I/O 用例，独立隔离避免拖慢主分片
+#   四个分片在 4 台 runner 上并行，墙钟时间由「最长分片」决定（≈7 分钟），
+#   远低于原来 12 分钟的串行总时长；同时分片失败可快速定位到具体层。
+#
+# 覆盖率合并：每个分片用 `COVERAGE_FILE` 产出独立的 `.coverage.<shard>`，
+#   上传为 artifact；`backend-coverage` job 下载全部数据 → `coverage combine`
+#   合并为单个 `.coverage` → `coverage report --fail-under=70` 门禁 → 产出
+#   coverage.xml / htmlcov 并上传。**不使用** pytest-cov 的并行 append
+#   （在受限回收站环境会因删除临时文件失败导致 INTERNALERROR）。
 
 name: CI
 
@@ -14,29 +29,21 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch:
 
-# 同一分支只保留最新一次运行，节省算力
+# 同一分支只保留最新一次运行；PR 取消旧运行省算力，主分支推送不取消（避免发布验证被中断）
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # ---------------- 后端：lint + 测试 + 镜像 ----------------
-  backend:
-    name: Backend (lint · test · image)
+  # ---------------- 后端：静态校验 ----------------
+  backend-lint:
+    name: Backend lint (ruff)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-    # 后端测试公共环境变量（YAML 锚点，供下面各测试步骤复用）
-    # 测试库为隔离的临时 SQLite（见 tests/conftest.py），无需外部 PG/Redis/MinIO
-    env: &backend_env
-      SECRET_KEY: ci-test-secret-not-for-prod
-      JWT_ALGORITHM: HS256
-      SCHOOL_CONFIG_PATH: ../config/school.yaml
-      DEBUG: "false"
-      # 关闭热点缓存，避免内存降级字典在用例间残留
-      CACHE_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
 
@@ -55,60 +62,152 @@ jobs:
       - name: Ruff lint
         run: ruff check app
 
-      # ------------------------------------------------------------------
-      # 分层执行（unit → integration → 既有用例）
-      # 为何不一次跑完：全部用例放在**同一个 pytest 进程**里时，
-      # Windows 上偶发 aiosqlite 后台连接线程的原生 Abort（进程直接退出，无失败用例）。
-      # 分进程按层执行可彻底规避，且失败时定位哪一层更快。
-      # 覆盖率用 `coverage run --append` 累加（而非 pytest --cov-append）：
-      # pytest-cov 会生成 .coverage.<host>.<pid>.<rand> 并行数据文件，
-      # 合并后需要删除它们；在回收站不可用的受限环境里会因删除失败而
-      # INTERNALERROR。`coverage run --append` 不产生并行临时文件，更稳。
-      # ------------------------------------------------------------------
-      - name: Pytest — 单元层（tests/unit）
-        env: *backend_env
-        run: coverage run -m pytest tests/unit -q
+  # ---------------- 后端：测试分片并行 ----------------
+  # 每个分片是独立 runner：各自 checkout + 安装依赖（复用 pip 缓存）+ 跑指定子集。
+  # 产物：① JUnit XML + pytest 日志（test-results-*）② 覆盖率数据（coverage-data-*）。
+  backend-test:
+    name: Backend test (${{ matrix.shard.name }})
+    runs-on: ubuntu-latest
+    needs: [backend-lint]
+    timeout-minutes: ${{ matrix.shard.timeout }}
+    defaults:
+      run:
+        working-directory: backend
+    # 后端测试公共环境变量：测试库为隔离的临时 SQLite（见 tests/conftest.py），
+    # 无需外部 PG/Redis/MinIO；关闭热点缓存避免内存降级字典在用例间残留。
+    env:
+      SECRET_KEY: ci-test-secret-not-for-prod
+      JWT_ALGORITHM: HS256
+      SCHOOL_CONFIG_PATH: ../config/school.yaml
+      DEBUG: "false"
+      CACHE_ENABLED: "false"
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: unit
+            path: tests/unit
+            args: ""
+            timeout: 5
+          - name: integration
+            path: tests/integration
+            args: -m "not slow"
+            timeout: 20
+          - name: regression
+            path: tests
+            args: --ignore=tests/unit --ignore=tests/integration -m "not slow"
+            timeout: 20
+          - name: slow
+            path: tests
+            args: -m slow
+            timeout: 15
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Pytest — 集成层（tests/integration，跳过 slow）
-        env: *backend_env
-        run: coverage run --append -m pytest tests/integration -q -m "not slow"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
 
-      - name: Pytest — 既有回归用例
-        env: *backend_env
+      - name: Install dependencies
         run: |
-          coverage run --append -m pytest tests -q \
-            --ignore=tests/unit --ignore=tests/integration
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
-      - name: Pytest — slow 标记用例（文件上传等）
-        env: *backend_env
-        run: coverage run --append -m pytest tests -q -m slow
-
-      # 覆盖率门禁：低于阈值直接失败，防止"测试越加越少、覆盖率悄悄下滑"。
-      #
-      # 阈值说明（重要）：当前实测 TOTAL = 70%，因此门槛先设为 **70%** 作为
-      # "防下滑基线"，而非直接写 80% —— 写 80% 会让流水线首次运行就变红，
-      # 长期红灯的门禁很快会被忽略或删掉，反而失去意义。
-      # 目标：随覆盖率提升按"棘轮"逐步上调至 80%（见 docs/TESTING.md §7）。
-      - name: Coverage gate (≥ 70%, target 80%)
+      - name: Pytest (${{ matrix.shard.name }})
         run: |
+          set -o pipefail
+          COVERAGE_FILE=.coverage.${{ matrix.shard.name }} coverage run -m pytest \
+            ${{ matrix.shard.path }} -q ${{ matrix.shard.args }} \
+            --junitxml=junit-${{ matrix.shard.name }}.xml 2>&1 | tee pytest-${{ matrix.shard.name }}.log
+
+      - name: Upload test results & log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.shard.name }}
+          path: |
+            backend/junit-${{ matrix.shard.name }}.xml
+            backend/pytest-${{ matrix.shard.name }}.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-${{ matrix.shard.name }}
+          path: backend/.coverage.${{ matrix.shard.name }}
+          if-no-files-found: warn
+          retention-days: 1
+
+  # ---------------- 后端：覆盖率合并与门禁 ----------------
+  backend-coverage:
+    name: Backend coverage gate (≥ 70%)
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Download all coverage data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-data-*
+          path: backend
+          merge-multiple: true
+
+      - name: Combine, report and gate
+        run: |
+          ls -la .coverage.*
+          coverage combine
           coverage report --fail-under=70
           coverage xml -o coverage.xml
           coverage html -d htmlcov || true
 
-      - name: Upload backend coverage
+      - name: Upload combined coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
-          path: backend/coverage.xml
+          path: |
+            backend/coverage.xml
+            backend/htmlcov
           if-no-files-found: warn
+          retention-days: 7
 
+  # ---------------- 后端：镜像构建校验（Dockerfile 可构建） ----------------
+  backend-image:
+    name: Build backend image
+    runs-on: ubuntu-latest
+    needs: [backend-lint]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
       - name: Build backend image
         run: docker build -t campus-backend:ci -f Dockerfile .
 
-  # ---------------- 前端：lint + 构建 ----------------
+  # ---------------- 前端：lint + 组件测试 + 构建 ----------------
   frontend:
-    name: Frontend (lint · build)
+    name: Frontend (lint · test · build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -131,8 +230,6 @@ jobs:
         run: npm run lint
 
       # 组件测试：Vitest + React Testing Library（配置见 frontend/vitest.config.ts）
-      # 覆盖率门槛按"棘轮"策略设定：当前仅覆盖少量组件，先设一个
-      # 不会失败的基线值，随着用例增加再逐步上调（见 docs/TESTING.md）。
       - name: Unit tests with coverage (Vitest)
         run: npm run test:coverage
 
@@ -160,7 +257,7 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend-coverage, frontend]
     steps:
       - uses: actions/checkout@v4
 
@@ -213,19 +310,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # ---------------- Worker 镜像构建（校验 Dockerfile 可构建） ----------------
+  # ---------------- Worker 镜像构建 ----------------
   worker-image:
     name: Build worker image
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend-coverage]
     steps:
       - uses: actions/checkout@v4
       - name: Build worker image
         run: docker build -t campus-worker:ci -f deploy/Dockerfile.worker backend
 
   # ---------------- 数据库迁移校验（对应审计 P1-2） ----------------
-  # 运行 alembic 迁移链，并用 `alembic check` 强制「模型变更须出迁移脚本」，
-  # 防止有人改了 ORM 模型却忘了补迁移（增量迁移安全网）。
+  # 运行 alembic 迁移链，并用 `alembic check` 强制「模型变更须出迁移脚本」。
   migrations:
     name: DB migrations (alembic)
     runs-on: ubuntu-latest
@@ -256,8 +352,6 @@ jobs:
         run: alembic check
 
   # ---------------- 依赖漏洞扫描（对应审计 P2-5） ----------------
-  # 后端用 pip-audit 审计已安装依赖（含传递依赖）；前端用 npm audit。
-  # 发现高危漏洞时本 job 失败，作为合并前的安全闸门。
   dependency-audit:
     name: Dependency audit (pip-audit · npm audit)
     runs-on: ubuntu-latest

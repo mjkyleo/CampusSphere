@@ -12,10 +12,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from helpers import run_async
 
 from app.core.config import settings
 from app.modules.auth.service import send_code
-from helpers import run_async
 
 
 def _target_x(token: str) -> int:
@@ -194,7 +194,7 @@ def test_send_code_requires_ticket_when_enabled(client, captcha_on):
     """开启滑块后，无票据直接发码应被拒绝。"""
     r = client.post(
         "/api/auth/send-code",
-        json={"target": "attacker@example.edu.cn", "purpose": "register"},
+        json={"target": "attacker@whu.edu.cn", "purpose": "register"},
     )
     body = r.json()
     assert body["code"] == 42200
@@ -206,7 +206,7 @@ def test_send_code_accepts_valid_ticket(client, captcha_on):
     r = client.post(
         "/api/auth/send-code",
         json={
-            "target": "student@example.edu.cn",
+            "target": "student@whu.edu.cn",
             "purpose": "register",
             "captcha_ticket": ticket,
         },
@@ -218,7 +218,7 @@ def test_ticket_cannot_be_replayed(client, captcha_on):
     """票据一次性：重放应被拒绝，避免一次滑块刷大量验证码。"""
     ticket = _pass_slider(client)
     payload = {
-        "target": "replay@example.edu.cn",
+        "target": "replay@whu.edu.cn",
         "purpose": "register",
         "captcha_ticket": ticket,
     }
@@ -233,7 +233,7 @@ def test_send_code_without_ticket_when_disabled(client):
     assert settings.captcha_enabled is False, "conftest 应默认关闭滑块"
     r = client.post(
         "/api/auth/send-code",
-        json={"target": "internal@example.edu.cn", "purpose": "register"},
+        json={"target": "internal@whu.edu.cn", "purpose": "register"},
     )
     assert r.json()["code"] == 0, r.text
 
@@ -248,7 +248,7 @@ def test_captcha_config_exposes_switch(client):
 # ---------------------------------------------------------------------------
 def test_verification_code_locks_after_max_attempts(client):
     """连续错误尝试达到上限后，正确验证码也被作废。"""
-    email = "lockme@example.edu.cn"
+    email = "lockme@whu.edu.cn"
     correct = run_async(send_code(email, "register", limit_per_minute=0))
 
     for _ in range(settings.code_max_attempts):
@@ -268,7 +268,7 @@ def test_verification_code_locks_after_max_attempts(client):
 
 def test_new_code_resets_attempt_counter(client):
     """重新获取验证码后，之前的错误尝试不应继续累计。"""
-    email = "reset@example.edu.cn"
+    email = "reset@whu.edu.cn"
     run_async(send_code(email, "register", limit_per_minute=0))
     for _ in range(settings.code_max_attempts):
         client.post(
@@ -289,7 +289,7 @@ def test_new_code_resets_attempt_counter(client):
 # ---------------------------------------------------------------------------
 def test_full_flow_slider_to_login(client, captcha_on):
     """滑块 → 发码 → 邮箱注册 → 用户名登录 / 邮箱登录 均可。"""
-    email = "flowuser@example.edu.cn"
+    email = "flowuser@whu.edu.cn"
     ticket = _pass_slider(client)
 
     sent = client.post(
@@ -298,7 +298,7 @@ def test_full_flow_slider_to_login(client, captcha_on):
     )
     assert sent.json()["code"] == 0, sent.text
     code = sent.json()["data"]["debug_code"]
-    assert code, "未配置 SMTP 时应返回 debug_code 便于联调"
+    assert code, "开启 EXPOSE_VERIFICATION_CODE 时应返回 debug_code 便于联调"
 
     reg = client.post(
         "/api/auth/email-register",

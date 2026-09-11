@@ -28,6 +28,23 @@ os.environ.setdefault("CACHE_ENABLED", "false")
 # 滑块自身的生成 / 校验 / 防绕过由 tests/test_captcha.py 显式开启后覆盖。
 os.environ.setdefault("CAPTCHA_ENABLED", "false")
 
+# **强制**关闭 SMTP：测试绝不能发送真实邮件。
+#
+# 这里用赋值而非 setdefault —— 因为 backend/.env 里配了真实 SMTP（开发联调用），
+# 而 os.environ 优先级高于 .env 文件。若只 setdefault，一旦 CI 环境变量或 .env
+# 带出 SMTP_HOST，注册类用例就会真的去连邮件服务器（或往 Celery broker 投递），
+# 既慢又会向真实邮箱发信。邮件派发本身由 test_external/test_email_task.py
+# 用 monkeypatch 单独覆盖，业务用例无需真实通道。
+os.environ["SMTP_HOST"] = ""
+
+# 允许从响应读取验证码（注册类用例需要拿到验证码才能走完链路）。
+#
+# **刻意不通过 DEBUG 开启**：DEBUG=true 会连带把管理员网关校验整个关掉
+# （``gateway_enforced() = admin_gateway_enforce and not debug``），
+# 那样 test_admin_gateway.py 里"未带网关令牌应被拒"的断言会全部失效。
+# 这里用语义单一的 EXPOSE_VERIFICATION_CODE，只放开"读验证码"这一项能力。
+os.environ["EXPOSE_VERIFICATION_CODE"] = "true"
+
 # 将 backend/ 与 backend/tests/ 加入 sys.path，确保 ``import app`` 与 ``import helpers`` 可用
 _BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _BACKEND_ROOT not in sys.path:
@@ -36,23 +53,21 @@ _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TESTS_DIR not in sys.path:
     sys.path.insert(0, _TESTS_DIR)
 
-from app.common.models import Base  # noqa: E402
-from app.core.database import get_db  # noqa: E402
-
 # 导入所有业务模型，确保表结构注册到 Base.metadata
-import app.modules.admin.models  # noqa: E402,F401
-import app.modules.auth.models  # noqa: E402,F401
-import app.modules.canteen.models  # noqa: E402,F401
-import app.modules.course.models  # noqa: E402,F401
-import app.modules.item.models  # noqa: E402,F401
-import app.modules.job.models  # noqa: E402,F401
-import app.modules.message.models  # noqa: E402,F401
-import app.modules.report.models  # noqa: E402,F401
-import app.modules.share.models  # noqa: E402,F401
-import app.modules.teammate.models  # noqa: E402,F401
-import app.modules.user.models  # noqa: E402,F401
-
+import app.modules.admin.models  # noqa: E402
+import app.modules.auth.models  # noqa: E402
+import app.modules.canteen.models  # noqa: E402
+import app.modules.course.models  # noqa: E402
+import app.modules.item.models  # noqa: E402
+import app.modules.job.models  # noqa: E402
+import app.modules.message.models  # noqa: E402
+import app.modules.report.models  # noqa: E402
+import app.modules.share.models  # noqa: E402
+import app.modules.teammate.models  # noqa: E402
+import app.modules.user.models  # noqa: E402
+from app.common.models import Base  # noqa: E402
 from app.core.config import settings  # noqa: E402
+from app.core.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 _TEST_DB = os.path.join(tempfile.gettempdir(), "campus_test.db")
@@ -109,7 +124,9 @@ async def test_engine():
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
-    if os.path.isfile(_TEST_DB):
+    # 清理临时测试库。ASYNC240 的 noqa 必须标在 os.path.isfile 所在行：
+    # 规则命中的是那一行，标在下面 os.remove 上会被判为"未使用的指令"而删掉。
+    if os.path.isfile(_TEST_DB):  # noqa: ASYNC240
         try:
             os.remove(_TEST_DB)
         except OSError:

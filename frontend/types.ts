@@ -115,6 +115,18 @@ export interface SliderVerifyResult {
 
 export interface CaptchaConfig {
   enabled: boolean;
+  /** 当前生效的验证提供方：geetest=极验行为验证；builtin=服务端拼图滑块 */
+  provider?: 'geetest' | 'builtin';
+  /** provider=geetest 时下发，供前端 initGeetest4 初始化 */
+  geetest_id?: string;
+}
+
+/** 极验前端验证通过后 getValidate() 的原始结果 */
+export interface GeetestValidate {
+  lot_number: string;
+  captcha_output: string;
+  pass_token: string;
+  gen_time: string;
 }
 
 export interface UserOut {
@@ -330,7 +342,24 @@ export interface CanteenOut {
   rating?: number;
   image?: string;
   status?: string;
+  // 维度字段（与武大学部/餐饮区/类型/学期结构对齐）
+  campus?: string;
+  zone?: string;
+  canteen_type?: string;
+  floor?: string;
+  features?: string[];
+  popular_dishes?: string[];
+  semester?: string;
   stalls?: StallOut[];
+}
+
+// 食堂维度枚举配置（由后台 canteen.config 下发，前端筛选控件的数据源）
+export interface CanteenConfig {
+  campuses: string[];
+  zones: Record<string, string[]>;
+  types: string[];
+  semesters: string[];
+  current_semester: string;
 }
 
 export interface CanteenReviewOut {
@@ -534,10 +563,31 @@ export interface AiFeatureConfig {
   model: string;
 }
 
+/** 单个 AI 能力的可用状态：available 决定是否渲染入口，degraded 表示上游熔断中 */
+export interface AiCapabilityState {
+  available: boolean;
+  degraded: boolean;
+}
+
 export interface AiStatusOut {
   enabled: boolean;
   available: boolean;
+  provider?: string;
+  model?: string;
+  /** 能力级开关：greeting / insights / item_description / course_summary / moderation */
+  capabilities?: Record<string, AiCapabilityState>;
   message: string;
+}
+
+/** 首页每日问候（/api/ai/greeting）。source=fallback 表示降级文案，正常渲染即可 */
+export interface AiGreeting {
+  text: string;
+  emoji: string;
+  source: 'llm' | 'fallback';
+  period: string;
+  mood: string;
+  focus: string;
+  attempt: number;
 }
 
 /** 管理端获取 AI 配置：配置项 + 实时运行状态（/api/admin/ai/config GET） */

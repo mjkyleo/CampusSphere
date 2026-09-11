@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
+from helpers import auth_header, register_login, run_async
+
 from app.core.config import settings
 from app.modules.auth import oauth as oauth_mod
 from app.modules.auth.service import send_code
-from helpers import auth_header, register_login, run_async
 
 
 def _code(target: str, purpose: str) -> str:
@@ -68,7 +69,7 @@ def _admin_login(client):
 
 
 def test_email_register_success(client):
-    email = "alice@example.edu.cn"
+    email = "alice@whu.edu.cn"
     code = _code(email, "register")
     data = _ok(_email_register(client, email, code=code))
     assert data["email"] == email
@@ -77,7 +78,7 @@ def test_email_register_success(client):
 
 
 def test_email_register_wrong_code(client):
-    email = "bob@example.edu.cn"
+    email = "bob@whu.edu.cn"
     _code(email, "register")
     code, message = _err(_email_register(client, email, code="000000"))
     assert code == 42200
@@ -85,7 +86,7 @@ def test_email_register_wrong_code(client):
 
 
 def test_email_register_duplicate(client):
-    email = "carol@example.edu.cn"
+    email = "carol@whu.edu.cn"
     _ok(_email_register(client, email, code=_code(email, "register")))
     code, message = _err(_email_register(client, email, code=_code(email, "register")))
     assert code == 40900
@@ -93,15 +94,18 @@ def test_email_register_duplicate(client):
 
 
 def test_email_register_rejects_domain(client):
-    """域名白名单之外的邮箱不允许注册。"""
-    code, message = _err(_email_register(client, "evil@qq.com", code="123456"))
+    """域名白名单之外的邮箱不允许注册。
+
+    注意别用 qq.com/163.com 等公共邮箱当反例——它们已在 school.yaml 白名单内。
+    """
+    code, message = _err(_email_register(client, "evil@evil.com", code="123456"))
     assert code == 42200
     assert "域名" in message
 
 
 def test_unified_login_with_email_and_username(client):
     """绑定邮箱后，邮箱 / 自定义账号均可 + 密码登录。"""
-    email = "dave@example.edu.cn"
+    email = "dave@whu.edu.cn"
     _ok(_email_register(client, email, code=_code(email, "register")))
     # 邮箱 + 密码（新字段 account）
     data = _ok(client.post("/api/auth/login", json={"account": email, "password": "secret123"}))
@@ -123,7 +127,7 @@ def test_bind_email_phone_and_unified_login(client):
     assert data["phone"] is None
 
     # 绑定邮箱
-    email = "eve@example.edu.cn"
+    email = "eve@whu.edu.cn"
     _ok(client.post("/api/auth/bind/email", json={"email": email, "code": _code(email, "bind_email")}, headers=headers))
     # 绑定手机号
     phone = "13800000001"
@@ -142,7 +146,7 @@ def test_bind_conflict_rejected(client):
     """邮箱/手机号已被其他账户绑定 → 拒绝并明确提示。"""
     user_a = register_login(client, "bindera")
     user_b = register_login(client, "binderb")
-    email = "frank@example.edu.cn"
+    email = "frank@whu.edu.cn"
 
     # A 先绑定邮箱
     _ok(client.post("/api/auth/bind/email", json={"email": email, "code": _code(email, "bind_email")}, headers=auth_header(user_a["access_token"])))
@@ -194,7 +198,7 @@ def test_bind_oauth(monkeypatch, client):
 def test_unbind_email(client):
     user = register_login(client, "unbinder")
     headers = auth_header(user["access_token"])
-    email = "grace@example.edu.cn"
+    email = "grace@whu.edu.cn"
     _ok(client.post("/api/auth/bind/email", json={"email": email, "code": _code(email, "bind_email")}, headers=headers))
 
     _ok(client.delete("/api/auth/unbind/email", headers=headers))
@@ -213,7 +217,7 @@ def test_admin_email_config_overrides_domain(client, session_factory):
     # 读取默认配置（来自 school.yaml）
     data = _ok(client.get("/api/admin/auth/email-config", headers=admin_headers))
     assert data["enabled"] is True
-    assert "example.edu.cn" in data["domains"]
+    assert "whu.edu.cn" in data["domains"]
 
     # 更新为新的域名白名单
     _ok(client.put("/api/admin/auth/email-config", json={"enabled": True, "domains": ["school.cn"], "pattern": ""}, headers=admin_headers))
@@ -222,7 +226,7 @@ def test_admin_email_config_overrides_domain(client, session_factory):
     email_new = "student@school.cn"
     _ok(_email_register(client, email_new, code=_code(email_new, "register")))
     # 旧域名被移除 → 拒绝
-    email_old = "old@example.edu.cn"
+    email_old = "old@whu.edu.cn"
     code, _ = _err(_email_register(client, email_old, code=_code(email_old, "register")))
     assert code == 42200
 
@@ -233,7 +237,7 @@ def test_email_register_disabled_by_admin(client, session_factory):
     admin_headers = _admin_login(client)
     _ok(client.put("/api/admin/auth/email-config", json={"enabled": False, "domains": [], "pattern": ""}, headers=admin_headers))
 
-    email = "henry@example.edu.cn"
+    email = "henry@whu.edu.cn"
     code, message = _err(_email_register(client, email, code=_code(email, "register")))
     assert code == 40300
     assert "未开放" in message

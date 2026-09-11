@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.config_reload import start_config_reloader, stop_config_reloader
 from app.core.database import SessionLocal, engine, init_models
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
@@ -15,6 +16,7 @@ from app.core.middleware import GatewayMiddleware
 from app.core.redis import close_redis
 from app.modules.admin.router import router as admin_router
 from app.modules.ai.router import router as ai_router
+from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.canteen.router import router as canteen_router
 from app.modules.course.router import router as course_router
@@ -63,6 +65,8 @@ async def lifespan(app: FastAPI):
             await manager.start_listener()
         except Exception:
             pass
+        # 启动配置热更新监听（Redis 不可用时内部优雅降级，不影响启动）
+        await start_config_reloader()
         yield
     finally:
         # 关闭期资源释放顺序：后台任务 → 外部连接 → 数据库连接池。
@@ -71,6 +75,10 @@ async def lifespan(app: FastAPI):
             await manager.stop_listener()
         except Exception as exc:
             _logger.warning("ws_listener_stop_failed", error=str(exc))
+        try:
+            await stop_config_reloader()
+        except Exception as exc:
+            _logger.warning("config_reloader_stop_failed", error=str(exc))
         try:
             await close_redis()
         except Exception as exc:
@@ -101,7 +109,11 @@ def create_app() -> FastAPI:
     )
 
     # 网关中间件（鉴权/限流/请求ID）
-    app.add_middleware(GatewayMiddleware, rate_limit_per_minute=settings.rate_limit_per_minute)
+    app.add_middleware(
+        GatewayMiddleware,
+        rate_limit_per_minute=settings.rate_limit_per_minute,
+        auth_rate_limit_per_minute=settings.auth_rate_limit_per_minute,
+    )
 
     # 业务路由
     app.include_router(auth_router)
@@ -115,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(teammate_router)
     app.include_router(report_router)
     app.include_router(admin_router)
+    app.include_router(audit_router)
     app.include_router(ai_router)
     app.include_router(storage_router)
     app.include_router(launcher_router)

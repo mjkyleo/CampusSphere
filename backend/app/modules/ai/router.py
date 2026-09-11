@@ -1,9 +1,10 @@
 """AI 智能助手路由：/api/ai/*。
 
 - ``GET /api/ai/status`` 为公开端点（见 core.middleware.PUBLIC_PATHS），
-  前端据此决定是否渲染 AI 相关 UI 区块；
-- 其余生成类端点均需登录，且受管理后台功能开关控制：
-  开关关闭时返回业务错误码（40300），前端不展示假数据。
+  返回**能力级**可用状态，前端据此按能力决定是否渲染 AI 区块；
+- 生成类端点均需登录，且受管理后台开关 + 能力开关控制；
+- ``/api/ai/greeting`` 为唯一可降级端点：无 Key / 上游故障时返回模板
+  （``source="fallback"``），保证首页永不因 AI 而阻塞。
 """
 
 from __future__ import annotations
@@ -18,11 +19,14 @@ from app.modules.ai.schemas import (
     CategorizeOut,
     CategorizeRequest,
     CourseSummaryRequest,
+    GreetingOut,
+    GreetingRequest,
     InsightRequest,
     ItemDescriptionRequest,
 )
 from app.modules.ai.service import (
     categorize_content,
+    generate_greeting,
     generate_item_description,
     get_ai_status,
     smart_campus_insights,
@@ -37,6 +41,24 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 async def ai_status(db: AsyncSession = Depends(get_db)):
     """AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。"""
     return ApiResponse.ok(data=AiStatusOut(**await get_ai_status(db)))
+
+
+@router.post("/greeting", response_model=ApiResponse[GreetingOut])
+async def greeting(
+    data: GreetingRequest,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """首页每日问候（微采集）。永不抛错：异常一律降级为模板文案。"""
+    result = await generate_greeting(
+        db,
+        user_id=str(user.id),
+        mood=data.mood,
+        focus=data.focus,
+        client_seed=data.clientSeed,
+        regenerate=data.regenerate,
+    )
+    return ApiResponse.ok(data=GreetingOut(**result))
 
 
 @router.post("/insights", response_model=ApiResponse[dict])
@@ -78,6 +100,6 @@ async def categorize(
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """内容自动分类与安全预审（发帖场景预留）。"""
+    """内容自动分类与安全预审（LLM 不可用时降级为规则引擎）。"""
     result = await categorize_content(db, data.content)
     return ApiResponse.ok(data=CategorizeOut(**result))

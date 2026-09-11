@@ -10,8 +10,9 @@
 
 from __future__ import annotations
 
-from app.modules.auth.service import send_code
 from helpers import register_login, run_async
+
+from app.modules.auth.service import send_code
 
 
 def _code(target: str, purpose: str) -> str:
@@ -42,7 +43,7 @@ def test_username_registration_then_username_login(client):
 
 def test_email_registration_then_username_login(client):
     """邮箱注册成功后，自动生成的用户名即可用于登录。"""
-    email = "toname@example.edu.cn"
+    email = "toname@whu.edu.cn"
     reg = client.post(
         "/api/auth/email-register",
         json={"email": email, "password": "secret123", "code": _code(email, "register")},
@@ -60,7 +61,7 @@ def test_email_registration_then_username_login(client):
 # ---------------------------------------------------------------------------
 def test_email_registration_then_email_login(client):
     """邮箱注册成功后，可用邮箱 + 密码登录。"""
-    email = "bymail@example.edu.cn"
+    email = "bymail@whu.edu.cn"
     reg = client.post(
         "/api/auth/email-register",
         json={"email": email, "password": "secret123", "code": _code(email, "register")},
@@ -73,7 +74,7 @@ def test_email_registration_then_email_login(client):
 
 def test_email_login_is_case_insensitive(client):
     """邮箱登录忽略大小写，避免用户因大小写输入失败。"""
-    email = "CaseUser@example.edu.cn"
+    email = "CaseUser@whu.edu.cn"
     reg = client.post(
         "/api/auth/email-register",
         json={"email": email, "password": "secret123", "code": _code(email, "register")},
@@ -88,13 +89,16 @@ def test_email_login_is_case_insensitive(client):
 # 注册邮箱规则（用户名注册同样受约束）
 # ---------------------------------------------------------------------------
 def test_username_registration_rejects_non_campus_email(client):
-    """用户名注册携带校外邮箱 → 拒绝，与邮箱注册保持同一套规则。"""
+    """用户名注册携带校外邮箱 → 拒绝，与邮箱注册保持同一套规则。
+
+    注意别用 qq.com/gmail.com 等公共邮箱当反例——它们已在 school.yaml 白名单内。
+    """
     r = client.post(
         "/api/auth/register",
         json={
             "username": "backdoor01",
             "password": "secret123",
-            "email": "someone@gmail.com",
+            "email": "someone@evil.com",
         },
     )
     body = r.json()
@@ -109,12 +113,12 @@ def test_username_registration_accepts_campus_email(client):
         json={
             "username": "campus01",
             "password": "secret123",
-            "email": "campus01@example.edu.cn",
+            "email": "campus01@whu.edu.cn",
         },
     )
     assert r.json()["code"] == 0, r.text
 
-    assert _login(client, "campus01@example.edu.cn").json()["code"] == 0
+    assert _login(client, "campus01@whu.edu.cn").json()["code"] == 0
 
 
 # ---------------------------------------------------------------------------

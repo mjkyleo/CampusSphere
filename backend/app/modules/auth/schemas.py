@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.config import settings
+
 try:  # EmailStr 需要 email-validator，降级为 str
     from pydantic import EmailStr
 except Exception:
@@ -52,7 +54,8 @@ class SendCodeOut(BaseModel):
     生产环境 debug_code 恒为 null，验证码只能通过邮件/短信真实送达。"""
 
     debug_code: str | None = None
-    expires_in: int = 300
+    # 与后端实际存储 TTL 对齐：硬编码 300 会在调整 CODE_TTL_SECONDS 后给出错误提示
+    expires_in: int = Field(default_factory=lambda: settings.code_ttl_seconds)
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +93,21 @@ class SliderVerifyOut(BaseModel):
 
     ticket: str
     expires_in: int
+
+
+# ---------------------------------------------------------------------------
+# 极验行为验证 4.0
+# ---------------------------------------------------------------------------
+class GeetestVerifyRequest(BaseModel):
+    """极验前端验证通过后回传的四个字段，服务端据此做二次校验。
+
+    字段名由极验 SDK 定义（``captcha.getValidate()`` 的返回），不可自定义。
+    """
+
+    lot_number: str = Field(description="验证流水号")
+    captcha_output: str = Field(description="验证输出信息")
+    pass_token: str = Field(description="验证通过标识")
+    gen_time: str = Field(description="验证通过时间戳")
 
 
 class VerifyCodeRequest(BaseModel):

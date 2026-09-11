@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import pytest
-
 from factories import create_async, create_batch_async
 
 

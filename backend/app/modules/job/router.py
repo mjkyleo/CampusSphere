@@ -26,6 +26,15 @@ from app.modules.job.service import (
 router = APIRouter(prefix="/api/jobs", tags=["job"])
 
 
+# NOTE: 静态路径 /categories 必须先于 /{job_id} 声明，否则 "categories" 会被当作 job_id 匹配
+@router.get("/categories", response_model=ApiResponse[dict])
+async def categories(db: AsyncSession = Depends(get_db)):
+    """公开读取兼职岗位分类（后台配置，含 school.yaml 兜底）。"""
+    from app.modules.admin.service import get_job_categories
+
+    return ApiResponse.ok(data={"categories": await get_job_categories(db)})
+
+
 @router.get("", response_model=ApiResponse[dict])
 async def list_all(
     keyword: str = Query(default=""),

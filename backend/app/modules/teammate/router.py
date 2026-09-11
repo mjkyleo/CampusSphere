@@ -21,13 +21,25 @@ from app.modules.teammate.service import (
 router = APIRouter(prefix="/api/teams", tags=["teammate"])
 
 
+# NOTE: 静态路径 /categories 必须先于 /{team_id} 声明，否则 "categories" 会被当作 team_id 匹配
+@router.get("/categories", response_model=ApiResponse[dict])
+async def categories(db: AsyncSession = Depends(get_db)):
+    """公开读取搭子组队分类（后台配置，含 school.yaml 兜底）。"""
+    from app.modules.admin.service import get_teammate_categories
+
+    return ApiResponse.ok(data={"categories": await get_teammate_categories(db)})
+
+
 @router.get("", response_model=ApiResponse[dict])
 async def list_all(
+    category: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    return ApiResponse.ok(data=await list_teams(db, page=page, page_size=page_size))
+    return ApiResponse.ok(
+        data=await list_teams(db, page=page, page_size=page_size, category=category)
+    )
 
 
 @router.post("", response_model=ApiResponse[TeamOut])

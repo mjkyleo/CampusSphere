@@ -61,6 +61,22 @@ export default defineConfig({
         DEBUG: 'true',
         // 关闭热点缓存，保证列表断言读到最新数据
         CACHE_ENABLED: 'false',
+        // 置空 SMTP：E2E 不应真的发信。留空后 send_code 跳过派发，
+        // 验证码改为经 DEBUG=true 从响应回传，由前端自动回填。
+        // 若不置空，会继承 backend/.env 的真实 SMTP 并向队列（或真实邮箱）投递。
+        SMTP_HOST: '',
+        // 允许从响应读取验证码（注册场景需要）。
+        // 不用 DEBUG 代替：DEBUG=true 会关闭管理员网关校验，
+        // 导致 07-admin 里"未带网关令牌应被拒"的用例失效。
+        EXPOSE_VERIFICATION_CODE: 'true',
+        // 放宽限流：认证端点默认 10 次/分钟（防爆破），但 E2E 会批量
+        // 创建用户/登录，同一分钟内必然超限（42900）导致用例互相干扰。
+        // 限流能力本身由集成测试覆盖，这里只需让业务链路不被节流。
+        RATE_LIMIT_PER_MINUTE: '10000',
+        AUTH_RATE_LIMIT_PER_MINUTE: '10000',
+        // 验证码发送频率（同一 target 每分钟 1 次）会阻断"重复注册同一邮箱"等
+        // 需要为同一邮箱再次取码的用例，同样放宽。
+        CODE_SEND_LIMIT_PER_MINUTE: '100',
         // 管理端：网关密钥 + 引导管理员（管理后台场景需要）
         // 注意密码需 ≥16 位，否则生产校验会拒绝（config.admin_bootstrap_min_length）
         ADMIN_GATEWAY_KEY: process.env.ADMIN_GATEWAY_KEY || 'e2e-gateway-key',

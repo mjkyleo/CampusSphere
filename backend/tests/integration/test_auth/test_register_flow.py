@@ -26,7 +26,7 @@ _VCODE_PREFIX = "vcode:register:"
 
 # 与 config/school.yaml 的 auth.email_register.domains 保持一致；
 # 若调整该文件需同步更新此常量，否则注册用例会被白名单拦截。
-DEFAULT_ALLOWED_DOMAIN = "example.edu.cn"
+DEFAULT_ALLOWED_DOMAIN = "whu.edu.cn"
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def _send_code(client, email: str, ticket=None, purpose: str = "register") -> st
     r = client.post("/api/auth/send-code", json=payload)
     assert r.status_code == 200, r.text
     code = r.json()["data"]["debug_code"]
-    assert code, "测试环境未配置 SMTP，debug_code 应当回传验证码"
+    assert code, "测试环境开启 EXPOSE_VERIFICATION_CODE，debug_code 应当回传验证码"
     return code
 
 

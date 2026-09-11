@@ -10,8 +10,11 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import BizError, ErrorCode
 from app.core.response import ApiResponse
-from app.modules.auth.captcha import consume_ticket, generate_slider, verify_slider
+from app.modules.audit.actions import ActorType, AuditAction, AuditResult
+from app.modules.audit.service import record_audit_log
+from app.modules.auth.captcha import consume_ticket, generate_slider, issue_ticket, verify_slider
 from app.modules.auth.deps import get_current_user
+from app.modules.auth.geetest import captcha_provider, geetest_enabled, verify_geetest
 from app.modules.auth.models import User
 from app.modules.auth.oauth import (
     bind_oauth,
@@ -27,6 +30,7 @@ from app.modules.auth.schemas import (
     BindPhoneRequest,
     EmailRegisterRequest,
     EmailRegisterResponse,
+    GeetestVerifyRequest,
     LoginRequest,
     PhoneLoginRequest,
     RefreshRequest,
@@ -62,25 +66,107 @@ from app.modules.auth.service import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+async def _audit_auth(
+    request: Request | None,
+    *,
+    action: str,
+    result: str = AuditResult.SUCCESS,
+    actor_id: str | None = None,
+    actor_label: str = "",
+    actor_type: str = ActorType.USER,
+    detail: dict | None = None,
+) -> None:
+    """记录认证类审计日志。
+
+    审计是旁路能力 —— ``record_audit_log`` 内部已保证任何异常都不会向外抛出，
+    因此这里可以放心调用，不必再包一层 try/except。
+    """
+    await record_audit_log(
+        action=action,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        actor_label=actor_label,
+        result=result,
+        detail=detail,
+        request=request,
+    )
+
+
 @router.post("/register", response_model=ApiResponse[UserOut])
-async def register_user(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    user = await register(db, data)
+async def register_user(
+    data: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    try:
+        user = await register(db, data)
+    except BizError as exc:
+        await _audit_auth(
+            request,
+            action=AuditAction.REGISTER_FAILED,
+            result=AuditResult.FAILURE,
+            actor_label=data.username,
+            detail={"reason": exc.message},
+        )
+        raise
+    await _audit_auth(
+        request,
+        action=AuditAction.REGISTER,
+        actor_id=str(user.id),
+        actor_label=user.username,
+        detail={"email": data.email or "", "phone": data.phone or ""},
+    )
     return ApiResponse.ok(data=UserOut.model_validate(user))
 
 
 @router.post("/login", response_model=ApiResponse[TokenResponse])
-async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login_user(
+    data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
     """统一登录：账号（邮箱 / 手机号 / 自定义账号）+ 密码。"""
     account = data.account or data.username
     if not account:
+        await _audit_auth(
+            request,
+            action=AuditAction.LOGIN_FAILED,
+            result=AuditResult.FAILURE,
+            detail={"reason": "账号为空"},
+        )
         raise BizError(ErrorCode.VALIDATION, "账号不能为空")
-    tokens = await login(db, account, data.password)
+    try:
+        tokens = await login(db, account, data.password)
+    except BizError as exc:
+        # 登录失败是安全事件，必须留痕（撞库、密码爆破都从这里看出来）
+        await _audit_auth(
+            request,
+            action=AuditAction.LOGIN_FAILED,
+            result=AuditResult.FAILURE,
+            actor_label=account,
+            detail={"reason": exc.message},
+        )
+        raise
+    await _audit_auth(
+        request, action=AuditAction.LOGIN, actor_label=account
+    )
     return ApiResponse.ok(data=TokenResponse(**tokens))
 
 
 @router.post("/phone-login", response_model=ApiResponse[TokenResponse])
-async def phone_login_user(data: PhoneLoginRequest, db: AsyncSession = Depends(get_db)):
-    tokens = await phone_login(db, data.target, data.code)
+async def phone_login_user(
+    data: PhoneLoginRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    try:
+        tokens = await phone_login(db, data.target, data.code)
+    except BizError as exc:
+        await _audit_auth(
+            request,
+            action=AuditAction.PHONE_LOGIN,
+            result=AuditResult.FAILURE,
+            actor_label=data.target,
+            detail={"reason": exc.message},
+        )
+        raise
+    await _audit_auth(
+        request, action=AuditAction.PHONE_LOGIN, actor_label=data.target
+    )
     return ApiResponse.ok(data=TokenResponse(**tokens))
 
 
@@ -94,13 +180,19 @@ async def refresh_user_token(data: RefreshRequest, db: AsyncSession = Depends(ge
 async def logout_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     auth = request.headers.get("Authorization", "")
     access = auth[7:] if auth.startswith("Bearer ") else ""
     # refresh token 来自 body 或 header X-Refresh-Token
     refresh = request.headers.get("X-Refresh-Token", "")
     await logout(db, access, refresh)
+    await _audit_auth(
+        request,
+        action=AuditAction.LOGOUT,
+        actor_id=str(current_user.id),
+        actor_label=current_user.username,
+    )
     return ApiResponse.ok(message="已注销")
 
 
@@ -109,8 +201,50 @@ async def logout_user(
 # ---------------------------------------------------------------------------
 @router.get("/captcha/config", response_model=ApiResponse[dict])
 async def captcha_config():
-    """公开只读：滑块验证是否开启，供前端决定是否需要弹出滑块。"""
-    return ApiResponse.ok(data={"enabled": settings.captcha_enabled})
+    """公开只读：验证码开关与当前生效的提供方，供前端决定渲染哪种验证。
+
+    ``provider`` 取值：
+      * ``geetest`` —— 已配置极验 captcha_id/key，前端渲染极验组件
+      * ``builtin`` —— 未接入第三方，使用服务端生成的拼图滑块
+
+    前端只认这个字段，不自己判断"有没有极验"，
+    避免两端对同一份配置产生不同理解。
+    """
+    provider = captcha_provider()
+    return ApiResponse.ok(
+        data={
+            "enabled": settings.captcha_enabled,
+            "provider": provider,
+            # 仅 geetest 模式下需要，builtin 时为空串（前端不会用到）
+            "geetest_id": settings.geetest_captcha_id if provider == "geetest" else "",
+        }
+    )
+
+
+@router.post("/captcha/geetest/verify", response_model=ApiResponse[SliderVerifyOut])
+async def captcha_geetest_verify(data: GeetestVerifyRequest):
+    """极验二次校验：通过后签发一次性票据（供 send-code 使用）。
+
+    票据机制与自建滑块**完全一致**，因此下游 send-code 不需要区分
+    用户是通过哪种方式完成的验证 —— 换 provider 对业务代码透明。
+    """
+    if not geetest_enabled():
+        raise BizError(ErrorCode.VALIDATION, "当前未启用极验验证")
+
+    ok, reason = await verify_geetest(
+        data.lot_number, data.captcha_output, data.pass_token, data.gen_time
+    )
+    if not ok:
+        # 不回传 reason：避免给攻击者提供调整参数的反馈
+        raise BizError(ErrorCode.VALIDATION, "人机验证未通过，请重试")
+
+    return ApiResponse.ok(
+        message="验证通过",
+        data=SliderVerifyOut(
+            ticket=await issue_ticket(),
+            expires_in=settings.captcha_ticket_ttl_seconds,
+        ),
+    )
 
 
 @router.get("/captcha/slider", response_model=ApiResponse[SliderCaptchaOut])
@@ -138,21 +272,51 @@ async def captcha_verify(data: SliderVerifyRequest):
 
 
 @router.post("/send-code", response_model=ApiResponse[SendCodeOut])
-async def send_verification_code(data: SendCodeRequest):
+async def send_verification_code(data: SendCodeRequest, request: Request):
     """发送验证码（邮箱/手机号，purpose 区分用途）。
 
     开启滑块验证时，必须携带 ``/captcha/verify`` 签发的一次性票据，
     否则拒绝发送——避免脚本绕过滑块直接刷验证码轰炸邮箱/手机。
 
-    开发/测试模式（settings.debug=true）下响应中直接返回 debug_code，
-    便于无邮件/短信通道时验证注册登录流程；生产模式不返回，仅真实送达。
+    默认**绝不**回传验证码（仅通过邮件送达）；
+    仅当开启 ``EXPOSE_VERIFICATION_CODE`` 时回传 debug_code，供本地联调与自动化测试使用。
     """
     if settings.captcha_enabled and not await consume_ticket(data.captcha_ticket):
+        await _audit_auth(
+            request,
+            action=AuditAction.SEND_CODE_FAILED,
+            result=AuditResult.FAILURE,
+            actor_label=data.target,
+            detail={"reason": "未完成人机验证", "purpose": data.purpose},
+        )
         raise BizError(ErrorCode.VALIDATION, "请先完成滑块验证")
-    code = await send_code(data.target, data.purpose)
-    # 开发模式或尚未配置邮件/短信发送通道时，响应中直接返回验证码，便于测试联调；
-    # 生产环境接入 SMTP 后 debug_code 恒为 null，验证码仅通过邮件送达。
-    debug_code = code if (settings.debug or not settings.smtp_host) else None
+    try:
+        code = await send_code(
+            data.target, data.purpose, limit_per_minute=settings.code_send_limit_per_minute
+        )
+    except BizError as exc:
+        # 发送失败也要留痕：频率超限、邮箱域名不合法等都可能是对抗性行为
+        await _audit_auth(
+            request,
+            action=AuditAction.SEND_CODE_FAILED,
+            result=AuditResult.FAILURE,
+            actor_label=data.target,
+            detail={"reason": exc.message, "purpose": data.purpose},
+        )
+        raise
+    await _audit_auth(
+        request,
+        action=AuditAction.SEND_CODE,
+        actor_label=data.target,
+        detail={"purpose": data.purpose},
+    )
+    # 由独立的 ``EXPOSE_VERIFICATION_CODE`` 开关控制（默认 false）。
+    #
+    # 这里**不再**用 `not settings.smtp_host` 作为回传条件：那会让"未配置 SMTP
+    # 的生产环境"把 6 位验证码直接明文返回给调用方，任何人都能绕过邮箱验证
+    # 注册任意账号。
+    # 也不复用 DEBUG：DEBUG 会连带关闭管理员网关校验，用它会把安全测试架空。
+    debug_code = code if settings.expose_verification_code else None
     return ApiResponse.ok(
         message="验证码已发送" + ("（测试模式：见响应 debug_code）" if debug_code else ""),
         data=SendCodeOut(debug_code=debug_code),
@@ -208,10 +372,29 @@ async def qq_callback(
 
 
 @router.post("/email-register", response_model=ApiResponse[EmailRegisterResponse])
-async def email_register(data: EmailRegisterRequest, db: AsyncSession = Depends(get_db)):
+async def email_register(
+    data: EmailRegisterRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
     """邮箱验证码注册：校验后台邮箱规则 + 验证码，自动生成自定义账号并签发令牌（注册即登录）。"""
-    user = await register_by_email(db, data)
+    try:
+        user = await register_by_email(db, data)
+    except BizError as exc:
+        await _audit_auth(
+            request,
+            action=AuditAction.EMAIL_REGISTER,
+            result=AuditResult.FAILURE,
+            actor_label=data.email,
+            detail={"reason": exc.message},
+        )
+        raise
     tokens = await issue_tokens(db, user)
+    await _audit_auth(
+        request,
+        action=AuditAction.EMAIL_REGISTER,
+        actor_id=str(user.id),
+        actor_label=user.email,
+        detail={"username": user.username},
+    )
     return ApiResponse.ok(
         message="注册成功，已自动登录",
         data=EmailRegisterResponse(email=user.email, username=user.username, **tokens),

@@ -36,8 +36,13 @@ export class CoursePage extends BasePage {
     await expect(this.page.getByText(content).first()).toBeVisible();
   }
 
-  /** 断言搜索无结果时的空态提示。 */
+  /**
+   * 断言搜索无结果时的空态提示。
+   *
+   * 文案取自 ``frontend/pages/CourseSearch.tsx``（"未找到相关课程"），
+   * 同义表述一并列进正则，避免前端微调措辞就误判失败。
+   */
   async expectEmptyState(): Promise<void> {
-    await expect(this.page.getByText(/暂无|没有找到|无结果/).first()).toBeVisible();
+    await expect(this.page.getByText(/未找到|暂无|没有找到|无结果/).first()).toBeVisible();
   }
 }

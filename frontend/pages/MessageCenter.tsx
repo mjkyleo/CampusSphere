@@ -19,6 +19,13 @@ const MessageCenter: React.FC = () => {
   const [inputContent, setInputContent] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 历史消息分页（上拉/滚到顶部加载更早消息）
+  const HISTORY_PAGE_SIZE = 30;
+  const [historyPage, setHistoryPage] = useState(1);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Track the active conversation ID in a ref so the WebSocket message
   // handler always sees the latest value without re-subscribing.
@@ -49,18 +56,74 @@ const MessageCenter: React.FC = () => {
   // ---- Load message history when a conversation is selected ----
   useEffect(() => {
     if (!activeConvId) return;
+    let cancelled = false;
 
-    const loadHistory = async () => {
-      const res = await api.messages.history(activeConvId);
-      if (res.code === 0 && res.data) {
-        setMessages(res.data.items || []);
-        await api.messages.read(activeConvId);
-        refreshUnread();
+    const loadInitial = async () => {
+      setLoading(true);
+      try {
+        const res = await api.messages.history(activeConvId, 1, HISTORY_PAGE_SIZE);
+        if (cancelled) return;
+        if (res.code === 0 && res.data) {
+          // 后端按时间倒序返回，反转成「旧→新」便于按聊天正常顺序渲染
+          const items = [...(res.data.items || [])].reverse();
+          setMessages(items);
+          const total = res.data.total || 0;
+          setHistoryPage(1);
+          setHasMoreHistory(total > HISTORY_PAGE_SIZE);
+          // 初始定位到底部（最新消息），并标记已读
+          requestAnimationFrame(() => {
+            const el = scrollContainerRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+          });
+          await api.messages.read(activeConvId);
+          refreshUnread();
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
-    loadHistory();
+    loadInitial();
+    return () => {
+      cancelled = true;
+    };
   }, [activeConvId, refreshUnread]);
+
+  // ---- Load older messages (滚到顶部触发，定位在更早的历史) ----
+  const loadOlderHistory = async () => {
+    if (!activeConvId || loadingHistory || !hasMoreHistory) return;
+    setLoadingHistory(true);
+    const el = scrollContainerRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+    const nextPage = historyPage + 1;
+    try {
+      const res = await api.messages.history(activeConvId, nextPage, HISTORY_PAGE_SIZE);
+      if (res.code === 0 && res.data) {
+        const older = [...(res.data.items || [])].reverse();
+        skipAutoScrollRef.current = true; // 顶部插入，不要自动滚到底部
+        setMessages((prev) => [...older, ...prev]);
+        setHistoryPage(nextPage);
+        const total = res.data.total || 0;
+        setHasMoreHistory(nextPage * HISTORY_PAGE_SIZE < total);
+        // 保持视口位置：把因顶部插入内容而增加的滚动高度补偿回去
+        requestAnimationFrame(() => {
+          if (el) el.scrollTop = el.scrollHeight - prevScrollHeight;
+        });
+      }
+    } catch {
+      // 忽略加载失败
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleMessagesScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (el.scrollTop < 40 && hasMoreHistory && !loadingHistory) {
+      loadOlderHistory();
+    }
+  };
 
   // ---- Subscribe to incoming WebSocket messages ----
   // The onMessage callback from useWebSocket is stable (useCallback),
@@ -102,7 +165,13 @@ const MessageCenter: React.FC = () => {
   }, [onMessage]);
 
   // ---- Auto-scroll to bottom on new messages ----
+  // 加载更早历史（顶部插入）时置位 skipAutoScrollRef，避免被强制拉回底部
+  const skipAutoScrollRef = useRef(false);
   useEffect(() => {
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -193,6 +262,9 @@ const MessageCenter: React.FC = () => {
                 return (
                   <button
                     key={conv.id}
+                    // E2E 定位锚点：列表项文案（昵称/标题）会随数据变化，
+                    // 用稳定标识避免选择器依赖展示文案
+                    data-testid="conversation-item"
                     onClick={() => setActiveConvId(conv.id)}
                     className={`w-full p-4 text-left flex items-start gap-3 transition-colors ${
                       isActive ? 'bg-indigo-50/80 border-r-4 border-indigo-600' : 'hover:bg-slate-50'
@@ -292,7 +364,7 @@ const MessageCenter: React.FC = () => {
                       openReport(
                         'message',
                         activeConversation.id,
-                        `与 ${activeConversation.target_user?.nickname} 的会话`
+                        `与 ${activeConversation.target_user?.nickname || '对方'} 的会话`
                       )
                     }
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-50 transition-colors"
@@ -341,7 +413,23 @@ const MessageCenter: React.FC = () => {
               )}
 
               {/* Messages Feed */}
-              <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4 bg-slate-50/40">
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleMessagesScroll}
+                className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4 bg-slate-50/40"
+              >
+                {hasMoreHistory && (
+                  <div className="text-center py-1">
+                    {loadingHistory ? (
+                      <span className="text-[10px] font-bold text-slate-400 inline-flex items-center gap-1">
+                        <span className="w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                        正在加载更早消息...
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-300">上滑加载更早消息</span>
+                    )}
+                  </div>
+                )}
                 <div className="text-center my-2">
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-200/60 px-3 py-1 rounded-full uppercase tracking-wider">
                     会话建立安全加密通道 · 建议校内公共场所面交

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import uuid
 
-from app.core.config import settings
 from helpers import auth_header, register_login, run_async
+
+from app.core.config import settings
 
 
 def test_job_create_and_list(client):

@@ -5,7 +5,7 @@ import { api, toCents } from '../services/api.ts';
 import { ItemStatus } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
-import { generateItemDescription } from '../services/geminiService.ts';
+import { generateItemDescription, getAiStatus, isCapabilityAvailable } from '../services/aiService.ts';
 
 // 兜底分类：后端 /api/items/categories 不可达时的默认值
 const FALLBACK_CATEGORIES = ['电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
@@ -44,6 +44,16 @@ const MarketPublish: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // AI 能力级开关：未配置 Key / 后台关闭时自动隐藏「AI 智能润色文案」入口
+  const [aiEnabled, setAiEnabled] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getAiStatus().then((s) => {
+      if (alive) setAiEnabled(isCapabilityAvailable(s, 'item_description'));
+    });
+    return () => { alive = false; };
+  }, []);
 
   // 动态拉取后台配置的分类（含 school.yaml 兜底），加载完成后设置默认选中项
   useEffect(() => {
@@ -192,7 +202,7 @@ const MarketPublish: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">发布闲置宝贝</h1>
           <p className="text-slate-500 text-sm mt-1">
-            转让二手书籍、电子设备、生活好物，支持 AI 一键润色商品介绍
+            转让二手书籍、电子设备、生活好物{aiEnabled ? '，支持 AI 一键润色商品介绍' : ''}
           </p>
         </div>
 
@@ -323,15 +333,17 @@ const MarketPublish: React.FC = () => {
                 详细描述 (成色、购买时间、交易地点等) <span className="text-rose-500">*</span>
               </label>
 
-              <button
-                type="button"
-                onClick={handleGenerateAIDescription}
-                disabled={aiGenerating}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                {aiGenerating ? 'AI 正在构思...' : 'AI 智能润色文案'}
-              </button>
+              {aiEnabled && (
+                <button
+                  type="button"
+                  onClick={handleGenerateAIDescription}
+                  disabled={aiGenerating}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  {aiGenerating ? 'AI 正在构思...' : 'AI 智能润色文案'}
+                </button>
+              )}
             </div>
 
             <textarea

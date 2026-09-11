@@ -7,10 +7,10 @@
 from __future__ import annotations
 
 import pytest
+from helpers import register_login, run_async
 
 from app.core.config import settings, validate_admin_security
 from app.modules.admin.service import ensure_seed
-from helpers import auth_header, register_login, run_async
 
 GATEWAY_KEY = "test-gateway-key-1234567890"
 SECRET_KEY = "test-secret-key-for-gateway"
@@ -177,6 +177,7 @@ def test_strong_config_passes_validation():
         "meili": settings.meili_api_key,
         "minio_access": settings.minio_access_key,
         "minio_secret": settings.minio_secret_key,
+        "smtp_host": settings.smtp_host,
     }
     try:
         settings.debug = False
@@ -189,6 +190,9 @@ def test_strong_config_passes_validation():
         settings.meili_api_key = "a-strong-meili-key-1234567890"
         settings.minio_access_key = "a-strong-minio-access-1234567890"
         settings.minio_secret_key = "a-strong-minio-secret-1234567890"
+        # 邮件通道同样是"生产可用"的必要条件：未配置 SMTP_HOST 时验证码无法送达，
+        # 注册链路等于不可用，启动校验会拒绝启动（见 validate_admin_security）。
+        settings.smtp_host = "smtp.example.edu.cn"
         validate_admin_security()  # 不应抛异常
     finally:
         settings.debug = old["debug"]
@@ -199,3 +203,4 @@ def test_strong_config_passes_validation():
         settings.meili_api_key = old["meili"]
         settings.minio_access_key = old["minio_access"]
         settings.minio_secret_key = old["minio_secret"]
+        settings.smtp_host = old["smtp_host"]

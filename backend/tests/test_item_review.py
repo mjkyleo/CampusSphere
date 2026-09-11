@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import asyncio
 
+from helpers import auth_header, register_login
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.modules.admin.service import ensure_seed
-from helpers import auth_header, register_login
 
 
 def _seed_admin(test_engine) -> None:

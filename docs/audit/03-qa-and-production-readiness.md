@@ -10,7 +10,7 @@
 | 维度 | 评分(0-5) | 结论 |
 |---|---|---|
 | 配置管理与环境变量隔离 | 2 | 多源配置清晰，但占位弱密钥被 compose 直接引用、无 staging、debug_code 泄露风险 |
-| 日志与监控体系 | 2 | structlog JSON 良好；`/metrics` 可用；**OTel 仅 Console 导出，追踪形同虚设**；无告警规则 |
+| 日志与监控体系 | 2 | structlog JSON 良好；`/metrics` 端点存在但 **Counter/Histogram 实例从未被 .inc()/.observe()**（grep 0 hits，2026-09-05 实测）；**OTel 仅 Console 导出，追踪形同虚设**；告警规则已定义但因埋点缺失不会触发 |
 | 错误处理与异常恢复 | 3 | 统一 BizError + 黑名单 + Celery 重试完善；但多处静默吞异常、外部依赖降级无统一可观测 |
 | 安全性加固 | 2 | 鉴权/IDOR/密码哈希扎实；**默认 SECRET_KEY、占位网关/MinIO/Meili 密钥、无 HTTPS、无 WAF/限流纵深** |
 | 性能瓶颈与可扩展性 | 2 | **0 处 selectinload（N+1 风险）、MinIO 同步阻塞事件循环**；无连接池调优、无缓存层 |
@@ -36,10 +36,11 @@
 | test_course_canteen.py | course / canteen | 集成 |
 | test_message.py / test_websocket.py | message(含 WS) | 集成 |
 | test_admin_gateway.py | admin(网关隐藏) | 集成 |
-| test_celery_summary.py | tasks/ai | 集成 |
+| test_notify_dispatch.py | tasks/notify | 集成 |
+| test_notify_unit.py | tasks/notify | 单元 |
 
 ### 1.2 缺口
-- **零测试的模块（7/14）**：`job`、`share`、`teammate`、`report`、`storage`、`launcher`，`ai` 仅经 celery_summary 间接覆盖。
+- **零测试的模块（7/14）**：`report`、`storage`、`launcher`；`job`/`teammate` 已通过 notify 派发集成测试间接覆盖，`share`/`ai` 仍缺直接测试。
 - **断言质量**：以集成测试为主，多断言 `code==0`/HTTP 200；业务语义断言（如「越权返回 403」「PENDING 对他人 404」）仅 item/admin 少量覆盖。
 - **边界/异常用例**：限流触发、黑名单登出、WebSocket 断线补偿、Celery 失败重试缺乏专门用例。
 - **前端测试**：**无任何测试框架**（无 jest/vitest/playwright），仅靠 `tsc --noEmit` 类型检查。
