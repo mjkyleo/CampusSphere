@@ -24,6 +24,54 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 
 ---
 
+## 0.1 国内网络构建加速（可选，但强烈建议）
+
+`docker build` 是在**容器内**联网的，Docker Desktop 配置的代理对容器内 `apt` / `pip` **无效**，
+因此国内直连官方源会非常慢甚至超时：
+
+| 阶段 | 官方源 | 配置镜像后 |
+|------|--------|-----------|
+| `apt-get install gcc libpq-dev` | ~60 kB/s，**30 分钟以上** | ~35 秒 |
+| `pip install .` | ~90 秒 | ~45 秒 |
+| 拉取基础镜像（Docker Hub） | 常超时 `auth.docker.io` | 取决于加速器可用性 |
+
+### ① apt / pip 镜像（本项目已内置开关）
+
+在 `deploy/.env` 中设置（该文件已被 git 忽略，不会提交）：
+
+```bash
+APT_MIRROR=mirrors.aliyun.com                        # 或 mirrors.tuna.tsinghua.edu.cn
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+`docker-compose.yml` 会把这两个值作为 `--build-arg` 传入 Dockerfile。
+**留空则回退官方源**，海外 CI（GitHub Actions）无需改动。
+
+### ② Docker Hub 镜像加速器（需你自行配置）
+
+若 `docker build` 报 `failed to fetch oauth token ... auth.docker.io` 超时，
+说明连不上 Docker Hub 的认证服务。在 Docker Desktop 中配置：
+
+**Settings → Docker Engine**，在 JSON 里加入 `registry-mirrors`：
+
+```json
+{
+  "builder": { "gc": { "defaultKeepStorage": "20GB", "enabled": true } },
+  "experimental": false,
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+```
+
+点 **Apply & Restart** 生效。也可使用阿里云容器镜像服务分配的专属加速地址
+（控制台 → 容器镜像服务 → 镜像工具 → 镜像加速器）。
+
+> 加速器地址可能随服务商策略变动；若某个不可用，换其他地址或暂时移除即可。
+
+---
+
 ## 1. 前置条件：依赖服务
 
 | 服务 | 版本 | 开发（默认） | 生产 | 必需性 | 用途 |
@@ -35,7 +83,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 | MinIO | 最新 | 不需要（本地磁盘兜底） | 必需 | 对象存储（或用兼容 S3） | 图片 / 文件 |
 | Meilisearch | v1.11+ | 不需要（DB LIKE 兜底） | 推荐 | 全文搜索 | 物品 / 用户搜索 |
 | SMTP 服务 | — | 可选（开启回传则无需） | **必需** | 注册验证码邮件 | 邮箱验证 |
-| Gemini API Key | — | 不需要（AI 入口隐藏） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
+| AI API Key（OpenAI 兼容） | — | 不需要（未配置 Key 时 AI 入口隐藏、主流程零阻塞） | 可选 | AI 助手 | 物品文案 / 课程摘要等 |
 
 > 开发模式（SQLite + 无 Redis/MinIO/Meili）**开箱即跑**；生产环境缺 Redis/Celery 会降级，但**验证码邮件、WS 广播、搜索**等依赖外部服务的特性将不可用。
 
@@ -51,7 +99,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 | `config/logging.yaml` | structlog 结构化日志配置 | 是 | 调 `loggers.campus.level` 控制日志级别 |
 | `deploy/.env.example` | 生产 Docker 模板 | 是 | `cp` 为 `deploy/.env` 后改敏感值 |
 | `deploy/.env` | 生产环境变量 | **否（gitignore）** | 仅本地 / CI 使用 |
-| `frontend/.env.example` | 前端环境变量模板 | 是 | 当前仅 `GEMINI_API_KEY`（可选） |
+| `frontend/.env.example` | 前端环境变量模板 | 是 | 含可选 `AI_API_KEY`（OpenAI 兼容，不配置则 AI 入口隐藏） |
 
 **配置叠加顺序**（后者覆盖前者）：
 `环境变量 / .env` → `config/school.yaml` → 管理后台动态配置（`app_config` 表，DB 优先于 yaml）。
@@ -198,7 +246,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
 
 | 变量 | 默认值 | 用途 | 生产 |
 |------|--------|------|------|
-| `GEMINI_API_KEY` | （空） | Gemini AI 助手密钥（前端 Express 层消费）；空则 AI 入口隐藏 | 可选 |
+| `AI_API_KEY` | （空） | OpenAI 兼容模型密钥（**后端**消费，不下发前端）；不配置则 AI 入口隐藏、主流程零阻塞 | 可选 |
 
 ### 3.17 第三方 OAuth 凭证（school.yaml，非环境变量）
 
@@ -285,7 +333,7 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info   # 另开终�
 
 - **启动即退出（SystemExit）**：多为密钥仍为占位值，见 §4 安全清单。本地联调可设 `DEBUG=true` 绕过（仅限开发）。
 - **验证码收不到**：检查 `SMTP_*` 是否配置；未配置时接口返回 `debug_code`。
-- **搜索无结果**：确认 Meilisearch 在线，或已触发 Celery 索引同步任务（离线自动降级 SQL）。
+- **搜索无结果**：确认 Meilisearch 在线（**注意：search_sync Celery 任务当前无 .delay() 调用方，发布物品不会自动触发索引同步**；离线自动降级 SQL LIKE）。
 - **WS 连接失败**：Nginx 需透传 `Upgrade`/`Connection`；多实例依赖 Redis 广播。
 - **端口占用**：后端 8000 / 前端 5173；Windows 下 3000 被 Hyper-V 保留，已固定用 5173。
 

@@ -1,0 +1,316 @@
+ Image campusphere-worker:latest Building 
+ Image campusphere-backend:latest Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.55kB 0.0s done
+#1 DONE 0.0s
+
+#2 [app internal] load build definition from Dockerfile
+#2 transferring dockerfile: 6.23kB 0.0s done
+#2 DONE 0.0s
+
+#3 [app internal] load metadata for dockerproxy.net/library/python:3.12-slim
+#3 DONE 0.1s
+
+#4 [app internal] load .dockerignore
+#4 transferring context: 1.06kB done
+#4 DONE 0.0s
+
+#5 [worker internal] load build context
+#5 transferring context: 18.70kB 0.0s done
+#5 transferring context: 18.70kB 0.0s done
+#5 DONE 0.1s
+
+#6 [worker builder 1/6] FROM dockerproxy.net/library/python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217
+#6 resolve dockerproxy.net/library/python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217 0.1s done
+#6 DONE 0.1s
+
+#7 [app builder 2/6] WORKDIR /build
+#7 CACHED
+
+#8 [app builder 3/6] RUN if [ -n "mirrors.aliyun.com" ]; then         sed -i "s|deb.debian.org|mirrors.aliyun.com|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null         || sed -i "s|deb.debian.org|mirrors.aliyun.com|g" /etc/apt/sources.list;     fi     && apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [worker builder 4/6] COPY pyproject.toml ./
+#9 DONE 0.1s
+
+#9 [app builder 4/6] COPY pyproject.toml ./
+#9 DONE 0.1s
+
+#10 [app builder 5/6] COPY app ./app
+#10 DONE 0.2s
+
+#10 [app builder 5/6] COPY app ./app
+#10 DONE 0.2s
+
+#11 [worker builder 6/6] RUN python -m venv /opt/venv     && /opt/venv/bin/pip install --upgrade pip     && PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple" /opt/venv/bin/pip install .     && /opt/venv/bin/python -c "from app.main import app; print('build smoke: app import OK')"
+#11 7.453 Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+#11 7.454 Requirement already satisfied: pip in /opt/venv/lib/python3.12/site-packages (25.0.1)
+#11 8.299 Collecting pip
+#11 8.407   Downloading https://pypi.tuna.tsinghua.edu.cn/packages/f3/6e/1736e5b4ae2b778ef2f81c47d797de9f891d4d8acb047a24ca37a60294dd/pip-26.2.1-py3-none-any.whl (1.8 MB)
+#11 8.703      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 8.5 MB/s eta 0:00:00
+#11 8.737 Installing collected packages: pip
+#11 8.737   Attempting uninstall: pip
+#11 8.746     Found existing installation: pip 25.0.1
+#11 8.807     Uninstalling pip-25.0.1:
+#11 8.821       Successfully uninstalled pip-25.0.1
+#11 10.48 Successfully installed pip-26.2.1
+#11 13.14 Looking in indexes: https://pypi.tuna.tsinghua.edu.cn/simple
+#11 13.14 Processing ./.
+#11 13.15   Installing build dependencies: started
+#11 15.68   Installing build dependencies: finished with status 'done'
+#11 15.69   Getting requirements to build wheel: started
+#11 17.06   Getting requirements to build wheel: finished with status 'done'
+#11 17.07   Preparing metadata (pyproject.toml): started
+#11 18.19   Preparing metadata (pyproject.toml): finished with status 'done'
+#11 18.98 Collecting fastapi>=0.111 (from campus-life-platform==1.0.0)
+#11 19.08   Downloading fastapi-0.141.1-py3-none-any.whl (131 kB)
+#11 19.32 Collecting uvicorn>=0.30 (from uvicorn[standard]>=0.30->campus-life-platform==1.0.0)
+#11 19.42   Downloading uvicorn-0.52.4-py3-none-any.whl (79 kB)
+#11 19.65 Collecting python-multipart>=0.0.9 (from campus-life-platform==1.0.0)
+#11 19.75   Downloading python_multipart-0.0.32-py3-none-any.whl (30 kB)
+#11 21.17 Collecting sqlalchemy>=2.0.30 (from campus-life-platform==1.0.0)
+#11 21.28   Downloading sqlalchemy-2.0.52-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.4 MB)
+#11 22.09      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.4/3.4 MB 4.2 MB/s  0:00:00
+#11 22.32 Collecting asyncpg>=0.29 (from campus-life-platform==1.0.0)
+#11 22.42   Downloading asyncpg-0.31.0-cp312-cp312-manylinux_2_28_x86_64.whl (3.5 MB)
+#11 23.02      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.5/3.5 MB 6.0 MB/s  0:00:00
+#11 23.26 Collecting psycopg2-binary>=2.9 (from campus-life-platform==1.0.0)
+#11 23.38   Downloading psycopg2_binary-2.9.12-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.3 MB)
+#11 23.93      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 7.9 MB/s  0:00:00
+#11 24.12 Collecting alembic>=1.13 (from campus-life-platform==1.0.0)
+#11 24.22   Downloading alembic-1.19.1-py3-none-any.whl (265 kB)
+#11 24.38 Collecting aiosqlite>=0.20 (from campus-life-platform==1.0.0)
+#11 24.48   Downloading aiosqlite-0.22.1-py3-none-any.whl (17 kB)
+#11 24.89 Collecting pydantic>=2.7 (from campus-life-platform==1.0.0)
+#11 25.00   Downloading pydantic-2.13.5-py3-none-any.whl (472 kB)
+#11 25.23 Collecting pydantic-settings>=2.3 (from campus-life-platform==1.0.0)
+#11 25.33   Downloading pydantic_settings-2.15.0-py3-none-any.whl (69 kB)
+#11 25.56 Collecting email-validator>=2.0 (from campus-life-platform==1.0.0)
+#11 25.67   Downloading email_validator-2.3.0-py3-none-any.whl (35 kB)
+#11 25.91 Collecting redis>=5.0 (from campus-life-platform==1.0.0)
+#11 26.01   Downloading redis-8.1.0-py3-none-any.whl (560 kB)
+#11 26.27      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 560.6/560.6 kB 2.6 MB/s  0:00:00
+#11 26.46 Collecting celery>=5.4 (from campus-life-platform==1.0.0)
+#11 26.56   Downloading celery-5.6.3-py3-none-any.whl (451 kB)
+#11 26.92 Collecting pyjwt>=2.8 (from campus-life-platform==1.0.0)
+#11 27.03   Downloading pyjwt-2.13.0-py3-none-any.whl (31 kB)
+#11 27.20 Collecting passlib>=1.7 (from passlib[bcrypt]>=1.7->campus-life-platform==1.0.0)
+#11 27.31   Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+#11 27.46      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 3.6 MB/s  0:00:00
+#11 27.69 Collecting bcrypt>=4.1 (from campus-life-platform==1.0.0)
+#11 27.79   Downloading bcrypt-5.0.0-cp39-abi3-manylinux_2_34_x86_64.whl (278 kB)
+#11 28.60 Collecting cryptography>=42 (from campus-life-platform==1.0.0)
+#11 28.70   Downloading cryptography-50.0.1-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)
+#11 29.52      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 5.9 MB/s  0:00:00
+#11 29.67 Collecting minio>=7.2 (from campus-life-platform==1.0.0)
+#11 29.78   Downloading minio-7.2.20-py3-none-any.whl (93 kB)
+#11 30.01 Collecting meilisearch>=0.32 (from campus-life-platform==1.0.0)
+#11 30.12   Downloading meilisearch-0.43.0-py3-none-any.whl (34 kB)
+#11 30.34 Collecting prometheus-client>=0.20 (from campus-life-platform==1.0.0)
+#11 30.45   Downloading prometheus_client-0.26.0-py3-none-any.whl (64 kB)
+#11 30.67 Collecting opentelemetry-api>=1.25 (from campus-life-platform==1.0.0)
+#11 30.89   Downloading opentelemetry_api-1.44.0-py3-none-any.whl (60 kB)
+#11 31.10 Collecting opentelemetry-sdk>=1.25 (from campus-life-platform==1.0.0)
+#11 31.22   Downloading opentelemetry_sdk-1.44.0-py3-none-any.whl (137 kB)
+#11 31.49 Collecting opentelemetry-instrumentation-fastapi>=0.46 (from campus-life-platform==1.0.0)
+#11 31.66   Downloading opentelemetry_instrumentation_fastapi-0.65b0-py3-none-any.whl (13 kB)
+#11 31.82 Collecting structlog>=24.1 (from campus-life-platform==1.0.0)
+#11 31.93   Downloading structlog-26.1.0-py3-none-any.whl (73 kB)
+#11 32.14 Collecting httpx>=0.27 (from campus-life-platform==1.0.0)
+#11 32.25   Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+#11 33.38 Collecting Pillow>=10.0 (from campus-life-platform==1.0.0)
+#11 33.48   Downloading pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
+#11 35.17      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 4.2 MB/s  0:00:01
+#11 35.42 Collecting pyyaml>=6.0 (from campus-life-platform==1.0.0)
+#11 35.53   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+#11 35.65      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 6.6 MB/s  0:00:00
+#11 35.83 Collecting Mako (from alembic>=1.13->campus-life-platform==1.0.0)
+#11 35.93   Downloading mako-1.4.1-py3-none-any.whl (80 kB)
+#11 36.19 Collecting typing-extensions>=4.12 (from alembic>=1.13->campus-life-platform==1.0.0)
+#11 36.31   Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+#11 36.53 Collecting billiard<5.0,>=4.2.1 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 36.65   Downloading billiard-4.2.4-py3-none-any.whl (87 kB)
+#11 36.99 Collecting kombu>=5.6.0 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 37.10   Downloading kombu-5.6.2-py3-none-any.whl (214 kB)
+#11 37.39 Collecting vine<6.0,>=5.1.0 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 37.49   Downloading vine-5.1.0-py3-none-any.whl (9.6 kB)
+#11 37.67 Collecting click<9.0,>=8.1.2 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 37.78   Downloading click-8.5.0-py3-none-any.whl (125 kB)
+#11 38.02 Collecting click-didyoumean>=0.3.0 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 38.13   Downloading click_didyoumean-0.3.1-py3-none-any.whl (3.6 kB)
+#11 38.26 Collecting click-repl>=0.2.0 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 38.37   Downloading click_repl-0.3.0-py3-none-any.whl (10 kB)
+#11 38.53 Collecting click-plugins>=1.1.1 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 38.67   Downloading click_plugins-1.1.1.2-py2.py3-none-any.whl (11 kB)
+#11 38.81 Collecting python-dateutil>=2.8.2 (from celery>=5.4->campus-life-platform==1.0.0)
+#11 38.92   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+#11 39.22 Collecting tzlocal (from celery>=5.4->campus-life-platform==1.0.0)
+#11 39.34   Downloading tzlocal-5.4.4-py3-none-any.whl (18 kB)
+#11 39.53 Collecting prompt-toolkit>=3.0.36 (from click-repl>=0.2.0->celery>=5.4->campus-life-platform==1.0.0)
+#11 39.67   Downloading prompt_toolkit-3.0.53-py3-none-any.whl (392 kB)
+#11 40.40 Collecting cffi>=2.0.0 (from cryptography>=42->campus-life-platform==1.0.0)
+#11 40.53   Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+#11 40.79 Collecting pycparser (from cffi>=2.0.0->cryptography>=42->campus-life-platform==1.0.0)
+#11 40.90   Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+#11 41.07 Collecting dnspython>=2.0.0 (from email-validator>=2.0->campus-life-platform==1.0.0)
+#11 41.17   Downloading dnspython-2.8.0-py3-none-any.whl (331 kB)
+#11 41.44 Collecting idna>=2.0.0 (from email-validator>=2.0->campus-life-platform==1.0.0)
+#11 41.57   Downloading idna-3.19-py3-none-any.whl (68 kB)
+#11 41.76 Collecting starlette>=0.46.0 (from fastapi>=0.111->campus-life-platform==1.0.0)
+#11 41.88   Downloading starlette-1.6.0-py3-none-any.whl (75 kB)
+#11 42.10 Collecting typing-inspection>=0.4.2 (from fastapi>=0.111->campus-life-platform==1.0.0)
+#11 42.20   Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+#11 42.39 Collecting annotated-doc>=0.0.2 (from fastapi>=0.111->campus-life-platform==1.0.0)
+#11 42.55   Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+#11 42.70 Collecting anyio (from httpx>=0.27->campus-life-platform==1.0.0)
+#11 42.81   Downloading anyio-4.14.2-py3-none-any.whl (125 kB)
+#11 43.03 Collecting certifi (from httpx>=0.27->campus-life-platform==1.0.0)
+#11 43.15   Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+#11 43.38 Collecting httpcore==1.* (from httpx>=0.27->campus-life-platform==1.0.0)
+#11 43.50   Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+#11 43.67 Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.27->campus-life-platform==1.0.0)
+#11 43.80   Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#11 43.99 Collecting amqp<6.0.0,>=5.1.1 (from kombu>=5.6.0->celery>=5.4->campus-life-platform==1.0.0)
+#11 44.10   Downloading amqp-5.3.1-py3-none-any.whl (50 kB)
+#11 44.35 Collecting tzdata>=2025.2 (from kombu>=5.6.0->celery>=5.4->campus-life-platform==1.0.0)
+#11 44.46   Downloading tzdata-2026.3-py2.py3-none-any.whl (348 kB)
+#11 44.85 Collecting packaging (from kombu>=5.6.0->celery>=5.4->campus-life-platform==1.0.0)
+#11 45.01   Downloading packaging-26.3-py3-none-any.whl (129 kB)
+#11 45.26 Collecting requests (from meilisearch>=0.32->campus-life-platform==1.0.0)
+#11 45.37   Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+#11 45.52 Collecting camel-converter[pydantic] (from meilisearch>=0.32->campus-life-platform==1.0.0)
+#11 45.68   Downloading camel_converter-5.1.1-py3-none-any.whl (7.0 kB)
+#11 45.85 Collecting argon2-cffi (from minio>=7.2->campus-life-platform==1.0.0)
+#11 46.00   Downloading argon2_cffi-25.1.0-py3-none-any.whl (14 kB)
+#11 46.55 Collecting pycryptodome (from minio>=7.2->campus-life-platform==1.0.0)
+#11 46.66   Downloading pycryptodome-3.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.3 MB)
+#11 47.52      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 2.7 MB/s  0:00:00
+#11 47.72 Collecting urllib3 (from minio>=7.2->campus-life-platform==1.0.0)
+#11 47.82   Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+#11 48.10 Collecting opentelemetry-instrumentation-asgi==0.65b0 (from opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 48.30   Downloading opentelemetry_instrumentation_asgi-0.65b0-py3-none-any.whl (15 kB)
+#11 48.49 Collecting opentelemetry-instrumentation==0.65b0 (from opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 48.61   Downloading opentelemetry_instrumentation-0.65b0-py3-none-any.whl (36 kB)
+#11 48.82 Collecting opentelemetry-semantic-conventions==0.65b0 (from opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 48.93   Downloading opentelemetry_semantic_conventions-0.65b0-py3-none-any.whl (204 kB)
+#11 49.31 Collecting opentelemetry-util-http==0.65b0 (from opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 49.47   Downloading opentelemetry_util_http-0.65b0-py3-none-any.whl (8.2 kB)
+#11 51.27 Collecting wrapt<3.0.0,>=1.0.0 (from opentelemetry-instrumentation==0.65b0->opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 51.37   Downloading wrapt-2.4.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (227 kB)
+#11 51.62 Collecting asgiref~=3.0 (from opentelemetry-instrumentation-asgi==0.65b0->opentelemetry-instrumentation-fastapi>=0.46->campus-life-platform==1.0.0)
+#11 51.72   Downloading asgiref-3.12.1-py3-none-any.whl (25 kB)
+#11 51.86 Collecting wcwidth>=0.1.4 (from prompt-toolkit>=3.0.36->click-repl>=0.2.0->celery>=5.4->campus-life-platform==1.0.0)
+#11 51.96   Downloading wcwidth-0.8.3-py3-none-any.whl (331 kB)
+#11 52.16 Collecting annotated-types>=0.6.0 (from pydantic>=2.7->campus-life-platform==1.0.0)
+#11 52.27   Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+#11 54.62 Collecting pydantic-core==2.46.5 (from pydantic>=2.7->campus-life-platform==1.0.0)
+#11 54.73   Downloading pydantic_core-2.46.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+#11 55.04      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.8 MB/s  0:00:00
+#11 55.16 Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.3->campus-life-platform==1.0.0)
+#11 55.26   Downloading python_dotenv-1.2.3-py3-none-any.whl (22 kB)
+#11 55.48 Collecting six>=1.5 (from python-dateutil>=2.8.2->celery>=5.4->campus-life-platform==1.0.0)
+#11 55.64   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+#11 56.16 Collecting greenlet>=1 (from sqlalchemy>=2.0.30->campus-life-platform==1.0.0)
+#11 56.26   Downloading greenlet-3.5.5-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (621 kB)
+#11 56.35      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 621.4/621.4 kB 7.7 MB/s  0:00:00
+#11 56.56 Collecting httptools>=0.8.0 (from uvicorn[standard]>=0.30->campus-life-platform==1.0.0)
+#11 56.66   Downloading httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (523 kB)
+#11 57.23 Collecting uvloop>=0.15.1 (from uvicorn[standard]>=0.30->campus-life-platform==1.0.0)
+#11 57.34   Downloading uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.4 MB)
+#11 57.87      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.4/4.4 MB 8.6 MB/s  0:00:00
+#11 58.14 Collecting watchfiles>=0.20 (from uvicorn[standard]>=0.30->campus-life-platform==1.0.0)
+#11 58.26   Downloading watchfiles-1.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+#11 58.69 Collecting websockets>=13.0 (from uvicorn[standard]>=0.30->campus-life-platform==1.0.0)
+#11 58.81   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+#11 59.04 Collecting argon2-cffi-bindings (from argon2-cffi->minio>=7.2->campus-life-platform==1.0.0)
+#11 59.14   Downloading argon2_cffi_bindings-26.1.0-cp310-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (26 kB)
+#11 59.48 Collecting MarkupSafe>=2.0 (from Mako->alembic>=1.13->campus-life-platform==1.0.0)
+#11 59.58   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+#11 60.13 Collecting charset_normalizer<4,>=2 (from requests->meilisearch>=0.32->campus-life-platform==1.0.0)
+#11 60.32   Downloading charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (248 kB)
+#11 60.42 Building wheels for collected packages: campus-life-platform
+#11 60.42   Building wheel for campus-life-platform (pyproject.toml): started
+#11 61.84   Building wheel for campus-life-platform (pyproject.toml): finished with status 'done'
+#11 61.84   Created wheel for campus-life-platform: filename=campus_life_platform-1.0.0-py3-none-any.whl size=127314 sha256=a7072c476e5c404a056da0fca434ce7405c6967621ba2314e4df4a1026444580
+#11 61.84   Stored in directory: /tmp/pip-ephem-wheel-cache-a8jperew/wheels/7f/5c/67/61a4ca28ccbc7df61f55a044560f100aa81c66ef20585de495
+#11 61.85 Successfully built campus-life-platform
+#11 62.14 Installing collected packages: passlib, wrapt, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing-extensions, structlog, six, redis, pyyaml, python-multipart, python-dotenv, pyjwt, pycryptodome, pycparser, psycopg2-binary, prometheus-client, Pillow, packaging, opentelemetry-util-http, MarkupSafe, idna, httptools, h11, greenlet, dnspython, click, charset_normalizer, certifi, camel-converter, billiard, bcrypt, asyncpg, asgiref, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pydantic-core, prompt-toolkit, opentelemetry-api, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, watchfiles, starlette, pydantic, opentelemetry-semantic-conventions, kombu, httpx, cryptography, click-repl, argon2-cffi-bindings, alembic, pydantic-settings, opentelemetry-sdk, opentelemetry-instrumentation, fastapi, celery, argon2-cffi, opentelemetry-instrumentation-asgi, minio, meilisearch, opentelemetry-instrumentation-fastapi, campus-life-platform
+#11 74.41 
+#11 74.42 Successfully installed Mako-1.4.1 MarkupSafe-3.0.3 Pillow-12.3.0 aiosqlite-0.22.1 alembic-1.19.1 amqp-5.3.1 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.14.2 argon2-cffi-25.1.0 argon2-cffi-bindings-26.1.0 asgiref-3.12.1 asyncpg-0.31.0 bcrypt-5.0.0 billiard-4.2.4 camel-converter-5.1.1 campus-life-platform-1.0.0 celery-5.6.3 certifi-2026.7.22 cffi-2.1.1 charset_normalizer-3.5.1 click-8.5.0 click-didyoumean-0.3.1 click-plugins-1.1.1.2 click-repl-0.3.0 cryptography-50.0.1 dnspython-2.8.0 email-validator-2.3.0 fastapi-0.141.1 greenlet-3.5.5 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.19 kombu-5.6.2 meilisearch-0.43.0 minio-7.2.20 opentelemetry-api-1.44.0 opentelemetry-instrumentation-0.65b0 opentelemetry-instrumentation-asgi-0.65b0 opentelemetry-instrumentation-fastapi-0.65b0 opentelemetry-sdk-1.44.0 opentelemetry-semantic-conventions-0.65b0 opentelemetry-util-http-0.65b0 packaging-26.3 passlib-1.7.4 prometheus-client-0.26.0 prompt-toolkit-3.0.53 psycopg2-binary-2.9.12 pycparser-3.0 pycryptodome-3.23.0 pydantic-2.13.5 pydantic-core-2.46.5 pydantic-settings-2.15.0 pyjwt-2.13.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.3 python-multipart-0.0.32 pyyaml-6.0.3 redis-8.1.0 requests-2.34.2 six-1.17.0 sqlalchemy-2.0.52 starlette-1.6.0 structlog-26.1.0 typing-extensions-4.16.0 typing-inspection-0.4.4 tzdata-2026.3 tzlocal-5.4.4 urllib3-2.7.0 uvicorn-0.52.4 uvloop-0.22.1 vine-5.1.0 watchfiles-1.2.0 wcwidth-0.8.3 websockets-17.1 wrapt-2.4.0
+#11 75.75 {"path": "../config/school.yaml", "event": "school_config_not_found", "level": "warning", "timestamp": "2026-08-30T04:44:20.695645Z"}
+#11 76.83 {"broker": "redis://localhost:6379/1", "event": "celery_app_initialized", "level": "info", "timestamp": "2026-08-30T04:44:21.772517Z"}
+#11 76.91 {"host": "http://localhost:7700", "event": "meili_connected", "level": "info", "timestamp": "2026-08-30T04:44:21.854692Z"}
+#11 77.17 {"reason": "No module named 'opentelemetry.exporter'", "event": "otel_skipped", "level": "info", "timestamp": "2026-08-30T04:44:22.112659Z"}
+#11 77.17 build smoke: app import OK
+#11 DONE 78.1s
+
+#11 [app builder 6/6] RUN python -m venv /opt/venv     && /opt/venv/bin/pip install --upgrade pip     && PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple" /opt/venv/bin/pip install .     && /opt/venv/bin/python -c "from app.main import app; print('build smoke: app import OK')"
+#11 DONE 78.1s
+
+#12 [worker base 2/6] RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl     && rm -rf /var/lib/apt/lists/*     && useradd --create-home --uid 10001 appuser
+#12 CACHED
+
+#13 [worker base 3/6] WORKDIR /app
+#13 CACHED
+
+#12 [app base 2/6] RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl     && rm -rf /var/lib/apt/lists/*     && useradd --create-home --uid 10001 appuser
+#12 CACHED
+
+#13 [app base 3/6] WORKDIR /app
+#13 CACHED
+
+#14 [app base 4/6] COPY --from=builder /opt/venv /opt/venv
+#14 DONE 2.3s
+
+#14 [worker base 4/6] COPY --from=builder /opt/venv /opt/venv
+#14 DONE 2.3s
+
+#15 [app base 5/6] COPY alembic ./alembic
+#15 DONE 0.2s
+
+#15 [app base 5/6] COPY alembic ./alembic
+#15 DONE 0.2s
+
+#16 [worker base 6/6] COPY alembic.ini ./alembic.ini
+#16 DONE 0.1s
+
+#16 [app base 6/6] COPY alembic.ini ./alembic.ini
+#16 DONE 0.1s
+
+#17 [app] exporting to image
+#17 exporting layers
+#17 ...
+
+#18 [worker] exporting to image
+#18 ...
+
+#17 [app] exporting to image
+#17 exporting layers 10.6s done
+#17 exporting manifest sha256:702c21db9625b0056ee721986fafd499f67d3b676dd499946a9bfae412980d19 0.1s done
+#17 exporting config sha256:a52baccdf2a6fc4fad217130898315bd25a4bda6dfcbae86b9c449bdc8a3ff3d 0.1s done
+#17 exporting attestation manifest sha256:80ada9876b190deed8606e101ee2006664a167f424797576d5b3c13b09f45c47 0.1s done
+#17 exporting manifest list sha256:2f111958cea52a5fdd4902e7337f71bc9c9d05542cbfd82ddc8397d8b3afd9d5
+#17 exporting manifest list sha256:2f111958cea52a5fdd4902e7337f71bc9c9d05542cbfd82ddc8397d8b3afd9d5 0.0s done
+#17 naming to docker.io/library/campusphere-backend:latest 0.0s done
+#17 unpacking to docker.io/library/campusphere-backend:latest
+#17 unpacking to docker.io/library/campusphere-backend:latest 3.4s done
+#17 DONE 14.5s
+
+#18 [worker] exporting to image
+#18 exporting layers 10.6s done
+#18 exporting manifest sha256:e8301d07f87df235843edeb9d7ad09c2d816c1b246220d8bf29a0a2850143140 0.1s done
+#18 exporting config sha256:36cc012605a3ee3e9a113df782daf762a7a038c960187e5bdddb2506e821400d 0.1s done
+#18 exporting attestation manifest sha256:9e067757a0e1a851f86c51c3e0bd654d146d3d0c1967f778cde35c5315535d45 0.1s done
+#18 exporting manifest list sha256:a52a75c12111bbaf71a4fa8018844b5e366e8f31961d43d29d6003b32319d317 0.1s done
+#18 naming to docker.io/library/campusphere-worker:latest 0.0s done
+#18 unpacking to docker.io/library/campusphere-worker:latest 3.4s done
+#18 DONE 14.5s
+
+#19 [worker] resolving provenance for metadata file
+#19 DONE 0.0s
+
+#20 [app] resolving provenance for metadata file
+#20 DONE 0.0s
+ Image campusphere-backend:latest Built 
+ Image campusphere-worker:latest Built 
+BUILD_SUCCESS 

@@ -36,10 +36,17 @@ async def list_all(
 # NOTE: 必须声明在 /{course_id} 之前，否则 "departments" 会被当作 course_id 匹配
 @router.get("/departments", response_model=ApiResponse[dict])
 async def departments(db: AsyncSession = Depends(get_db)):
-    """公开读取课程院系列表（后台配置，含 school.yaml 兜底）。"""
-    from app.modules.admin.service import get_course_departments
+    """公开读取课程院系列表（后台配置，含 school.yaml 兜底）。
 
-    return ApiResponse.ok(data={"departments": await get_course_departments(db)})
+    响应同时给出两种结构，前端按能力渐进使用：
+
+    - ``departments``：扁平列表（老前端 / 后端筛选直接可用）；
+    - ``groups``：按学部分组的二级结构 ``[{group, departments}]``，
+      配了分组才有内容，为空时前端降级为单排 pill。
+    """
+    from app.modules.admin.service import get_course_departments_merged
+
+    return ApiResponse.ok(data=await get_course_departments_merged(db))
 
 
 @router.post("", response_model=ApiResponse[CourseOut])

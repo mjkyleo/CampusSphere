@@ -144,14 +144,43 @@ const CanteenStall: React.FC = () => {
       {/* Canteen Header */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="px-3 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-xl">
               {canteen.opening_hours || '06:30 - 22:00'}
             </span>
-            <span className="text-xs text-slate-400">{canteen.location}</span>
+            {canteen.canteen_type && (
+              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-xl">
+                {canteen.canteen_type}
+              </span>
+            )}
+            {canteen.floor && (
+              <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl">
+                {canteen.floor}
+              </span>
+            )}
+            {canteen.semester && (
+              <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl">
+                {canteen.semester}
+              </span>
+            )}
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">{canteen.name}</h1>
+          {(canteen.campus || canteen.zone) && (
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />
+              {[canteen.campus, canteen.zone].filter(Boolean).join(' · ')} · {canteen.location || '主校区'},
+            </p>
+          )}
           <p className="text-xs text-slate-500">{canteen.description || '提供南北风味小吃、特色面点与健康轻食'}</p>
+          {canteen.features && canteen.features.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {canteen.features.map((f) => (
+                <span key={f} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md">
+                  {f}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/60 flex items-center gap-2 text-amber-700 shrink-0">
@@ -162,6 +191,23 @@ const CanteenStall: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 招牌菜展示 */}
+      {canteen.popular_dishes && canteen.popular_dishes.length > 0 && (
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-3">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <Utensils className="w-5 h-5 text-indigo-600" />
+            招牌美食
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {canteen.popular_dishes.map((d) => (
+              <span key={d} className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium">
+                {d}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stall Tabs */}
       <div className="space-y-3">

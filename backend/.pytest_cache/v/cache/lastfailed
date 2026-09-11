@@ -1,0 +1,3 @@
+{
+  "tests/integration/test_items/test_item_bargain.py::test_repeat_trade_creates_new_session": true
+}

@@ -19,6 +19,7 @@ const SliderCaptcha: React.FC<SliderCaptchaProps> = ({ onSuccess, onClose }) => 
   const [offsetX, setOffsetX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [passed, setPassed] = useState(false);
   const [error, setError] = useState('');
 
   const trackRef = useRef<TrackPoint[]>([]);
@@ -28,6 +29,7 @@ const SliderCaptcha: React.FC<SliderCaptchaProps> = ({ onSuccess, onClose }) => 
 
   const load = useCallback(async () => {
     setError('');
+    setPassed(false);
     setOffsetX(0);
     trackRef.current = [];
     try {
@@ -92,14 +94,16 @@ const SliderCaptcha: React.FC<SliderCaptchaProps> = ({ onSuccess, onClose }) => 
     try {
       const res = await api.auth.captchaVerify(data.token, offsetX, track, elapsed);
       if (res.code === 0 && res.data?.ticket) {
-        onSuccess(res.data.ticket);
+        setPassed(true);
+        // 短暂展示"验证成功"，再通知父组件继续发送验证码
+        setTimeout(() => onSuccess(res.data.ticket), 400);
       } else {
-        setError(res.message || '验证未通过，请重试');
+        setError(res.message || '验证未通过，请刷新后重试');
         // 令牌一次性：失败后必须重新获取，不能原地再拖
         await load();
       }
     } catch {
-      setError('验证失败，请重试');
+      setError('验证失败，请刷新后重试');
       await load();
     } finally {
       setVerifying(false);
@@ -175,8 +179,14 @@ const SliderCaptcha: React.FC<SliderCaptchaProps> = ({ onSuccess, onClose }) => 
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         >
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-slate-400">
-            {verifying ? '验证中…' : '按住滑块，拖动到缺口位置'}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs">
+            {passed ? (
+              <span className="text-emerald-600 font-medium">验证成功，正在发送验证码…</span>
+            ) : verifying ? (
+              <span className="text-slate-400">验证中…</span>
+            ) : (
+              <span className="text-slate-400">按住滑块，拖动到缺口位置</span>
+            )}
           </div>
           <div
             className="pointer-events-none absolute top-0 left-0 h-full rounded-l-xl bg-indigo-100"

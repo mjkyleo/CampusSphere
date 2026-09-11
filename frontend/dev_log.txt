@@ -1,0 +1,5 @@
+Server running on http://0.0.0.0:5173
+API proxy target: http://127.0.0.1:8000
+[2m19:39:23[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m19:39:23[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m19:39:24[22m [36m[1m[vite][22m[39m server restarted.

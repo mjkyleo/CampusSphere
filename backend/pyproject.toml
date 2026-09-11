@@ -17,6 +17,10 @@ dependencies = [
     "aiosqlite>=0.20",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
+    # pydantic 的 EmailStr 需要 email-validator 提供实际校验，属**可选依赖**不随 pydantic 安装。
+    # 缺失时会在 `from app.main import app` 处抛 ModuleNotFoundError —— 应用根本起不来。
+    # 该坑在本地易被掩盖（开发机上往往已存在），只在干净容器里暴露。
+    "email-validator>=2.0",
     # 缓存 / 消息
     "redis>=5.0",
     "celery>=5.4",

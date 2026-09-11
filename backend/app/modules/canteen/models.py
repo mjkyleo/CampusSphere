@@ -6,16 +6,44 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models import Base, PKMixin, TimestampMixin
+from app.common.types import JsonList
 
 
 class Canteen(Base, PKMixin, TimestampMixin):
-    """食堂。"""
+    """食堂。
+
+    维度说明（与武大实际结构对齐，全部由后台 canteen.config 枚举驱动）：
+
+    - ``campus``：学部（文理学部 / 工学部 / 信息学部 / 医学部）
+    - ``zone``：餐饮区（梅园 / 桂园 / 枫园 / 湖滨 / …）
+    - ``canteen_type``：类型（学生大伙食堂 / 风味食堂 / 教工食堂）
+    - ``floor``：楼层（如 "1F"、"2F"）
+    - ``semester``：可选学期；为空表示长期开放（不随学期变化）
+    """
 
     __tablename__ = "canteens"
 
     name: Mapped[str] = mapped_column(String(64), index=True)
     location: Mapped[str] = mapped_column(String(128), default="")
     image: Mapped[str] = mapped_column(String(512), default="")
+    # 学部 —— 一级筛选维度
+    campus: Mapped[str] = mapped_column(String(32), default="", index=True)
+    # 餐饮区 —— 二级筛选维度（挂在学部下）
+    zone: Mapped[str] = mapped_column(String(32), default="", index=True)
+    # 类型（学生大伙 / 风味 / 教工）
+    canteen_type: Mapped[str] = mapped_column(String(32), default="", index=True)
+    # 楼层
+    floor: Mapped[str] = mapped_column(String(32), default="")
+    # 简介
+    description: Mapped[str] = mapped_column(Text, default="")
+    # 特色标签（如 ["便宜", "不挤"]）
+    features: Mapped[list[str]] = mapped_column(JsonList, default=list)
+    # 招牌菜（如 ["热干面", "豆皮"]）
+    popular_dishes: Mapped[list[str]] = mapped_column(JsonList, default=list)
+    # 营业时间（如 "07:00-20:00"）
+    opening_hours: Mapped[str] = mapped_column(String(64), default="")
+    # 学期；空表示长期开放
+    semester: Mapped[str] = mapped_column(String(32), default="", index=True)
 
     stalls: Mapped[list[Stall]] = relationship(
         back_populates="canteen", cascade="all, delete-orphan", lazy="selectin"

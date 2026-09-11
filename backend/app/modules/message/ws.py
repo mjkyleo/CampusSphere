@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 from app.core.redis import redis_publish, redis_subscribe
 from app.core.security import decode_token, is_token_revoked
 from app.modules.message.models import Message, Participant
+from app.modules.message.seq import seq_store
 from app.modules.message.service import send_message
 
 _logger = get_logger("message.ws")
@@ -129,7 +130,13 @@ async def _authenticate(token: str | None) -> str | None:
 
 
 async def _compensate(ws: WebSocket, conversation_id: str, since: str | None) -> None:
-    """断线补偿：推送 since 之后的增量消息。"""
+    """断线补偿（**旧的时间戳口径**）：推送 since 之后的增量消息。
+
+    .. deprecated::
+        时间戳在同一刻度内的多条消息间无法区分游标，会**丢消息或重复推**。
+        新客户端应改用 ``_compensate_by_seq``（携带 ``last_seq``）。
+        本函数保留仅为兼容未升级的旧客户端。
+    """
     async with SessionLocal() as db:
         stmt = select(Message).where(
             Message.conversation_id == conversation_id
@@ -146,6 +153,30 @@ async def _compensate(ws: WebSocket, conversation_id: str, since: str | None) ->
         await ws.send_json(_message_event(m))
 
 
+async def _compensate_by_seq(
+    ws: WebSocket, conversation_id: str, last_seq: int
+) -> int:
+    """断线补偿（**LocalSeq 口径**）：仅补发 seq > last_seq 的消息。
+
+    这是**应用层 Ack 机制**：客户端上报"我已收到第 N 条"，服务端据此精确
+    算出缺失区间 ``(N, +inf]``，只推缺的那几条 —— 不重、不漏。
+
+    :return: 实际补发的消息条数。
+    """
+    rows = await seq_store.since(conversation_id, last_seq=last_seq)
+    for seq, payload in rows:
+        # 补发的消息必须携带 seq，客户端才能继续推进游标
+        await ws.send_json({**payload, "seq": seq})
+    if rows:
+        _logger.info(
+            "ws_compensated",
+            conversation_id=conversation_id,
+            last_seq=last_seq,
+            count=len(rows),
+        )
+    return len(rows)
+
+
 def _message_event(m: Message) -> dict:
     return {
         "event": "message:new",
@@ -160,8 +191,26 @@ def _message_event(m: Message) -> dict:
     }
 
 
-async def websocket_endpoint(websocket: WebSocket, token: str = "", since: str = ""):
-    """WebSocket 入口（注册于 /ws）。"""
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str = "",
+    since: str = "",
+    conv: str = "",
+    last_seq: int | None = None,
+):
+    """WebSocket 入口（注册于 /ws）。
+
+    断线重连的补发口径（按优先级）:
+
+    1. ``/ws?token=..&conv=<会话ID>&last_seq=<N>`` —— **推荐**。
+       基于 LocalSeq 的精确补发，只推 seq > N 的缺失消息（见 seq.py）。
+    2. ``/ws?token=..&conv=<会话ID>&since=<ISO 时间>`` —— 兼容旧客户端，
+       按时间戳补发（同刻度消息可能丢失或重复，已废弃）。
+
+    .. note::
+       重构前 ``_compensate`` 定义了却**从未被调用**，等于断线重连后
+       什么也没补 —— 这是本次修复的一个真实缺陷。
+    """
     await websocket.accept()
     user_id = await _authenticate(token)
     if not user_id:
@@ -171,6 +220,21 @@ async def websocket_endpoint(websocket: WebSocket, token: str = "", since: str =
 
     await manager.connect(user_id, websocket)
     try:
+        # 断线补偿：连接建立后立即补齐离线期间错过的消息
+        try:
+            if conv:
+                if last_seq is not None:
+                    # last_seq=0 是合法游标，表示"我从第 0 条开始，请全量补发"；
+                    # 不能写成 `if last_seq:`（0 为假值会跳过补偿，与 seq.py
+                    # "0 表示全量补发" 的契约冲突）。仅当参数缺省（None）时才不补偿。
+                    await _compensate_by_seq(websocket, conv, last_seq)
+                elif since:
+                    await _compensate(websocket, conv, since)
+        except Exception as exc:
+            # 补偿失败不应断开连接：最坏情况是消息没补上，
+            # 但实时收发能力必须保住。
+            _logger.warning("ws_compensate_failed", error=str(exc))
+
         while True:
             raw = await websocket.receive_text()
             try:
@@ -228,6 +292,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str = "", since: str =
                     )
                     continue
                 payload = _message_event(msg)
+                # 分配会话内递增序号并写入补发缓冲（ZSet），供断线重连精确补发。
+                # 注意顺序：先 append 拿到 seq 再放进 payload，
+                # 这样在线推送与离线补发携带的是**同一个** seq，游标才能对齐。
+                seq = await seq_store.append(conv_id, payload)
+                payload["seq"] = seq
                 # parts 为 UUID 对象，user_id 为 str，统一转 str 后再比较与组装
                 payload["recipients"] = [str(p) for p in parts if str(p) != user_id]
                 await manager.publish(conv_id, payload)

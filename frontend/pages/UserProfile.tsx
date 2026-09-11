@@ -5,10 +5,12 @@ import {
   LogOut, Sparkles, Building, Bookmark, KeyRound, Link as LinkIcon
 } from 'lucide-react';
 import { api, formatPrice } from '../services/api.ts';
-import { UserProfileOut, BindingsOut, ItemOut } from '../types.ts';
+import { UserProfileOut, BindingsOut, ItemOut, CaptchaConfig } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { Link, useNavigate } from 'react-router-dom';
+import SliderCaptcha from '../components/SliderCaptcha.tsx';
+import GeetestCaptcha from '../components/GeetestCaptcha.tsx';
 
 type Tab = 'profile' | 'security' | 'my_items' | 'favorites';
 
@@ -41,6 +43,13 @@ const UserProfile: React.FC = () => {
   const [bindEmailAddr, setBindEmailAddr] = useState('');
   const [bindEmailCode, setBindEmailCode] = useState('');
 
+  // 绑定验证码发送状态：人机验证配置 / 弹层 / 倒计时（与 LoginPage 同一套后端闸门）
+  const [captchaConfig, setCaptchaConfig] = useState<CaptchaConfig | null>(null);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [pendingSend, setPendingSend] = useState<{ target: string; purpose: 'bind_email' | 'bind_phone' } | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeCooldown, setCodeCooldown] = useState<{ target: string; seconds: number }>({ target: '', seconds: 0 });
+
   // My items & favorites
   const [myItems, setMyItems] = useState<ItemOut[]>([]);
   const [favorites, setFavorites] = useState<ItemOut[]>([]);
@@ -68,6 +77,83 @@ const UserProfile: React.FC = () => {
       });
     }
   }, [user]);
+
+  // 人机验证配置：发送验证码是否需要滑块/极验票据（后端可动态切换）
+  useEffect(() => {
+    api.auth.captchaConfig()
+      .then((res) => {
+        if (res.code === 0 && res.data) setCaptchaConfig(res.data);
+      })
+      .catch(() => { /* 拉取失败按关闭处理，沿用直接发送 */ });
+  }, []);
+
+  const startCooldown = (target: string) => {
+    setCodeCooldown({ target, seconds: 60 });
+    const interval = setInterval(() => {
+      setCodeCooldown((prev) => {
+        if (prev.seconds <= 1) {
+          clearInterval(interval);
+          return { target: '', seconds: 0 };
+        }
+        return { ...prev, seconds: prev.seconds - 1 };
+      });
+    }, 1000);
+  };
+
+  const doSendBindCode = async (target: string, purpose: 'bind_email' | 'bind_phone', ticket?: string) => {
+    setSendingCode(true);
+    try {
+      const res = await api.auth.sendCode(target, purpose, ticket);
+      if (res.code === 0) {
+        const debugCode = res.data?.debug_code;
+        if (debugCode) {
+          // 开发/测试模式：验证码随响应返回，自动填入便于联调
+          if (purpose === 'bind_email') setBindEmailCode(debugCode);
+          else setBindPhoneCode(debugCode);
+          success(`验证码已发送至 ${target}，测试模式已自动填入`);
+        } else {
+          success(`验证码已发送至 ${target}，请查收邮件/短信`);
+        }
+        startCooldown(target);
+      } else {
+        error(res.message || '发送验证码失败');
+      }
+    } catch {
+      error('发送验证码异常，请确认后端服务已启动');
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleSendBindCode = (target: string, purpose: 'bind_email' | 'bind_phone') => {
+    if (!target) {
+      error(purpose === 'bind_email' ? '请先输入要绑定的邮箱' : '请先输入要绑定的手机号');
+      return;
+    }
+    if (purpose === 'bind_email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) {
+      error('邮箱格式不正确');
+      return;
+    }
+    if (purpose === 'bind_phone' && !/^1[3-9]\d{9}$/.test(target)) {
+      error('手机号格式不正确');
+      return;
+    }
+    // 开启人机验证时先弹验证，拿到票据后再真正发送
+    if (captchaConfig?.enabled) {
+      setPendingSend({ target, purpose });
+      setCaptchaOpen(true);
+      return;
+    }
+    doSendBindCode(target, purpose);
+  };
+
+  const handleCaptchaPass = (ticket: string) => {
+    setCaptchaOpen(false);
+    if (pendingSend) {
+      doSendBindCode(pendingSend.target, pendingSend.purpose, ticket);
+      setPendingSend(null);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,6 +476,115 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
+          {/* Email / Phone Binding：验证码获取入口 + 绑定提交。
+              此前只有提交逻辑没有发送入口，绑定流程在界面上走不通。 */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">邮箱与手机绑定</h3>
+              <p className="text-xs text-slate-500">绑定后可使用邮箱 / 手机号 + 密码登录</p>
+            </div>
+
+            {/* 绑定邮箱 */}
+            <form
+              className="space-y-3 max-w-md"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleBindEmail();
+              }}
+            >
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  邮箱{bindings?.email ? <span className="ml-2 font-normal text-emerald-600">已绑定 {bindings.email}</span> : ''}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={bindEmailAddr}
+                    onChange={(e) => setBindEmailAddr(e.target.value)}
+                    placeholder="例如: student@whu.edu.cn"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr)}
+                    onClick={() => handleSendBindCode(bindEmailAddr, 'bind_email')}
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">邮箱验证码</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={bindEmailCode}
+                  onChange={(e) => setBindEmailCode(e.target.value)}
+                  placeholder="6 位数字验证码"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm tracking-widest focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all"
+              >
+                绑定邮箱
+              </button>
+            </form>
+
+            {/* 绑定手机号 */}
+            <form
+              className="space-y-3 max-w-md"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleBindPhone();
+              }}
+            >
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  手机号{bindings?.phone ? <span className="ml-2 font-normal text-emerald-600">已绑定 {bindings.phone}</span> : ''}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={bindPhoneNum}
+                    onChange={(e) => setBindPhoneNum(e.target.value)}
+                    placeholder="11 位手机号"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum)}
+                    onClick={() => handleSendBindCode(bindPhoneNum, 'bind_phone')}
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">短信验证码</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={bindPhoneCode}
+                  onChange={(e) => setBindPhoneCode(e.target.value)}
+                  placeholder="6 位数字验证码"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm tracking-widest focus:bg-white focus:border-indigo-600 outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all"
+              >
+                绑定手机号
+              </button>
+            </form>
+          </div>
+
           {/* Change Password Form */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
             <h3 className="text-lg font-bold text-slate-900">修改登录密码</h3>
@@ -520,6 +715,28 @@ const UserProfile: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* 人机验证弹层：发送绑定验证码前的防刷闸门。
+          用哪种由后端 captcha/config 下发决定，两种组件对上层暴露同一接口。 */}
+      {captchaOpen && captchaConfig?.provider === 'geetest' && captchaConfig?.geetest_id && (
+        <GeetestCaptcha
+          captchaId={captchaConfig.geetest_id}
+          onSuccess={handleCaptchaPass}
+          onClose={() => {
+            setCaptchaOpen(false);
+            setPendingSend(null);
+          }}
+        />
+      )}
+      {captchaOpen && !(captchaConfig?.provider === 'geetest' && captchaConfig?.geetest_id) && (
+        <SliderCaptcha
+          onSuccess={handleCaptchaPass}
+          onClose={() => {
+            setCaptchaOpen(false);
+            setPendingSend(null);
+          }}
+        />
       )}
     </div>
   );

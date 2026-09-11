@@ -1,75 +1,14 @@
-# ---- 依赖与构建产物 ----
+# dev 全量快照：仅排除可重装依赖、敏感凭据与含运行时密钥的本地目录
+# （其余全部工作树文件均纳入，含 .preview/.ruff_cache/dist/coverage/*.log/__pycache__/*.pyc/backend/uploads/ 等）
 node_modules/
-dist/
-dist-ssr/
 .venv/
 venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.ruff_cache/
-
-# ---- 环境变量与密钥（.env.example 保留） ----
-.env
-.env.local
+*.env
 *.env.local
-
-# ---- 数据库 ----
 *.db
 *.sqlite3
-
-# ---- 日志 ----
-*.log
-dev_log.txt
-dev_err.txt
-
-# ---- 后端排障临时文件 ----
-check_imports.*
-pip_install*.txt
-pytest_collect.txt
-pytest_ver.txt
-ruff_out.txt
-
-# ---- 编辑器 / 工具 ----
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# ---- 本地工具目录 ----
-.codebuddy/
-.workbuddy/
-
-# ---- 运行期产物 / 临时文件 ----
-# devctl 启停脚本的 PID 与日志（.run/backend.pid、.run/logs/*.log）
+*.pem
+*.key
 .run/
-backend/uploads/
-backend/pytest-cache-files-*/
-frontend/vite.log
-frontend/metadata.json
-backend/pip_audit_install.log
-backend/uvicorn_audit.log
-
-# ---- TLS 证书（仅密钥/链文件忽略，README 保留） ----
-deploy/nginx/ssl/*.pem
-
-# ---- 测试产物（分层测试体系引入）----
-# 注意：.gitignore 不支持行尾注释，注释必须独占一行，否则整行会被当作匹配模式
-# Vitest 覆盖率报告
-frontend/coverage/
-# coverage.py 报告与交换格式（CI 上传用，不入版本库）
-backend/htmlcov/
-backend/coverage.xml
-# Playwright 报告与失败现场（截图/视频/trace）
-e2e/playwright-report/
-e2e/test-results/
-# E2E 专用数据库
-backend/e2e_test.db
-# 受限环境下 npm 的临时缓存目录
-npm-cache-tmp/
+.workbuddy/
+.codebuddy/

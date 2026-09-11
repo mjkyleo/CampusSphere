@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.utils import PageResult
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
+from app.modules.auth.models import User
 from app.modules.message.models import Conversation, Message, Participant
 
 _logger = get_logger("message.service")
@@ -48,40 +49,104 @@ async def create_conversation(
 
 
 async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
-    stmt = (
-        select(Conversation)
-        .join(Participant, Participant.conversation_id == Conversation.id)
-        .where(Participant.user_id == user_id)
-        .order_by(Conversation.created_at.desc())
-    )
-    convs = (await db.scalars(stmt)).all()
-    result = []
-    for c in convs:
-        participants = (await db.scalars(
-            select(Participant).where(Participant.conversation_id == str(c.id))
-        )).all()
-        last_msg = await db.scalar(
-            select(Message)
-            .where(Message.conversation_id == str(c.id))
-            .order_by(Message.created_at.desc())
-            .limit(1)
+    """列出某用户的会话列表（含参与者 / 最后一条消息 / 未读数）。
+
+    性能：旧实现对每个会话再发 3 条查询（participants / last_message /
+    unread），会话多时是典型 N+1（O(3N+1)）。这里改为 4 条批量查询：
+
+    1. 拉会话（带入 participants，一次 JOIN 取回）；
+    2. 用窗口函数一次性取每个会话的"最后一条消息"；
+    3. 用 ``GROUP BY`` 一次性取每个会话的未读计数。
+
+    无论会话数量多少，固定 ~4 条 SQL，列表接口随会话数线性膨胀的问题消除。
+    """
+    convs = (
+        await db.scalars(
+            select(Conversation)
+            .join(Participant, Participant.conversation_id == Conversation.id)
+            .where(Participant.user_id == user_id)
+            .order_by(Conversation.created_at.desc())
         )
-        unread = await db.scalar(
-            select(func.count())
-            .select_from(Message)
+    ).all()
+    if not convs:
+        return []
+
+    conv_ids = [str(c.id) for c in convs]
+
+    # 批量取参与者，按会话归组
+    parts = (
+        await db.scalars(
+            select(Participant).where(Participant.conversation_id.in_(conv_ids))
+        )
+    ).all()
+    parts_by_conv: dict[str, list] = {}
+    for p in parts:
+        parts_by_conv.setdefault(p.conversation_id, []).append(p)
+
+    # 窗口函数取每个会话的最后一条消息（created_at 倒序第 1 行）
+    rn = func.row_number().over(
+        partition_by=Message.conversation_id, order_by=Message.created_at.desc()
+    ).label("rn")
+    last_stmt = select(Message, rn).where(Message.conversation_id.in_(conv_ids))
+    last_rows = (await db.execute(last_stmt)).all()
+    last_msgs = [m for m, r in last_rows if r == 1]
+    msg_by_conv = {m.conversation_id: m for m in last_msgs}
+
+    # 批量取未读计数（别人发的、未读），GROUP BY 会话
+    unread_rows = (
+        await db.execute(
+            select(Message.conversation_id, func.count())
             .where(
-                Message.conversation_id == str(c.id),
+                Message.conversation_id.in_(conv_ids),
                 Message.sender_id != user_id,
                 Message.is_read.is_(False),
             )
+            .group_by(Message.conversation_id)
         )
+    ).all()
+    unread_by_conv = {str(cid): int(cnt) for cid, cnt in unread_rows}
+
+    # 批量取会话对方的用户信息（昵称/头像），一次 JOIN 避免按会话逐个查（N+1）
+    target_user_by_conv: dict[str, dict] = {}
+    peer_ids = [
+        next((p.user_id for p in parts_by_conv.get(str(c.id), []) if p.user_id != user_id), None)
+        for c in convs
+    ]
+    real_ids = [tid for tid in peer_ids if tid]
+    if real_ids:
+        users = (
+            await db.scalars(
+                select(User).where(User.id.in_(real_ids), User.deleted_at.is_(None))
+            )
+        ).all()
+        user_by_id = {u.id: u for u in users}
+        for c, tid in zip(convs, peer_ids):
+            u = user_by_id.get(tid) if tid else None
+            if u:
+                target_user_by_conv[str(c.id)] = {
+                    "id": u.id,
+                    "nickname": u.nickname or "校园用户",
+                    "avatar": u.avatar,
+                }
+
+    result = []
+    for c in convs:
+        cid = str(c.id)
+        participants = parts_by_conv.get(cid, [])
         result.append({
-            "id": str(c.id),
+            "id": cid,
             "conv_type": c.conv_type,
             "related_id": c.related_id,
-            "participants": [{"user_id": p.user_id, "last_read_at": p.last_read_at.isoformat() if p.last_read_at else None} for p in participants],
-            "last_message": MessageOut_wrap(last_msg),
-            "unread_count": int(unread or 0),
+            "participants": [
+                {
+                    "user_id": p.user_id,
+                    "last_read_at": p.last_read_at.isoformat() if p.last_read_at else None,
+                }
+                for p in participants
+            ],
+            "last_message": MessageOut_wrap(msg_by_conv.get(cid)),
+            "target_user": target_user_by_conv.get(cid),
+            "unread_count": unread_by_conv.get(cid, 0),
         })
     return result
 

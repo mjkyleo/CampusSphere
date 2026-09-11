@@ -32,9 +32,9 @@
                                    └──────────────────┘
 ```
 
-- **前端代理层**（`frontend/server.ts`）是开发与生产共用的统一入口：
-  - 本地处理 `/api/ai/*`（Gemini）与 `/api/health`；
-  - `/api/*` 其余请求、`/ws` WebSocket 升级反代到后端 `http://127.0.0.1:8000`；
+- **前端代理层**（`frontend/server.ts`）是开发与生产共用的统一入口，仅做反向代理（**不处理任何 AI 逻辑、不直连大模型**）：
+  - `/api/*`（含 AI 接口）、`/api/health` 反代到后端 `http://127.0.0.1:8000`；
+  - `/ws` WebSocket 升级反代到后端（实时消息）；
   - 开发模式挂载 Vite 中间件（HMR），生产模式托管 `dist/` 静态资源。
 - **后端**（`backend/app/main.py` 应用工厂）装配：CORS → 统一异常处理 → 网关中间件（鉴权 / 限流 / 请求 ID）→ 13 个业务路由 → WebSocket → OpenTelemetry。
 
@@ -109,7 +109,7 @@ frontend/
 ├── services/
 │   ├── api.ts              # 后端 API 封装（Token 存取、统一请求、价格换算）
 │   ├── websocket.ts        # WebSocket 客户端（消息中心）
-│   └── geminiService.ts    # AI 端点封装（带兜底文案）
+│   └── aiService.ts       # 统一 AI 客户端（能力级 gating + 无 Key 本地兜底）
 └── types.ts                # 与后端 schemas 对齐的 TS 类型
 ```
 
@@ -195,13 +195,13 @@ frontend/
 
 业务异常抛出后由 `register_exception_handlers` 统一捕获，转换为 `{code, message, data}` 结构，避免端点内重复 try/except。
 
-### 5.5 AI 服务（前端层）
+### 5.5 AI 服务（后端层）
 
-`frontend/server.ts` 中的 `/api/ai/*` 端点调用 Gemini：
+AI 能力由**后端** `app/modules/ai/` 统一处理，前端 `aiService.ts` 仅做调用与能力级 gating，不直连大模型。模型接入遵循 **OpenAI 兼容**协议（`provider.py` 用 httpx 直调 `/chat/completions`，兼容 DeepSeek / Qwen / Kimi / GLM / Ollama 等），密钥仅存后端（`AI_API_KEY` > `GEMINI_API_KEY` 兜底 > `school.yaml`），不下发浏览器。
 
-- 模型降级链：`gemini-2.5-flash → gemini-3.1-flash-lite → gemini-flash-latest`；
-- 无 Key / 服务不可用时返回内置兜底文案（`fallback: true`）；
-- 前端 `services/geminiService.ts` 对失败同样有本地兜底。
+- **三层降级**：L0 总开关（`ai.feature.enabled`）→ L1 能力级（`degradable=true` 的能力失败回退模板/规则引擎；`degradable=false` 的能力返回友好错误，绝不返回假数据）→ L2 模型链（`fallback_models`）+ 重试 + 进程级熔断（连续失败超阈值进入冷却）；
+- **能力级状态**：`POST /api/ai/status` 返回各能力 `available`/`degraded`，前端据此显示或隐藏 AI 入口，未配置 Key 时主流程零阻塞；
+- **新增首页问候**：`POST /api/ai/greeting` 以趣味信息采集模式生成不同问候，未配置 Key 时回退内置模板（`source=fallback`）。
 
 ## 6. 数据库与迁移
 
@@ -224,7 +224,6 @@ alembic upgrade head
 | `email` | `app.tasks.email.send_welcome` / `send_email` | 注册欢迎邮件 / 通用邮件 |
 | `notify` | `app.tasks.notify.send_notify` | 站内通知投递 |
 | `search` | `app.tasks.search_sync.sync_item` / `sync_user` / `delete_doc` | Meilisearch 文档同步 |
-| `default` | `app.tasks.summary.generate_trade_summary` | 交易会话摘要 |
 
 启动 worker：
 

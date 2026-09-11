@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api.ts';
 import { CourseOut, CourseReviewOut } from '../types.ts';
-import { summarizeCourseReviews } from '../services/geminiService.ts';
+import { summarizeCourseReviews, getAiStatus, isCapabilityAvailable } from '../services/aiService.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 
@@ -21,6 +21,8 @@ const CourseDetail: React.FC = () => {
   const [aiSummary, setAiSummary] = useState<string>('');
   const [summarizing, setSummarizing] = useState(false);
   const [loading, setLoading] = useState(true);
+  // AI 能力级开关：未配置 Key / 后台关闭时隐藏「AI 智能选课画像」整块
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -36,12 +38,16 @@ const CourseDetail: React.FC = () => {
           const revList = rRes.data.items || [];
           setReviews(revList);
 
-          // Trigger AI summary
-          if (revList.length > 0) {
+          // Trigger AI summary（仅在能力可用时；未配置 Key 不请求、不渲染）
+          const status = await getAiStatus();
+          const on = isCapabilityAvailable(status, 'course_summary');
+          setAiEnabled(on);
+          if (on && revList.length > 0) {
             setSummarizing(true);
             const reviewTexts = revList.map((r) => r.content);
             summarizeCourseReviews(reviewTexts)
               .then((sum) => setAiSummary(sum || '暂无总结'))
+              .catch(() => setAiSummary(''))
               .finally(() => setSummarizing(false));
           }
         }
@@ -144,7 +150,8 @@ const CourseDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Review Summary Box */}
+      {/* AI Review Summary Box —— 仅在 AI 能力可用时渲染（未配置 Key 时整块隐藏） */}
+      {aiEnabled && (
       <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white space-y-4 shadow-xl border border-indigo-800/40 relative overflow-hidden">
         <div className="relative z-10 flex items-center gap-2">
           <div className="p-2 bg-indigo-500/20 backdrop-blur-md rounded-xl border border-indigo-400/30">
@@ -169,6 +176,7 @@ const CourseDetail: React.FC = () => {
 
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
+      )}
 
       {/* Reviews List */}
       <div className="space-y-4">

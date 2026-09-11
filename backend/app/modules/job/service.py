@@ -5,8 +5,11 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.tasks.notify as notify_tasks
 from app.common.enums import ApplicationStatus, JobStatus
 from app.core.exceptions import BizError, ErrorCode
+from app.core.logging import get_logger
+from app.modules.ai.service import check_content_safety
 from app.modules.auth.models import User
 from app.modules.job.models import Job, JobApplication
 from app.modules.job.schemas import (
@@ -15,6 +18,8 @@ from app.modules.job.schemas import (
     JobCreate,
     JobOut,
 )
+
+_logger = get_logger("job.service")
 
 
 async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = None, page: int = 1, page_size: int = 20) -> dict:
@@ -32,7 +37,23 @@ async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = No
 
 
 async def create_job(db: AsyncSession, poster: User, data: JobCreate) -> Job:
-    job = Job(poster_id=str(poster.id), **data.model_dump())
+    # 分类收敛到后台配置列表内（运营下线某个分类后，旧客户端传来的值不至于
+    # 变成筛选页里点不动的僵尸分类）
+    from app.modules.admin.service import normalize_category
+
+    payload = data.model_dump()
+    payload["category"] = await normalize_category(db, "job", payload.get("category", ""))
+
+    # 内容预审：命中敏感词时拒绝发布（默认关闭，可在后台开启）
+    moderation_text = "\n".join(
+        str(payload.get(k, ""))
+        for k in ("title", "description", "company")
+    ).strip()
+    moderation = await check_content_safety(db, moderation_text)
+    if not moderation["safe"]:
+        raise BizError(ErrorCode.FORBIDDEN, "发布内容涉嫌违规，请修改后重试")
+
+    job = Job(poster_id=str(poster.id), **payload)
     db.add(job)
     await db.commit()
     await db.refresh(job)
@@ -63,6 +84,15 @@ async def apply_job(db: AsyncSession, job: Job, applicant: User, data: JobApplic
     db.add(app)
     await db.commit()
     await db.refresh(app)
+    try:
+        notify_tasks.send_notify.delay(
+            str(job.poster_id),
+            f"{applicant.nickname or applicant.username} 申请了兼职：{job.title}",
+            "请尽快在「兼职广场」中查看申请详情。",
+            channel="inapp",
+        )
+    except Exception as exc:
+        _logger.warning("notify_dispatch_failed", job_id=str(job.id), error=str(exc))
     return app
 
 

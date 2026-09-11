@@ -20,8 +20,34 @@ from app.core.logging import bind_request, clear_request, get_logger
 from app.core.redis import redis_incr
 from app.core.response import ApiResponse
 from app.core.security import decode_token, is_token_revoked
+from app.modules.launcher.metrics import REQUEST_COUNT, REQUEST_LATENCY
 
 _logger = get_logger("gateway")
+
+# 指标 endpoint label 最大长度，防止异常路径导致 label 过长
+_MAX_ENDPOINT_LABEL_LEN = 128
+
+
+def _endpoint_label(request: Request) -> str:
+    """获取低基数 endpoint label。
+
+    优先使用 FastAPI 匹配到的路由模板（如 /api/items/{item_id}），
+    避免把动态 ID 展开成独立 label 导致 Prometheus cardinality 爆炸。
+    未匹配到路由时回退到原始 path 并截断。
+    """
+    route = request.scope.get("route")
+    path = getattr(route, "path", None) or request.url.path
+    return path[:_MAX_ENDPOINT_LABEL_LEN]
+
+
+def _record_metrics(method: str, request: Request, status: int, cost_ms: float) -> None:
+    """记录 Prometheus 指标。失败时静默忽略，避免指标问题拖垮请求。"""
+    try:
+        endpoint = _endpoint_label(request)
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status).inc()
+        REQUEST_LATENCY.labels(endpoint=endpoint).observe(cost_ms / 1000.0)
+    except Exception:
+        pass
 
 PUBLIC_PATHS = {
     "/api/auth/login",
@@ -35,12 +61,18 @@ PUBLIC_PATHS = {
     "/api/auth/captcha/config",
     "/api/auth/captcha/slider",
     "/api/auth/captcha/verify",
+    "/api/auth/captcha/geetest/verify",
     "/api/auth/wechat/callback",
     "/api/auth/qq/callback",
     "/api/admin/login",
     "/api/admin/discover",
     "/api/ai/status",
     "/health",
+    # 前端 dev server（frontend/server.ts）本地实现了 /api/health 并直接返回
+    # 200。生产改为 nginx 统一转发 /api/* 后，该路径会落到后端 —— 若不放行，
+    # 开发与生产行为就不一致了：本地探测 200、上线后 401。健康端点本就该
+    # 可公开探测，e2e 的 webServer 健康检查也依赖它。
+    "/api/health",
     "/metrics",
     "/docs",
     "/openapi.json",
@@ -119,6 +151,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
         try:
             count = await redis_incr(limit_key, ttl=60)
             if count and count > self.rate_limit_per_minute:
+                _record_metrics(request.method, request, 429, 0.0)
                 return JSONResponse(
                     status_code=429,
                     content=ApiResponse(
@@ -137,15 +170,17 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             "/api/auth/send-code",
             "/api/auth/verify-email",
             # 滑块生成是 CPU 密集操作，且校验端点可能被用于暴力试探缺口位置，
-            # 因此同样纳入严格限流（10 次/分钟）。
+            # 因此同样纳入严格限流（10 次/分钟）。极验二次校验同理。
             "/api/auth/captcha/slider",
             "/api/auth/captcha/verify",
+            "/api/auth/captcha/geetest/verify",
         }
         if request.url.path in _auth_strict_paths:
             auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"
             try:
                 acount = await redis_incr(auth_limit_key, ttl=60)
                 if acount and acount > self.auth_rate_limit_per_minute:
+                    _record_metrics(request.method, request, 429, 0.0)
                     return JSONResponse(
                         status_code=429,
                         content=ApiResponse(
@@ -163,6 +198,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             from app.modules.admin.gateway import gateway_enforced, verify_gateway_token
 
             if gateway_enforced() and not verify_gateway_token(request.headers.get("X-Admin-Gateway")):
+                _record_metrics(request.method, request, 404, 0.0)
                 return JSONResponse(
                     status_code=404,
                     content=ApiResponse(
@@ -204,5 +240,6 @@ class GatewayMiddleware(BaseHTTPMiddleware):
         cost = round((time.time() - start) * 1000, 2)
         response.headers["X-Request-ID"] = request_id
         _logger.info("request_end", status=response.status_code, cost_ms=cost)
+        _record_metrics(request.method, request, response.status_code, cost)
         clear_request()
         return response

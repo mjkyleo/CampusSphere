@@ -1,0 +1,39 @@
+{
+  "schema_version": "1",
+  "source_path": "D:\\Phase3\\Projects\\CampusSphere\\docs\\配置方案总览.html",
+  "source_filename": "配置方案总览.html",
+  "source_hash": "dc7a47d0c14d",
+  "source_size_bytes": 8894,
+  "kind": "html",
+  "rendered_at_utc": "2026-09-04T08:13:21+00:00",
+  "output_dir": "D:\\Phase3\\Projects\\CampusSphere\\backend\\.preview\\dc7a47d0c14d",
+  "page_count": 1,
+  "rendered_page_count": 1,
+  "collage_count": 0,
+  "extracted_text_chars": 7548,
+  "text_relpath": "text.md",
+  "thumbnail_relpath": "thumb.jpg",
+  "pages": [
+    {
+      "page": 1,
+      "relpath": "pages\\p001.png",
+      "size_bytes": 125906,
+      "width": 1280,
+      "height": 1018
+    }
+  ],
+  "collages": [],
+  "warnings": [],
+  "options": {
+    "max_pages": 12,
+    "collage": true,
+    "page_range": null,
+    "thumbnail": true,
+    "text_only": false,
+    "jpeg_quality": 85,
+    "out_max_dim": 2048
+  },
+  "summary": {
+    "bytes": 8894
+  }
+}

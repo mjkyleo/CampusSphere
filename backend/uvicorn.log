@@ -1,0 +1,1161 @@
+{"school": "\u6b66\u6c49\u5927\u5b66", "event": "school_config_loaded", "level": "info", "timestamp": "2026-08-31T02:48:35.580007Z"}
+{"broker": "redis://localhost:6379/1", "event": "celery_app_initialized", "level": "info", "timestamp": "2026-08-31T02:48:38.565617Z"}
+{"host": "http://localhost:7700", "event": "meili_connected", "level": "info", "timestamp": "2026-08-31T02:48:47.928634Z"}
+{"reason": "cannot import name 'OTLPSpanExporter' from 'opentelemetry.exporter.otlp.proto.grpc' (C:\\Users\\86132\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\opentelemetry\\exporter\\otlp\\proto\\grpc\\__init__.py)", "event": "otel_skipped", "level": "info", "timestamp": "2026-08-31T02:48:48.258851Z"}
+INFO:     Started server process [22240]
+INFO:     Waiting for application startup.
+{"reason": "admin_gateway_enforce=false in non-debug mode", "event": "admin_security_relaxed", "level": "warning", "timestamp": "2026-08-31T02:48:48.355848Z"}
+{"school": "\u6b66\u6c49\u5927\u5b66", "event": "app_starting", "level": "info", "timestamp": "2026-08-31T02:48:48.355848Z"}
+{"event": "db_models_initialized", "level": "info", "timestamp": "2026-08-31T02:48:48.406851Z"}
+{"error": "(sqlite3.IntegrityError) UNIQUE constraint failed: roles.name\n[SQL: INSERT INTO roles (name, description, permissions, id) VALUES (?, ?, ?, ?) RETURNING created_at, updated_at]\n[parameters: ('super_admin', '\u8d85\u7ea7\u7ba1\u7406\u5458', '[\"user:ban\", \"user:view\", \"report:handle\", \"content:audit\", \"dashboard:view\"]', '2c177ba5-6ff2-456f-8c05-08d0a0ec1b0c')]\n(Background on this error at: https://sqlalche.me/e/20/gkpj)", "event": "admin_seed_failed", "level": "warning", "timestamp": "2026-08-31T02:48:48.488768Z"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "level": "warning", "timestamp": "2026-08-31T02:48:48.996353Z"}
+{"method": "GET", "path": "/health", "event": "request_start", "request_id": "ef295300ed8f492e9feaf906d17d2258", "level": "info", "timestamp": "2026-08-31T02:48:49.893561Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "ef295300ed8f492e9feaf906d17d2258", "level": "warning", "timestamp": "2026-08-31T02:48:50.405597Z"}
+{"status": 200, "cost_ms": 318.16, "event": "request_end", "request_id": "ef295300ed8f492e9feaf906d17d2258", "level": "info", "timestamp": "2026-08-31T02:48:50.724755Z"}
+INFO:     127.0.0.1:38955 - "GET /health HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/users/me", "event": "request_start", "request_id": "bee9ee53f6424838b310e43119191d63", "level": "info", "timestamp": "2026-08-31T02:49:26.613781Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "bee9ee53f6424838b310e43119191d63", "level": "warning", "timestamp": "2026-08-31T02:49:27.134155Z"}
+{"error": "Signature has expired", "event": "auth_failed", "request_id": "bee9ee53f6424838b310e43119191d63", "level": "warning", "timestamp": "2026-08-31T02:49:27.136668Z"}
+INFO:     127.0.0.1:60878 - "GET /api/users/me HTTP/1.1" 401 Unauthorized
+{"method": "GET", "path": "/api/users/me", "event": "request_start", "request_id": "91b89c01fd174558a47ed6a172ffabde", "level": "info", "timestamp": "2026-08-31T02:49:27.146960Z"}
+{"method": "POST", "path": "/api/auth/refresh", "event": "request_start", "request_id": "77df12cb5f954b498fb9ed63ef5c0038", "level": "info", "timestamp": "2026-08-31T02:49:27.484272Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "91b89c01fd174558a47ed6a172ffabde", "level": "warning", "timestamp": "2026-08-31T02:49:27.658492Z"}
+{"error": "Signature has expired", "event": "auth_failed", "request_id": "91b89c01fd174558a47ed6a172ffabde", "level": "warning", "timestamp": "2026-08-31T02:49:27.659493Z"}
+INFO:     127.0.0.1:60878 - "GET /api/users/me HTTP/1.1" 401 Unauthorized
+{"status": 200, "cost_ms": 60.48, "event": "request_end", "request_id": "77df12cb5f954b498fb9ed63ef5c0038", "level": "info", "timestamp": "2026-08-31T02:49:28.035556Z"}
+INFO:     127.0.0.1:60884 - "POST /api/auth/refresh HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/users/me", "event": "request_start", "request_id": "d438ef5cf441428f9013b2bb52099624", "level": "info", "timestamp": "2026-08-31T02:49:28.044556Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "d438ef5cf441428f9013b2bb52099624", "level": "warning", "timestamp": "2026-08-31T02:49:28.560494Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "d438ef5cf441428f9013b2bb52099624", "level": "warning", "timestamp": "2026-08-31T02:49:29.085127Z"}
+{"status": 200, "cost_ms": 18.0, "event": "request_end", "request_id": "d438ef5cf441428f9013b2bb52099624", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:29.104127Z"}
+INFO:     127.0.0.1:60884 - "GET /api/users/me HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/users/me", "event": "request_start", "request_id": "a0f60280ec4e4544bef41934d889402d", "level": "info", "timestamp": "2026-08-31T02:49:29.110128Z"}
+{"method": "GET", "path": "/api/auth/bindings", "event": "request_start", "request_id": "d634efb7869d4190bb09347f47be25d2", "level": "info", "timestamp": "2026-08-31T02:49:29.119132Z"}
+INFO:     127.0.0.1:6859 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Y2JlMDRlZi02ZTIwLTRlMmQtOTI4ZC1jZmZlYmNkMzk3ZDUiLCJqdGkiOiJiZDVkMzZlMjdmN2Q0MTI5OGMxNGFlYjZmYzZjNzQ4NyIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3ODgxNDQ1NjgsImV4cCI6MTc4ODE0NTQ2OH0._USZqkc0Ow5zJ_juhJ2OCTAdw_90kN1TyyQFbxSGiNw" [accepted]
+INFO:     connection open
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a0f60280ec4e4544bef41934d889402d", "level": "warning", "timestamp": "2026-08-31T02:49:29.630936Z"}
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py", line 239, in run_asgi
+    result = await self.app(self.scope, self.asgi_receive, self.asgi_send)  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\cors.py", line 80, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 2685, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 350, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 177, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 174, in app
+    await func(session)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 781, in app
+    await dependant.call(**solved_result.values)
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 166, in websocket_endpoint
+    user_id = await _authenticate(token)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 126, in _authenticate
+    if payload.get("type") != "access" or await is_token_revoked(token):
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a0f60280ec4e4544bef41934d889402d", "level": "warning", "timestamp": "2026-08-31T02:49:30.171178Z"}
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "d634efb7869d4190bb09347f47be25d2", "level": "error", "timestamp": "2026-08-31T02:49:30.172176Z"}
+INFO:     127.0.0.1:60878 - "GET /api/auth/bindings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1046, in create_connection
+    infos = await self._ensure_resolved(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1420, in _ensure_resolved
+    return await loop.getaddrinfo(host, port, family=family, type=type,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 868, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+INFO:     connection closed
+{"status": 200, "cost_ms": 38.0, "event": "request_end", "request_id": "a0f60280ec4e4544bef41934d889402d", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:30.209178Z"}
+INFO:     127.0.0.1:60884 - "GET /api/users/me HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/messages/unread", "event": "request_start", "request_id": "f430bda4bc724b5a8c28302d28653bed", "level": "info", "timestamp": "2026-08-31T02:49:30.211179Z"}
+{"method": "GET", "path": "/api/auth/bindings", "event": "request_start", "request_id": "bd8623dba4e64b2eb81f53d20d89dc2f", "level": "info", "timestamp": "2026-08-31T02:49:30.217178Z"}
+INFO:     127.0.0.1:12447 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Y2JlMDRlZi02ZTIwLTRlMmQtOTI4ZC1jZmZlYmNkMzk3ZDUiLCJqdGkiOiJiZDVkMzZlMjdmN2Q0MTI5OGMxNGFlYjZmYzZjNzQ4NyIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3ODgxNDQ1NjgsImV4cCI6MTc4ODE0NTQ2OH0._USZqkc0Ow5zJ_juhJ2OCTAdw_90kN1TyyQFbxSGiNw" [accepted]
+INFO:     connection open
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f430bda4bc724b5a8c28302d28653bed", "level": "warning", "timestamp": "2026-08-31T02:49:30.710548Z"}
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py", line 239, in run_asgi
+    result = await self.app(self.scope, self.asgi_receive, self.asgi_send)  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\cors.py", line 80, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 2685, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 350, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 177, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 174, in app
+    await func(session)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 781, in app
+    await dependant.call(**solved_result.values)
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 166, in websocket_endpoint
+    user_id = await _authenticate(token)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 126, in _authenticate
+    if payload.get("type") != "access" or await is_token_revoked(token):
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+INFO:     connection closed
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f430bda4bc724b5a8c28302d28653bed", "level": "warning", "timestamp": "2026-08-31T02:49:31.220228Z"}
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "bd8623dba4e64b2eb81f53d20d89dc2f", "level": "error", "timestamp": "2026-08-31T02:49:31.223226Z"}
+INFO:     127.0.0.1:60884 - "GET /api/auth/bindings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"status": 200, "cost_ms": 17.0, "event": "request_end", "request_id": "f430bda4bc724b5a8c28302d28653bed", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:31.237228Z"}
+INFO:     127.0.0.1:63107 - "GET /api/messages/unread HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/messages/unread", "event": "request_start", "request_id": "5be4fa78fe3744e0acac610157fa3bdf", "level": "info", "timestamp": "2026-08-31T02:49:31.241230Z"}
+{"method": "GET", "path": "/api/ai/status", "event": "request_start", "request_id": "0b5b8863fe8c4e1483f377aa4dbcfda8", "level": "info", "timestamp": "2026-08-31T02:49:31.308229Z"}
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "fbdeebd523e546bd831abe93d1e48425", "level": "info", "timestamp": "2026-08-31T02:49:31.312228Z"}
+{"method": "GET", "path": "/", "event": "request_start", "request_id": "ea458d7b069c4fce85ff38a0eaedcc91", "level": "info", "timestamp": "2026-08-31T02:49:31.592835Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "5be4fa78fe3744e0acac610157fa3bdf", "level": "warning", "timestamp": "2026-08-31T02:49:31.744401Z"}
+INFO:     127.0.0.1:56329 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Y2JlMDRlZi02ZTIwLTRlMmQtOTI4ZC1jZmZlYmNkMzk3ZDUiLCJqdGkiOiJiZDVkMzZlMjdmN2Q0MTI5OGMxNGFlYjZmYzZjNzQ4NyIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3ODgxNDQ1NjgsImV4cCI6MTc4ODE0NTQ2OH0._USZqkc0Ow5zJ_juhJ2OCTAdw_90kN1TyyQFbxSGiNw" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:18051 - "GET / HTTP/1.1" 401 Unauthorized
+{"method": "GET", "path": "/favicon.ico", "event": "request_start", "request_id": "9becd6d09b5a411ea6eb8d60a241986e", "level": "info", "timestamp": "2026-08-31T02:49:32.190283Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "5be4fa78fe3744e0acac610157fa3bdf", "level": "warning", "timestamp": "2026-08-31T02:49:32.269279Z"}
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py", line 239, in run_asgi
+    result = await self.app(self.scope, self.asgi_receive, self.asgi_send)  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\cors.py", line 80, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 2685, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\routing.py", line 350, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 177, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 174, in app
+    await func(session)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\routing.py", line 781, in app
+    await dependant.call(**solved_result.values)
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 166, in websocket_endpoint
+    user_id = await _authenticate(token)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\modules\message\ws.py", line 126, in _authenticate
+    if payload.get("type") != "access" or await is_token_revoked(token):
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+INFO:     connection closed
+{"status": 200, "cost_ms": 14.0, "event": "request_end", "request_id": "5be4fa78fe3744e0acac610157fa3bdf", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:32.283279Z"}
+INFO:     127.0.0.1:63107 - "GET /api/messages/unread HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "0b5b8863fe8c4e1483f377aa4dbcfda8", "level": "error", "timestamp": "2026-08-31T02:49:32.329277Z"}
+INFO:     127.0.0.1:44124 - "GET /api/ai/status HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "fbdeebd523e546bd831abe93d1e48425", "level": "error", "timestamp": "2026-08-31T02:49:32.332280Z"}
+INFO:     127.0.0.1:44125 - "GET /api/items?page=1&page_size=4 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"method": "GET", "path": "/api/ai/status", "event": "request_start", "request_id": "f0dd45953acd42d59af71f3ef0c68ae1", "level": "info", "timestamp": "2026-08-31T02:49:32.338281Z"}
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "0b8569b30f4a48178be09bbf0d8673dc", "level": "info", "timestamp": "2026-08-31T02:49:32.341277Z"}
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "fd3a9c59e4f046759e6d25097840c7fb", "level": "info", "timestamp": "2026-08-31T02:49:32.360281Z"}
+INFO:     127.0.0.1:18051 - "GET /favicon.ico HTTP/1.1" 401 Unauthorized
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f0dd45953acd42d59af71f3ef0c68ae1", "level": "warning", "timestamp": "2026-08-31T02:49:32.839894Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f0dd45953acd42d59af71f3ef0c68ae1", "level": "warning", "timestamp": "2026-08-31T02:49:33.365147Z"}
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "fd3a9c59e4f046759e6d25097840c7fb", "level": "error", "timestamp": "2026-08-31T02:49:33.366147Z"}
+INFO:     127.0.0.1:2735 - "GET /api/courses?keyword=&page=1&page_size=3 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "0b8569b30f4a48178be09bbf0d8673dc", "level": "error", "timestamp": "2026-08-31T02:49:33.373147Z"}
+INFO:     127.0.0.1:2732 - "GET /api/items?page=1&page_size=4 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+INFO:     127.0.0.1:34582 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Y2JlMDRlZi02ZTIwLTRlMmQtOTI4ZC1jZmZlYmNkMzk3ZDUiLCJqdGkiOiJiZDVkMzZlMjdmN2Q0MTI5OGMxNGFlYjZmYzZjNzQ4NyIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3ODgxNDQ1NjgsImV4cCI6MTc4ODE0NTQ2OH0._USZqkc0Ow5zJ_juhJ2OCTAdw_90kN1TyyQFbxSGiNw" [accepted]
+INFO:     connection open
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "e407e939923146b5baa0c6428ed1a56c", "level": "info", "timestamp": "2026-08-31T02:49:33.391144Z"}
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "09ebdf14006f476c86be36adb16673c8", "level": "info", "timestamp": "2026-08-31T02:49:33.399146Z"}
+{"status": 200, "cost_ms": 39.0, "event": "request_end", "request_id": "f0dd45953acd42d59af71f3ef0c68ae1", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:33.404147Z"}
+INFO:     127.0.0.1:63107 - "GET /api/ai/status HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "level": "warning", "timestamp": "2026-08-31T02:49:33.889183Z"}
+{"user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "online": 1, "event": "ws_connected", "level": "info", "timestamp": "2026-08-31T02:49:33.890184Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "09ebdf14006f476c86be36adb16673c8", "level": "warning", "timestamp": "2026-08-31T02:49:34.414527Z"}
+{"error": "Timeout connecting to server", "event": "server_error", "request_id": "e407e939923146b5baa0c6428ed1a56c", "level": "error", "timestamp": "2026-08-31T02:49:34.419529Z"}
+INFO:     127.0.0.1:34583 - "GET /api/teams?page=1&page_size=3 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1487, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 850, in connect_check_health
+    await self._connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 1486, in _connect
+    async with async_timeout(self.socket_connect_timeout):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 62, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 185, in dispatch
+    user_id, error = await self._try_resolve_user(request)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\middleware.py", line 109, in _try_resolve_user
+    if await is_token_revoked(token):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\security.py", line 111, in is_token_revoked
+    val = await redis_get(f"{_BLACKLIST_PREFIX}{jti}")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\86132\Desktop\Phase3\Projects\CampusSphere\backend\app\core\redis.py", line 77, in redis_get
+    return await client.get(key)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\client.py", line 929, in execute_command
+    conn = self.connection or await pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\utils.py", line 249, in async_wrapper
+    return await func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2824, in get_connection
+    await self.ensure_connection(connection)
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 2865, in ensure_connection
+    await connection.connect()
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 819, in connect
+    await self.retry.call_with_retry(
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 81, in call_with_retry
+    raise error
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\retry.py", line 69, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "C:\Users\86132\AppData\Local\Programs\Python\Python311\Lib\site-packages\redis\asyncio\connection.py", line 864, in connect_check_health
+    raise e
+redis.exceptions.TimeoutError: Timeout connecting to server
+{"status": 200, "cost_ms": 20.0, "event": "request_end", "request_id": "09ebdf14006f476c86be36adb16673c8", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:34.434530Z"}
+INFO:     127.0.0.1:34584 - "GET /api/courses?keyword=&page=1&page_size=3 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "35f5dc196ef94d7e9e712504c88ed4c3", "level": "info", "timestamp": "2026-08-31T02:49:34.441529Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "35f5dc196ef94d7e9e712504c88ed4c3", "level": "warning", "timestamp": "2026-08-31T02:49:34.954673Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "35f5dc196ef94d7e9e712504c88ed4c3", "level": "warning", "timestamp": "2026-08-31T02:49:35.465573Z"}
+{"status": 200, "cost_ms": 14.01, "event": "request_end", "request_id": "35f5dc196ef94d7e9e712504c88ed4c3", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:35.479581Z"}
+INFO:     127.0.0.1:34584 - "GET /api/teams?page=1&page_size=3 HTTP/1.1" 200 OK
+{"user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "event": "ws_disconnected", "level": "info", "timestamp": "2026-08-31T02:49:40.655352Z"}
+INFO:     connection closed
+{"method": "POST", "path": "/api/auth/logout", "event": "request_start", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "level": "info", "timestamp": "2026-08-31T02:49:40.658349Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "level": "warning", "timestamp": "2026-08-31T02:49:41.171450Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "level": "warning", "timestamp": "2026-08-31T02:49:41.681100Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "warning", "timestamp": "2026-08-31T02:49:42.209057Z"}
+{"event": "user_logged_out", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:42.210051Z"}
+{"status": 200, "cost_ms": 528.95, "event": "request_end", "request_id": "e494927d81fa4a58bbc035a5a376f7f3", "user_id": "5cbe04ef-6e20-4e2d-928d-cffebcd397d5", "level": "info", "timestamp": "2026-08-31T02:49:42.210051Z"}
+INFO:     127.0.0.1:14437 - "POST /api/auth/logout HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "189789de6d3445349d18b48ec7efec3c", "level": "info", "timestamp": "2026-08-31T02:49:44.169521Z"}
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "99491b5fd7894eb9a0ffb46b04eb01fb", "level": "info", "timestamp": "2026-08-31T02:49:44.171519Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "189789de6d3445349d18b48ec7efec3c", "level": "warning", "timestamp": "2026-08-31T02:49:44.686993Z"}
+{"status": 200, "cost_ms": 4.0, "event": "request_end", "request_id": "189789de6d3445349d18b48ec7efec3c", "level": "info", "timestamp": "2026-08-31T02:49:44.690995Z"}
+INFO:     127.0.0.1:14437 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "face56167319460ab127669bdd040d1c", "level": "info", "timestamp": "2026-08-31T02:49:44.693993Z"}
+{"status": 200, "cost_ms": 10.0, "event": "request_end", "request_id": "99491b5fd7894eb9a0ffb46b04eb01fb", "level": "info", "timestamp": "2026-08-31T02:49:44.697996Z"}
+INFO:     127.0.0.1:51025 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "eed43ded02674c5ab381c054d905c4a1", "level": "info", "timestamp": "2026-08-31T02:49:44.700997Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "face56167319460ab127669bdd040d1c", "level": "warning", "timestamp": "2026-08-31T02:49:45.212939Z"}
+{"status": 200, "cost_ms": 2.01, "event": "request_end", "request_id": "face56167319460ab127669bdd040d1c", "level": "info", "timestamp": "2026-08-31T02:49:45.214945Z"}
+INFO:     127.0.0.1:14437 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 3.99, "event": "request_end", "request_id": "eed43ded02674c5ab381c054d905c4a1", "level": "info", "timestamp": "2026-08-31T02:49:45.217937Z"}
+INFO:     127.0.0.1:51025 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/ai/status", "event": "request_start", "request_id": "c3ae8c20bdab4a8fa3736b79adfa2027", "level": "info", "timestamp": "2026-08-31T02:50:09.285952Z"}
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "info", "timestamp": "2026-08-31T02:50:09.289949Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "c3ae8c20bdab4a8fa3736b79adfa2027", "level": "warning", "timestamp": "2026-08-31T02:50:09.766027Z"}
+{"status": 200, "cost_ms": 27.0, "event": "request_end", "request_id": "c3ae8c20bdab4a8fa3736b79adfa2027", "level": "info", "timestamp": "2026-08-31T02:50:09.795024Z"}
+INFO:     127.0.0.1:32030 - "GET /api/ai/status HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/ai/status", "event": "request_start", "request_id": "5917ce889a34429bbb8087e0d3535696", "level": "info", "timestamp": "2026-08-31T02:50:09.801032Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "warning", "timestamp": "2026-08-31T02:50:10.301017Z"}
+{"status": 200, "cost_ms": 5.0, "event": "request_end", "request_id": "5917ce889a34429bbb8087e0d3535696", "level": "info", "timestamp": "2026-08-31T02:50:10.309018Z"}
+INFO:     127.0.0.1:32030 - "GET /api/ai/status HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "warning", "timestamp": "2026-08-31T02:50:10.810989Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "warning", "timestamp": "2026-08-31T02:50:11.335252Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "warning", "timestamp": "2026-08-31T02:50:11.847944Z"}
+{"status": 200, "cost_ms": 2080.91, "event": "request_end", "request_id": "a9181962b8564ee3bcf92e76f78ac347", "level": "info", "timestamp": "2026-08-31T02:50:11.848944Z"}
+INFO:     127.0.0.1:32031 - "GET /api/items?page=1&page_size=4 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "ec6d7fba37994ebda67dc7d16a1a0c74", "level": "info", "timestamp": "2026-08-31T02:50:11.852514Z"}
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "e463f6ebf691408dae6cefd2237ac15d", "level": "info", "timestamp": "2026-08-31T02:50:11.855678Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "ec6d7fba37994ebda67dc7d16a1a0c74", "level": "warning", "timestamp": "2026-08-31T02:50:12.361850Z"}
+{"status": 200, "cost_ms": 8.01, "event": "request_end", "request_id": "e463f6ebf691408dae6cefd2237ac15d", "level": "info", "timestamp": "2026-08-31T02:50:12.369860Z"}
+INFO:     127.0.0.1:32030 - "GET /api/courses?keyword=&page=1&page_size=3 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "040edc5ffad7481ca18b8f1bc86c73b8", "level": "info", "timestamp": "2026-08-31T02:50:12.373850Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "ec6d7fba37994ebda67dc7d16a1a0c74", "level": "warning", "timestamp": "2026-08-31T02:50:12.878847Z"}
+{"status": 200, "cost_ms": 6.0, "event": "request_end", "request_id": "040edc5ffad7481ca18b8f1bc86c73b8", "level": "info", "timestamp": "2026-08-31T02:50:12.886846Z"}
+INFO:     127.0.0.1:32030 - "GET /api/teams?page=1&page_size=3 HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "ec6d7fba37994ebda67dc7d16a1a0c74", "level": "warning", "timestamp": "2026-08-31T02:50:13.388702Z"}
+{"status": 200, "cost_ms": 1026.85, "event": "request_end", "request_id": "ec6d7fba37994ebda67dc7d16a1a0c74", "level": "info", "timestamp": "2026-08-31T02:50:13.388702Z"}
+INFO:     127.0.0.1:32031 - "GET /api/items?page=1&page_size=4 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "98b019fde48c4ca5860b9f3b3789f6ec", "level": "info", "timestamp": "2026-08-31T02:50:13.393702Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "98b019fde48c4ca5860b9f3b3789f6ec", "level": "warning", "timestamp": "2026-08-31T02:50:13.913873Z"}
+{"status": 200, "cost_ms": 5.0, "event": "request_end", "request_id": "98b019fde48c4ca5860b9f3b3789f6ec", "level": "info", "timestamp": "2026-08-31T02:50:13.918875Z"}
+INFO:     127.0.0.1:32031 - "GET /api/courses?keyword=&page=1&page_size=3 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "fd69faf874ec47d4ad7163cd8362d61b", "level": "info", "timestamp": "2026-08-31T02:50:13.923879Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "fd69faf874ec47d4ad7163cd8362d61b", "level": "warning", "timestamp": "2026-08-31T02:50:14.438836Z"}
+{"status": 200, "cost_ms": 8.0, "event": "request_end", "request_id": "fd69faf874ec47d4ad7163cd8362d61b", "level": "info", "timestamp": "2026-08-31T02:50:14.446836Z"}
+INFO:     127.0.0.1:32031 - "GET /api/teams?page=1&page_size=3 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "info", "timestamp": "2026-08-31T02:51:49.946347Z"}
+{"method": "GET", "path": "/api/items/categories", "event": "request_start", "request_id": "838637b8efa144bcbb19a9c51bd4af82", "level": "info", "timestamp": "2026-08-31T02:51:49.950342Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "warning", "timestamp": "2026-08-31T02:51:50.437732Z"}
+{"status": 200, "cost_ms": 9.0, "event": "request_end", "request_id": "838637b8efa144bcbb19a9c51bd4af82", "level": "info", "timestamp": "2026-08-31T02:51:50.447732Z"}
+INFO:     127.0.0.1:41173 - "GET /api/items/categories HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/items/categories", "event": "request_start", "request_id": "409f00005bf346078f9d507cc73c994d", "level": "info", "timestamp": "2026-08-31T02:51:50.450733Z"}
+{"method": "GET", "path": "/api/courses/departments", "event": "request_start", "request_id": "8e5dfbec07d3438b88012733e25f9ef7", "level": "info", "timestamp": "2026-08-31T02:51:50.606860Z"}
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "78198b6b93434e0eb2a9018b2426c36d", "level": "info", "timestamp": "2026-08-31T02:51:50.608858Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "warning", "timestamp": "2026-08-31T02:51:50.948611Z"}
+{"status": 200, "cost_ms": 4.0, "event": "request_end", "request_id": "409f00005bf346078f9d507cc73c994d", "level": "info", "timestamp": "2026-08-31T02:51:50.956616Z"}
+INFO:     127.0.0.1:41173 - "GET /api/items/categories HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 8.0, "event": "request_end", "request_id": "8e5dfbec07d3438b88012733e25f9ef7", "level": "info", "timestamp": "2026-08-31T02:51:51.136268Z"}
+INFO:     127.0.0.1:15184 - "GET /api/courses/departments HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 9.0, "event": "request_end", "request_id": "78198b6b93434e0eb2a9018b2426c36d", "level": "info", "timestamp": "2026-08-31T02:51:51.137268Z"}
+INFO:     127.0.0.1:15185 - "GET /api/courses?keyword=&page=1&page_size=20 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/courses/departments", "event": "request_start", "request_id": "c36bc764e6fa4ebdbc15d5980ec6d05a", "level": "info", "timestamp": "2026-08-31T02:51:51.139269Z"}
+{"method": "GET", "path": "/api/courses", "event": "request_start", "request_id": "3d9d02ce5aec4630b7ed93213e38a5e9", "level": "info", "timestamp": "2026-08-31T02:51:51.141275Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "warning", "timestamp": "2026-08-31T02:51:51.473269Z"}
+{"status": 200, "cost_ms": 11.0, "event": "request_end", "request_id": "c36bc764e6fa4ebdbc15d5980ec6d05a", "level": "info", "timestamp": "2026-08-31T02:51:51.664516Z"}
+INFO:     127.0.0.1:15185 - "GET /api/courses/departments HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 16.0, "event": "request_end", "request_id": "3d9d02ce5aec4630b7ed93213e38a5e9", "level": "info", "timestamp": "2026-08-31T02:51:51.670515Z"}
+INFO:     127.0.0.1:15184 - "GET /api/courses?keyword=&page=1&page_size=20 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/canteens", "event": "request_start", "request_id": "1989d2e5cc7849598379e209486bf530", "level": "info", "timestamp": "2026-08-31T02:51:51.772724Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "warning", "timestamp": "2026-08-31T02:51:51.983730Z"}
+{"status": 200, "cost_ms": 14.57, "event": "request_end", "request_id": "1989d2e5cc7849598379e209486bf530", "level": "info", "timestamp": "2026-08-31T02:51:52.299902Z"}
+INFO:     127.0.0.1:15184 - "GET /api/canteens HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/canteens", "event": "request_start", "request_id": "f1303583bfaf4a81935bbb7a7133e9d0", "level": "info", "timestamp": "2026-08-31T02:51:52.302902Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "warning", "timestamp": "2026-08-31T02:51:52.496570Z"}
+{"status": 200, "cost_ms": 2058.84, "event": "request_end", "request_id": "f682adae39e4402cbb6f2c856a5c059c", "level": "info", "timestamp": "2026-08-31T02:51:52.496570Z"}
+INFO:     127.0.0.1:41172 - "GET /api/items?status=0 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/items", "event": "request_start", "request_id": "9fb32ae56ee84cc5aa931c906be943af", "level": "info", "timestamp": "2026-08-31T02:51:52.499578Z"}
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "4604b83eae4c4b04a9e21d1552635917", "level": "info", "timestamp": "2026-08-31T02:51:52.676578Z"}
+{"status": 200, "cost_ms": 5.0, "event": "request_end", "request_id": "f1303583bfaf4a81935bbb7a7133e9d0", "level": "info", "timestamp": "2026-08-31T02:51:52.816577Z"}
+INFO:     127.0.0.1:15184 - "GET /api/canteens HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "9fb32ae56ee84cc5aa931c906be943af", "level": "warning", "timestamp": "2026-08-31T02:51:53.022106Z"}
+{"status": 200, "cost_ms": 6.0, "event": "request_end", "request_id": "4604b83eae4c4b04a9e21d1552635917", "level": "info", "timestamp": "2026-08-31T02:51:53.192848Z"}
+INFO:     127.0.0.1:15185 - "GET /api/teams?page=1&page_size=30 HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/teams", "event": "request_start", "request_id": "2339587df1d04784939a065e2ee4ab57", "level": "info", "timestamp": "2026-08-31T02:51:53.195847Z"}
+{"method": "GET", "path": "/api/shares", "event": "request_start", "request_id": "763f14c8127f46c4b4b189923d3d7f68", "level": "info", "timestamp": "2026-08-31T02:51:53.410248Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "9fb32ae56ee84cc5aa931c906be943af", "level": "warning", "timestamp": "2026-08-31T02:51:53.533422Z"}
+{"status": 200, "cost_ms": 7.0, "event": "request_end", "request_id": "2339587df1d04784939a065e2ee4ab57", "level": "info", "timestamp": "2026-08-31T02:51:53.706408Z"}
+INFO:     127.0.0.1:15185 - "GET /api/teams?page=1&page_size=30 HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 9.0, "event": "request_end", "request_id": "763f14c8127f46c4b4b189923d3d7f68", "level": "info", "timestamp": "2026-08-31T02:51:53.904102Z"}
+INFO:     127.0.0.1:15184 - "GET /api/shares HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/shares", "event": "request_start", "request_id": "e36c0966f9634177be20c11e2cafb413", "level": "info", "timestamp": "2026-08-31T02:51:53.907105Z"}
+{"method": "GET", "path": "/api/jobs", "event": "request_start", "request_id": "d32f0078ea1b47229b47995971500ac8", "level": "info", "timestamp": "2026-08-31T02:51:53.992747Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "9fb32ae56ee84cc5aa931c906be943af", "level": "warning", "timestamp": "2026-08-31T02:51:54.045331Z"}
+{"status": 200, "cost_ms": 1024.22, "event": "request_end", "request_id": "9fb32ae56ee84cc5aa931c906be943af", "level": "info", "timestamp": "2026-08-31T02:51:54.046328Z"}
+INFO:     127.0.0.1:41172 - "GET /api/items?status=0 HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 10.0, "event": "request_end", "request_id": "e36c0966f9634177be20c11e2cafb413", "level": "info", "timestamp": "2026-08-31T02:51:54.415843Z"}
+INFO:     127.0.0.1:15184 - "GET /api/shares HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "501ceb45f7f44662835a083e761ab0f1", "level": "info", "timestamp": "2026-08-31T02:51:54.433842Z"}
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "52a3dd55964c49a7874ed9f3db9fa048", "level": "info", "timestamp": "2026-08-31T02:51:54.437842Z"}
+{"status": 200, "cost_ms": 9.01, "event": "request_end", "request_id": "d32f0078ea1b47229b47995971500ac8", "level": "info", "timestamp": "2026-08-31T02:51:54.504554Z"}
+INFO:     127.0.0.1:15185 - "GET /api/jobs HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/jobs", "event": "request_start", "request_id": "f40258a008a3408dbc5f21e589cd3773", "level": "info", "timestamp": "2026-08-31T02:51:54.507554Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "501ceb45f7f44662835a083e761ab0f1", "level": "warning", "timestamp": "2026-08-31T02:51:54.961545Z"}
+{"status": 200, "cost_ms": 3.0, "event": "request_end", "request_id": "52a3dd55964c49a7874ed9f3db9fa048", "level": "info", "timestamp": "2026-08-31T02:51:54.964542Z"}
+INFO:     127.0.0.1:41172 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "26b75c35655e49cb8d72129dba62452f", "level": "info", "timestamp": "2026-08-31T02:51:54.968552Z"}
+{"status": 200, "cost_ms": 9.99, "event": "request_end", "request_id": "501ceb45f7f44662835a083e761ab0f1", "level": "info", "timestamp": "2026-08-31T02:51:54.971540Z"}
+INFO:     127.0.0.1:15184 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "5406b276a3cb4d7b8db70b46a0923417", "level": "info", "timestamp": "2026-08-31T02:51:54.975555Z"}
+{"status": 200, "cost_ms": 9.0, "event": "request_end", "request_id": "f40258a008a3408dbc5f21e589cd3773", "level": "info", "timestamp": "2026-08-31T02:51:55.029362Z"}
+INFO:     127.0.0.1:15185 - "GET /api/jobs HTTP/1.1" 200 OK
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "26b75c35655e49cb8d72129dba62452f", "level": "warning", "timestamp": "2026-08-31T02:51:55.486966Z"}
+{"status": 200, "cost_ms": 2.01, "event": "request_end", "request_id": "26b75c35655e49cb8d72129dba62452f", "level": "info", "timestamp": "2026-08-31T02:51:55.489477Z"}
+INFO:     127.0.0.1:41172 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 5.01, "event": "request_end", "request_id": "5406b276a3cb4d7b8db70b46a0923417", "level": "info", "timestamp": "2026-08-31T02:51:55.492479Z"}
+INFO:     127.0.0.1:15184 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/jobs", "event": "request_start", "request_id": "bf1b060a177b497d9f05990d61740410", "level": "info", "timestamp": "2026-08-31T02:51:57.289467Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "bf1b060a177b497d9f05990d61740410", "level": "warning", "timestamp": "2026-08-31T02:51:57.797854Z"}
+{"status": 200, "cost_ms": 7.0, "event": "request_end", "request_id": "bf1b060a177b497d9f05990d61740410", "level": "info", "timestamp": "2026-08-31T02:51:57.804851Z"}
+INFO:     127.0.0.1:15184 - "GET /api/jobs HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/jobs", "event": "request_start", "request_id": "4cd56431acd64692a60f9b30a2916e19", "level": "info", "timestamp": "2026-08-31T02:51:57.807854Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "4cd56431acd64692a60f9b30a2916e19", "level": "warning", "timestamp": "2026-08-31T02:51:58.324230Z"}
+{"status": 200, "cost_ms": 7.0, "event": "request_end", "request_id": "4cd56431acd64692a60f9b30a2916e19", "level": "info", "timestamp": "2026-08-31T02:51:58.331231Z"}
+INFO:     127.0.0.1:15184 - "GET /api/jobs HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "1b42acab4f064ab3b1e28a857a14b9ae", "level": "info", "timestamp": "2026-08-31T02:52:01.023185Z"}
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "8733391915e041abb412c1e892f3e46f", "level": "info", "timestamp": "2026-08-31T02:52:01.026186Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "1b42acab4f064ab3b1e28a857a14b9ae", "level": "warning", "timestamp": "2026-08-31T02:52:01.538044Z"}
+{"status": 200, "cost_ms": 2.0, "event": "request_end", "request_id": "8733391915e041abb412c1e892f3e46f", "level": "info", "timestamp": "2026-08-31T02:52:01.541045Z"}
+INFO:     127.0.0.1:26609 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "c2949634335a478fbb39d0c466c5ff79", "level": "info", "timestamp": "2026-08-31T02:52:01.545049Z"}
+{"status": 200, "cost_ms": 10.0, "event": "request_end", "request_id": "1b42acab4f064ab3b1e28a857a14b9ae", "level": "info", "timestamp": "2026-08-31T02:52:01.548044Z"}
+INFO:     127.0.0.1:15184 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "813fb21ec9a14e0e8bd7d224ba5d8f4b", "level": "info", "timestamp": "2026-08-31T02:52:01.552046Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "c2949634335a478fbb39d0c466c5ff79", "level": "warning", "timestamp": "2026-08-31T02:52:02.062836Z"}
+{"status": 200, "cost_ms": 2.0, "event": "request_end", "request_id": "c2949634335a478fbb39d0c466c5ff79", "level": "info", "timestamp": "2026-08-31T02:52:02.064836Z"}
+INFO:     127.0.0.1:26609 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 6.0, "event": "request_end", "request_id": "813fb21ec9a14e0e8bd7d224ba5d8f4b", "level": "info", "timestamp": "2026-08-31T02:52:02.068840Z"}
+INFO:     127.0.0.1:15184 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "77c1db5d418640fbac7c2969f7b2587e", "level": "info", "timestamp": "2026-08-31T03:04:50.902713Z"}
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "6ab93f62d09347a0bccc2ea1dd2ddba4", "level": "info", "timestamp": "2026-08-31T03:04:50.909713Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "77c1db5d418640fbac7c2969f7b2587e", "level": "warning", "timestamp": "2026-08-31T03:04:51.426798Z"}
+{"status": 200, "cost_ms": 42.02, "event": "request_end", "request_id": "6ab93f62d09347a0bccc2ea1dd2ddba4", "level": "info", "timestamp": "2026-08-31T03:04:51.467813Z"}
+INFO:     127.0.0.1:17240 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 60.54, "event": "request_end", "request_id": "77c1db5d418640fbac7c2969f7b2587e", "level": "info", "timestamp": "2026-08-31T03:04:51.487341Z"}
+INFO:     127.0.0.1:17239 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "1e8efabdb08d49ba9528b3c6af4dc4fe", "level": "info", "timestamp": "2026-08-31T03:04:51.997144Z"}
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "8c7f747c795243ddb836743afa25005d", "level": "info", "timestamp": "2026-08-31T03:04:52.002147Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "1e8efabdb08d49ba9528b3c6af4dc4fe", "level": "warning", "timestamp": "2026-08-31T03:04:52.534279Z"}
+{"status": 200, "cost_ms": 12.0, "event": "request_end", "request_id": "8c7f747c795243ddb836743afa25005d", "level": "info", "timestamp": "2026-08-31T03:04:52.547276Z"}
+INFO:     127.0.0.1:17240 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 21.0, "event": "request_end", "request_id": "1e8efabdb08d49ba9528b3c6af4dc4fe", "level": "info", "timestamp": "2026-08-31T03:04:52.555280Z"}
+INFO:     127.0.0.1:17239 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "6339d250640a409faf1c21d9ebe16e7e", "level": "info", "timestamp": "2026-08-31T03:18:34.650974Z"}
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "07f53189e2f245a5b8cfc9ea13485616", "level": "info", "timestamp": "2026-08-31T03:18:34.657488Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "6339d250640a409faf1c21d9ebe16e7e", "level": "warning", "timestamp": "2026-08-31T03:18:35.173507Z"}
+{"status": 200, "cost_ms": 4.0, "event": "request_end", "request_id": "07f53189e2f245a5b8cfc9ea13485616", "level": "info", "timestamp": "2026-08-31T03:18:35.178513Z"}
+INFO:     127.0.0.1:56618 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/captcha/config", "event": "request_start", "request_id": "3bf4817a85c74053add6f341fa0ede2d", "level": "info", "timestamp": "2026-08-31T03:18:35.183509Z"}
+{"status": 200, "cost_ms": 17.0, "event": "request_end", "request_id": "6339d250640a409faf1c21d9ebe16e7e", "level": "info", "timestamp": "2026-08-31T03:18:35.190512Z"}
+INFO:     127.0.0.1:56617 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/api/auth/email-config", "event": "request_start", "request_id": "da810897ee594f30bf75f08b69ff0fb0", "level": "info", "timestamp": "2026-08-31T03:18:35.194510Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "3bf4817a85c74053add6f341fa0ede2d", "level": "warning", "timestamp": "2026-08-31T03:18:35.719147Z"}
+{"status": 200, "cost_ms": 7.0, "event": "request_end", "request_id": "3bf4817a85c74053add6f341fa0ede2d", "level": "info", "timestamp": "2026-08-31T03:18:35.727149Z"}
+INFO:     127.0.0.1:56618 - "GET /api/auth/captcha/config HTTP/1.1" 200 OK
+{"status": 200, "cost_ms": 17.0, "event": "request_end", "request_id": "da810897ee594f30bf75f08b69ff0fb0", "level": "info", "timestamp": "2026-08-31T03:18:35.735147Z"}
+INFO:     127.0.0.1:56617 - "GET /api/auth/email-config HTTP/1.1" 200 OK
+{"method": "GET", "path": "/health", "event": "request_start", "request_id": "961a0434672d47d7849ef50dc5cfe5cc", "level": "info", "timestamp": "2026-08-31T03:20:56.365512Z"}
+{"error": "Timeout connecting to server", "event": "redis_unavailable_fallback_memory", "request_id": "961a0434672d47d7849ef50dc5cfe5cc", "level": "warning", "timestamp": "2026-08-31T03:20:56.851168Z"}
+{"status": 200, "cost_ms": 33.0, "event": "request_end", "request_id": "961a0434672d47d7849ef50dc5cfe5cc", "level": "info", "timestamp": "2026-08-31T03:20:56.884168Z"}
+INFO:     127.0.0.1:22024 - "GET /health HTTP/1.1" 200 OK

@@ -1,0 +1,14 @@
+
+> campussphere---all-in-one-campus-life-hub@0.0.0 dev
+> tsx server.ts
+
+[2m10:48:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+Server running on http://localhost:5173 (IPv4+IPv6)
+API proxy target: http://127.0.0.1:8000
+[2m11:04:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/LoginPage.tsx, /index.css[22m
+[2m11:05:35[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/HomePage.tsx, /index.css[22m
+[2m11:05:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/HomePage.tsx, /index.css[22m
+[2m11:06:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/HomePage.tsx, /index.css[22m
+[2m11:06:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/HomePage.tsx, /index.css[22m
+[2m11:06:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/HomePage.tsx, /index.css[22m
+[2m11:21:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/pages/LoginPage.tsx, /index.css[22m

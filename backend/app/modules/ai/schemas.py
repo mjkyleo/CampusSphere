@@ -13,14 +13,27 @@ class AiFeatureConfig(BaseModel):
     """
 
     enabled: bool = False
-    model: str = "gemini-2.0-flash"
+    model: str = "deepseek-chat"
+
+
+class AiCapabilityState(BaseModel):
+    """单个 AI 能力的可用状态。
+
+    ``available`` 决定是否渲染入口；``degraded`` 表示上游熔断中、当前走降级方案。
+    """
+
+    available: bool = False
+    degraded: bool = False
 
 
 class AiStatusOut(BaseModel):
-    """AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。"""
+    """AI 功能状态（公开端点，供前端按能力决定是否渲染 AI 区块）。"""
 
     enabled: bool = False
     available: bool = False
+    provider: str = "openai_compatible"
+    model: str = ""
+    capabilities: dict[str, AiCapabilityState] = Field(default_factory=dict)
     message: str = ""
 
 
@@ -50,8 +63,46 @@ class CategorizeRequest(BaseModel):
 
 
 class CategorizeOut(BaseModel):
-    """内容分类结果。"""
+    """内容分类结果（``source`` 标明 llm / rule，便于前端与埋点区分）。"""
 
     category: str
     isSafe: bool
     summary: str
+    source: str = "llm"
+
+
+# ------------------------------------------------------------------
+# 首页问候（微采集）
+# ------------------------------------------------------------------
+
+MOOD_KEYS = ("energetic", "steady", "tired", "sprint")
+FOCUS_KEYS = ("study", "contest", "social", "relax")
+
+
+class GreetingRequest(BaseModel):
+    """首页每日问候请求。
+
+    ``mood`` / ``focus`` 走白名单枚举（防 prompt 注入）；``clientSeed`` 由前端
+    每次启动生成，用于让同一天不同次启动拿到不同句子。
+    """
+
+    mood: str = ""
+    focus: str = ""
+    clientSeed: str = Field(default="", max_length=64)
+    regenerate: bool = False
+
+
+class GreetingOut(BaseModel):
+    """首页每日问候结果。
+
+    ``source``：``llm`` 真实生成 / ``fallback`` 模板降级。前端据此决定是否展示
+    「AI」角标——降级时正常渲染卡片，不报错、不阻塞。
+    """
+
+    text: str
+    emoji: str = "✨"
+    source: str = "llm"
+    period: str = ""
+    mood: str = ""
+    focus: str = ""
+    attempt: int = 0

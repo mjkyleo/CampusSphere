@@ -43,7 +43,12 @@ if getattr(_RedisLock, "do_release", None) is not None:
 celery_app = Celery(
     "campus",
     broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend,
+    # 结果后端禁用：本平台的任务（邮件/通知/搜索同步）全部是"发完即忘"，
+    # 从不调用 ``.get()`` 读取任务结果。保留 redis 结果后端会让 ``delay()`` 在派发前
+    # 经 ``backend.on_task_call`` 连接结果库，不可达时按默认策略同步重试约 20 次
+    # （≈ 109 秒），把调用线程卡死、整站无响应。禁用后该连接彻底跳过，
+    # broker 不可达时 ``delay()`` 立即抛错，由调用方降级为内联直发。
+    backend="disabled://",
 )
 
 celery_app.conf.update(
@@ -56,6 +61,24 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=4,
     task_default_queue="default",
+    # ----- broker 连接快速失败 -----
+    # 本地未起 Redis / 生产 broker 抖动时，若让 Celery 按默认策略同步重试
+    # （约 20 次 × 1 秒 ≈ 2 分钟），会长时间阻塞调用线程、甚至占满线程池。
+    # 这里把连接超时压到 1 秒，让 ``delay()`` 在 broker 不可达时快速抛错，
+    # 由调用方降级为内联直发（见 auth.service._dispatch_code_email）。
+    broker_connection_max_retries=2,
+    broker_connection_retry=True,
+    broker_connection_retry_policy={
+        "max_retries": 2,
+        "interval_start": 0.1,
+        "interval_step": 0.2,
+        "interval_max": 0.5,
+    },
+    broker_transport_options={
+        "socket_timeout": 1,
+        "socket_connect_timeout": 1,
+        "retry_on_timeout": True,
+    },
     task_routes={
         "app.tasks.email.*": {"queue": "email"},
         "app.tasks.notify.*": {"queue": "notify"},

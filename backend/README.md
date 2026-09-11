@@ -37,7 +37,6 @@ celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q email,notify
 | `app.tasks.search_sync.sync_item` | `search` | 物品文档同步到 Meilisearch |
 | `app.tasks.search_sync.sync_user` | `search` | 用户文档同步到 Meilisearch |
 | `app.tasks.search_sync.delete_doc` | `search` | 删除 Meilisearch 文档 |
-| `app.tasks.summary.generate_trade_summary` | `default` | 交易会话摘要生成（worker 内走同步 DB 访问） |
 
 > 生产部署时 worker 容器通过 `sync_db` 使用同步驱动访问 PostgreSQL，无需额外配置。
 

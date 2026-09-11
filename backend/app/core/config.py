@@ -106,6 +106,11 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     # 连接/读超时（秒）。SMTP 为同步阻塞调用，必须设上限，避免 worker 被拖死。
     smtp_timeout: int = 10
+    # 邮件任务**入队+兜底直发**的等待上限（秒）。
+    # 结果后端已禁用，broker 不可达时 delay() 约 2 秒内快速失败并降级为内联直发；
+    # 内联直发走 smtp_timeout（默认 10s）。本值需覆盖「broker 快速失败 + 内联 SMTP 发送」，
+    # 留出余量，避免正常内联发送被误判超时。
+    email_dispatch_timeout: int = 20
     # True=强制 STARTTLS（587 等端口）；留为 None 时按端口推断：465 走 SSL，其余走 STARTTLS。
     smtp_starttls: bool | None = None
 
@@ -117,6 +122,20 @@ class Settings(BaseSettings):
     captcha_max_attempts: int = 3  # 同一滑块最多校验次数，超出即作废
     captcha_min_track_points: int = 6  # 轨迹最少采样点，防脚本直传坐标
     captcha_ticket_ttl_seconds: int = 120  # 校验通过签发的票据有效期
+
+    # ----- 第三方验证码（极验行为验证 4.0）-----
+    # 留空则使用上面那套自建拼图滑块；填入 captcha_id / captcha_key 后，
+    # /api/auth/captcha/config 会下发 provider=geetest，前端自动切到极验。
+    # 这样"是否接入第三方"变成纯配置决策，不需要改代码重新发版。
+    geetest_captcha_id: str = ""
+    geetest_captcha_key: str = ""
+    # 二次校验接口超时（秒）。必须设上限：极验服务不可达时若无限等待，
+    # 会把 uvicorn 的工作线程拖死，进而影响整站。
+    geetest_timeout: int = 5
+    # 容灾开关：极验服务异常/超时时是否放行。
+    # True  → 校验接口不可达时"放行"，保证用户仍能注册（牺牲部分防刷能力）
+    # False → 校验接口不可达时"拒绝"，宁可暂时无法注册也不放机器人进来
+    geetest_fail_open: bool = True
 
     # ----- 验证码 -----
     code_ttl_seconds: int = 300  # 验证码有效期
@@ -145,6 +164,13 @@ class Settings(BaseSettings):
     courses: dict[str, Any] = Field(default_factory=dict)
     ai: dict[str, Any] = Field(default_factory=dict)
     admin: dict[str, Any] = Field(default_factory=dict)
+    # 分类配置化（P1）：与 items.categories 同一套「yaml 默认 → DB 覆盖 →
+    # 公开端点下发 → 前端兜底」四层模式，消除前端写死分类。
+    job: dict[str, Any] = Field(default_factory=dict)
+    share: dict[str, Any] = Field(default_factory=dict)
+    teammate: dict[str, Any] = Field(default_factory=dict)
+    # 食堂维度枚举（P3）：学部 / 餐饮区 / 类型 / 学期。
+    canteen: dict[str, Any] = Field(default_factory=dict)
 
     # ----- 基础设施（可由 .env 覆盖，缺省取 school.yaml）-----
     minio_endpoint: str | None = None
@@ -175,7 +201,10 @@ class Settings(BaseSettings):
         for key in ("school_name", "school_domain"):
             if data.get(key):
                 setattr(self, key, data[key])
-        for key in ("oauth", "minio", "meilisearch", "report_policy", "auth", "items", "courses", "ai", "admin"):
+        for key in (
+            "oauth", "minio", "meilisearch", "report_policy", "auth", "items",
+            "courses", "ai", "admin", "job", "share", "teammate", "canteen",
+        ):
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
 
