@@ -1,16 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import { api } from '../services/api.ts';
 import { AlertTriangle, X, ShieldAlert } from 'lucide-react';
+import { Button } from './ui';
 
 export const ReportModal: React.FC = () => {
   const { reportModal, closeReport } = useAuth();
   const { success, error } = useToast();
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   if (!reportModal.isOpen) return null;
+
+  // Esc 关闭 + 打开时聚焦弹窗面板（可访问性）
+  useEffect(() => {
+    if (!reportModal.isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeReport();
+    };
+    window.addEventListener('keydown', onKey);
+    panelRef.current?.focus();
+    return () => window.removeEventListener('keydown', onKey);
+  }, [reportModal.isOpen, closeReport]);
 
   const typeLabels: Record<string, string> = {
     user: '违规用户',
@@ -53,24 +66,34 @@ export const ReportModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative space-y-6 animate-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="提交违规举报"
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="bg-surface border border-hairline rounded-md max-w-lg w-full p-6 shadow-elevate relative space-y-6 animate-in zoom-in-95 duration-200 outline-none"
+      >
         <button
           onClick={closeReport}
-          className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          aria-label="关闭举报弹窗"
+          className="absolute top-4 right-4 p-2 rounded-md hover:bg-panel text-steel transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+          <div className="p-3 bg-error/10 text-error rounded-md">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-900">提交违规举报</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-heading-2 font-bold text-ink">提交违规举报</h3>
+            <p className="text-caption text-steel">
               举报对象：
-              <span className="font-semibold text-rose-600 ml-1">
+              <span className="font-semibold text-error ml-1">
                 [{typeLabels[reportModal.targetType] || '内容'}]
               </span>{' '}
               {reportModal.targetTitle && `“${reportModal.targetTitle}”`}
@@ -80,7 +103,7 @@ export const ReportModal: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+            <label className="block mono-label text-slate tracking-mono">
               常见违规类型（点击快速填入）
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -89,10 +112,11 @@ export const ReportModal: React.FC = () => {
                   type="button"
                   key={r}
                   onClick={() => setReason(r)}
-                  className={`text-xs px-3 py-1.5 rounded-xl border transition-all ${
+                  aria-pressed={reason === r}
+                  className={`text-xs px-3 py-1.5 rounded-md border transition-all ${
                     reason === r
-                      ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      ? 'bg-error/10 border-error text-error font-medium'
+                      : 'bg-transparent border-hairline text-slate hover:border-ink'
                   }`}
                 >
                   {r}
@@ -102,8 +126,8 @@ export const ReportModal: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              详细举报说明 / 证据补充 <span className="text-rose-500">*</span>
+            <label className="block mono-label text-slate tracking-mono">
+              详细举报说明 / 证据补充 <span className="text-error">*</span>
             </label>
             <textarea
               rows={4}
@@ -111,33 +135,29 @@ export const ReportModal: React.FC = () => {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="请详细描述违规事实或欺诈细节，支持补充联系方式、聊天截图时间线等..."
-              className="w-full p-3.5 bg-slate-50 rounded-2xl border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm leading-relaxed transition-all resize-none"
+              className="w-full p-3.5 bg-surface rounded-md border border-hairline focus:border-error focus:ring-2 focus:ring-error/20 outline-none text-body-2 text-ink leading-relaxed transition-all resize-none"
             />
-            <p className="text-[11px] text-slate-400 text-right">已输入 {reason.length} 字 (上限 500 字)</p>
-          </div>
+            <p className="text-caption text-steel text-right">已输入 {reason.length} 字 (上限 500 字)</p>          </div>
 
-          <div className="p-3 bg-amber-50 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-3 bg-alert/20 rounded-md flex items-start gap-2.5 text-xs text-ink">
+            <AlertTriangle className="w-4 h-4 text-ink shrink-0 mt-0.5" />
             <p>
               请如实填写举报内容。恶意虚假举报或滥用举报功能将扣除个人校园信用积分，甚至限制账户操作。
             </p>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={closeReport}
-              className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
-            >
+            <Button variant="ghost" onClick={closeReport} className="flex-1 py-3">
               取消
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               type="submit"
               disabled={loading}
-              className="flex-[2] py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-lg shadow-rose-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-[2] py-3"
             >
               {loading ? '正在提交...' : '确认并提交举报'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

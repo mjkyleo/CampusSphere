@@ -8,7 +8,7 @@ import {
   JobOut, JobCreate, JobApplicationOut, ApplicationStatus, JobStatus,
   ShareOut, ShareCreate, ShareCommentOut,
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
-  ReportOut, ReportTargetType, ReportStatus,
+  ReportOut, ReportTargetType, ReportStatus, AdminReportOut,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
   AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate,
   SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig, GeetestValidate
@@ -1556,7 +1556,7 @@ export const api = {
     unbanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/unban`, { method: 'POST' }),
     getEmailConfig: () => request<EmailRegisterConfig>('/api/admin/auth/email-config'),
     updateEmailConfig: (config: EmailRegisterConfig) => request<EmailRegisterConfig>('/api/admin/auth/email-config', { method: 'PUT', body: JSON.stringify(config) }),
-    reports: (status?: number, page = 1, page_size = 20) => request<{ total: number; items: ReportOut[] }>(`/api/admin/reports?status=${status || ''}&page=${page}&page_size=${page_size}`),
+    reports: (status?: number, page = 1, page_size = 20) => request<{ total: number; items: AdminReportOut[] }>(`/api/admin/reports?status=${status || ''}&page=${page}&page_size=${page_size}`),
     // Admin item management (bypasses owner checks)
     adminItems: (status?: number, page = 1, page_size = 20) =>
       request<{ total: number; items: any[] }>(`/api/admin/items?status=${status ?? ''}&page=${page}&page_size=${page_size}`),

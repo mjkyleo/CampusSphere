@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext.tsx';
 import { Link, useNavigate } from 'react-router-dom';
 import SliderCaptcha from '../components/SliderCaptcha.tsx';
 import GeetestCaptcha from '../components/GeetestCaptcha.tsx';
+import { ImagePlaceholder } from '../components/ui';
 
 type Tab = 'profile' | 'security' | 'my_items' | 'favorites';
 
@@ -247,35 +248,50 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  const inputCls =
+    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+  const panelCls = 'bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface space-y-6';
+
+  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'profile', label: '基本资料修改', icon: Edit3 },
+    { id: 'security', label: '账号安全与第三方绑定', icon: Shield },
+    { id: 'my_items', label: `我发布的闲置 (${myItems.length})`, icon: ShoppingBag },
+    { id: 'favorites', label: `我的收藏夹 (${favorites.length})`, icon: Heart }
+  ];
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-24">
-      {/* Profile Header Banner */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      {/* 个人凭证卡 Profile Pass Card */}
+      <div className="bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="relative">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden bg-slate-100 border-2 border-indigo-100 shadow-md">
-              <img
-                src={avatar || user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-              />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-sm overflow-hidden bg-panel border-2 border-ink">
+              {avatar || user?.avatar ? (
+                <img
+                  src={avatar || user?.avatar || ''}
+                  alt="头像"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <ImagePlaceholder variant="avatar" className="w-full h-full rounded-none border-0" />
+              )}
             </div>
-            <span className="absolute -bottom-1 -right-1 p-1 bg-emerald-500 text-white rounded-full border-2 border-white">
+            <span className="absolute -bottom-1 -right-1 p-1 bg-success text-surface rounded-sm border-2 border-surface">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </span>
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-slate-900">{user?.nickname || '校园同学'}</h1>
-              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg">
+              <h1 className="text-heading-1 text-ink">{user?.nickname || '校园同学'}</h1>
+              <span className="px-2 py-0.5 bg-ink text-surface mono-label tracking-mono rounded-sm">
                 {user?.role === 'admin' ? '系统管理员' : '已认证学生'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              账号：@{user?.username || 'campus_student'} • 校区：{user?.campus || '主校区'}
+            <p className="text-caption text-steel font-mono">
+              账号：@{user?.username || 'campus_student'} · 校区：{user?.campus || '主校区'}
             </p>
-            <p className="text-xs text-slate-600 font-normal">
+            <p className="text-body-2 text-slate">
               {user?.bio || '勤学善思，积极探索校园美好生活。'}
             </p>
           </div>
@@ -283,7 +299,7 @@ const UserProfile: React.FC = () => {
 
         <button
           onClick={logout}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-2xl text-xs font-bold transition-colors self-start sm:self-center"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-panel hover:bg-error hover:text-surface text-slate rounded-sm mono-label uppercase tracking-mono transition-colors self-start sm:self-center"
         >
           <LogOut className="w-4 h-4" />
           退出当前登录
@@ -291,20 +307,15 @@ const UserProfile: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl text-xs font-bold overflow-x-auto no-scrollbar">
-        {[
-          { id: 'profile', label: '基本资料修改', icon: Edit3 },
-          { id: 'security', label: '账号安全与第三方绑定', icon: Shield },
-          { id: 'my_items', label: `我发布的闲置 (${myItems.length})`, icon: ShoppingBag },
-          { id: 'favorites', label: `我的收藏夹 (${favorites.length})`, icon: Heart }
-        ].map((t) => (
+      <div className="flex gap-2 p-1 bg-surface border border-hairline rounded-md mono-label text-steel tracking-mono overflow-x-auto no-scrollbar shadow-surface">
+        {tabs.map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id as Tab)}
-            className={`flex items-center gap-2 py-2.5 px-4 rounded-xl transition-all whitespace-nowrap ${
+            onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 py-2.5 px-4 rounded-sm transition-colors whitespace-nowrap uppercase tracking-mono ${
               activeTab === t.id
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-ink text-surface'
+                : 'text-steel hover:text-ink'
             }`}
           >
             <t.icon className="w-4 h-4" />
@@ -315,65 +326,65 @@ const UserProfile: React.FC = () => {
 
       {/* Tab 1: Profile Edit */}
       {activeTab === 'profile' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div className={panelCls}>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">个人主页信息设置</h3>
-            <p className="text-xs text-slate-500">完善个人资料有助于提升二手交易信用与搭子组队成功率</p>
+            <h3 className="text-heading-3 text-ink">个人主页信息设置</h3>
+            <p className="text-body-2 text-steel">完善个人资料有助于提升二手交易信用与搭子组队成功率</p>
           </div>
 
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">展示昵称 *</label>
+                <label className="block mono-label text-steel tracking-mono">展示昵称 *</label>
                 <input
                   type="text"
                   required
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">头像图片 URL</label>
+                <label className="block mono-label text-steel tracking-mono">头像图片 URL</label>
                 <input
                   type="url"
                   value={avatar}
                   onChange={(e) => setAvatar(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">所在校区</label>
+                <label className="block mono-label text-steel tracking-mono">所在校区</label>
                 <input
                   type="text"
                   value={campus}
                   onChange={(e) => setCampus(e.target.value)}
                   placeholder="例如: 主校区 / 科学城校区"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">专业方向</label>
+                <label className="block mono-label text-steel tracking-mono">专业方向</label>
                 <input
                   type="text"
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
                   placeholder="例如: 软件工程 / 金融学"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">入学年份</label>
+                <label className="block mono-label text-steel tracking-mono">入学年份</label>
                 <select
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 >
                   <option value="">请选择入学年份</option>
                   {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
@@ -384,31 +395,31 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">微信号 (可选，用于搭子/二手联系)</label>
+              <label className="block mono-label text-steel tracking-mono">微信号 (可选，用于搭子/二手联系)</label>
               <input
                 type="text"
                 value={contactWx}
                 onChange={(e) => setContactWx(e.target.value)}
                 placeholder="例如: campus_partner_01"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className={inputCls}
               />
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">个性签名与简介</label>
+              <label className="block mono-label text-steel tracking-mono">个性签名与简介</label>
               <textarea
                 rows={3}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="介绍一下自己吧，例如你的兴趣爱好、自习常去地点等..."
-                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
               />
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all disabled:opacity-50"
+              className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
             >
               {saving ? '正在保存...' : '保存资料修改'}
             </button>
@@ -420,29 +431,29 @@ const UserProfile: React.FC = () => {
       {activeTab === 'security' && (
         <div className="space-y-6">
           {/* Third-Party Bindings Box */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-slate-900">多渠道认证与账号绑定</h3>
+          <div className={panelCls}>
+            <h3 className="text-heading-3 text-ink">多渠道认证与账号绑定</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* WeChat */}
-              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="p-4 rounded-sm border border-hairline bg-panel/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#07C160]/10 text-[#07C160] rounded-xl">
+                  <div className="p-2.5 bg-[#07C160]/10 text-[#07C160] rounded-sm">
                     <MessageSquare className="w-5 h-5 fill-current" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm">微信账号</h4>
-                    <p className="text-[11px] text-slate-500">
+                    <h4 className="font-bold text-ink text-body-1">微信账号</h4>
+                    <p className="text-caption text-steel font-mono">
                       {bindings?.wechat_bound ? '已完成绑定授权' : '未绑定'}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleOAuthToggle('wechat', !!bindings?.wechat_bound)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-sm mono-label uppercase tracking-mono transition-colors ${
                     bindings?.wechat_bound
-                      ? 'bg-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-600'
-                      : 'bg-[#07C160] text-white hover:bg-[#06ad56]'
+                      ? 'bg-panel text-slate hover:bg-error hover:text-surface'
+                      : 'bg-[#0B7A3B] text-white hover:bg-[#096A33]'
                   }`}
                 >
                   {bindings?.wechat_bound ? '解除绑定' : '立即绑定'}
@@ -450,24 +461,24 @@ const UserProfile: React.FC = () => {
               </div>
 
               {/* QQ */}
-              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="p-4 rounded-sm border border-hairline bg-panel/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#12B7F5]/10 text-[#12B7F5] rounded-xl">
+                  <div className="p-2.5 bg-[#12B7F5]/10 text-[#12B7F5] rounded-sm">
                     <MessageCircle className="w-5 h-5 fill-current" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm">QQ 账号</h4>
-                    <p className="text-[11px] text-slate-500">
+                    <h4 className="font-bold text-ink text-body-1">QQ 账号</h4>
+                    <p className="text-caption text-steel font-mono">
                       {bindings?.qq_bound ? '已完成绑定授权' : '未绑定'}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleOAuthToggle('qq', !!bindings?.qq_bound)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-sm mono-label uppercase tracking-mono transition-colors ${
                     bindings?.qq_bound
-                      ? 'bg-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-600'
-                      : 'bg-[#12B7F5] text-white hover:bg-[#0ea5dc]'
+                      ? 'bg-panel text-slate hover:bg-error hover:text-surface'
+                      : 'bg-[#0E6FA8] text-white hover:bg-[#0C5F8F]'
                   }`}
                 >
                   {bindings?.qq_bound ? '解除绑定' : '立即绑定'}
@@ -478,10 +489,10 @@ const UserProfile: React.FC = () => {
 
           {/* Email / Phone Binding：验证码获取入口 + 绑定提交。
               此前只有提交逻辑没有发送入口，绑定流程在界面上走不通。 */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+          <div className={panelCls}>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">邮箱与手机绑定</h3>
-              <p className="text-xs text-slate-500">绑定后可使用邮箱 / 手机号 + 密码登录</p>
+              <h3 className="text-heading-3 text-ink">邮箱与手机绑定</h3>
+              <p className="text-body-2 text-steel">绑定后可使用邮箱 / 手机号 + 密码登录</p>
             </div>
 
             {/* 绑定邮箱 */}
@@ -493,8 +504,8 @@ const UserProfile: React.FC = () => {
               }}
             >
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  邮箱{bindings?.email ? <span className="ml-2 font-normal text-emerald-600">已绑定 {bindings.email}</span> : ''}
+                <label className="block mono-label text-steel tracking-mono">
+                  邮箱{bindings?.email ? <span className="ml-2 font-normal text-success font-mono">已绑定 {bindings.email}</span> : ''}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -502,20 +513,20 @@ const UserProfile: React.FC = () => {
                     value={bindEmailAddr}
                     onChange={(e) => setBindEmailAddr(e.target.value)}
                     placeholder="例如: student@whu.edu.cn"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
                   />
                   <button
                     type="button"
                     disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr)}
                     onClick={() => handleSendBindCode(bindEmailAddr, 'bind_email')}
-                    className="px-3.5 py-2.5 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
                   </button>
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">邮箱验证码</label>
+                <label className="block mono-label text-steel tracking-mono">邮箱验证码</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -523,12 +534,12 @@ const UserProfile: React.FC = () => {
                   value={bindEmailCode}
                   onChange={(e) => setBindEmailCode(e.target.value)}
                   placeholder="6 位数字验证码"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm tracking-widest focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls + ' font-mono tracking-widest'}
                 />
               </div>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all"
+                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
               >
                 绑定邮箱
               </button>
@@ -543,8 +554,8 @@ const UserProfile: React.FC = () => {
               }}
             >
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  手机号{bindings?.phone ? <span className="ml-2 font-normal text-emerald-600">已绑定 {bindings.phone}</span> : ''}
+                <label className="block mono-label text-steel tracking-mono">
+                  手机号{bindings?.phone ? <span className="ml-2 font-normal text-success font-mono">已绑定 {bindings.phone}</span> : ''}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -552,20 +563,20 @@ const UserProfile: React.FC = () => {
                     value={bindPhoneNum}
                     onChange={(e) => setBindPhoneNum(e.target.value)}
                     placeholder="11 位手机号"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
                   />
                   <button
                     type="button"
                     disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum)}
                     onClick={() => handleSendBindCode(bindPhoneNum, 'bind_phone')}
-                    className="px-3.5 py-2.5 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
                   </button>
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">短信验证码</label>
+                <label className="block mono-label text-steel tracking-mono">短信验证码</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -573,12 +584,12 @@ const UserProfile: React.FC = () => {
                   value={bindPhoneCode}
                   onChange={(e) => setBindPhoneCode(e.target.value)}
                   placeholder="6 位数字验证码"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm tracking-widest focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls + ' font-mono tracking-widest'}
                 />
               </div>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all"
+                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
               >
                 绑定手机号
               </button>
@@ -586,49 +597,49 @@ const UserProfile: React.FC = () => {
           </div>
 
           {/* Change Password Form */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-slate-900">修改登录密码</h3>
+          <div className={panelCls}>
+            <h3 className="text-heading-3 text-ink">修改登录密码</h3>
             <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">当前原密码 *</label>
+                <label className="block mono-label text-steel tracking-mono">当前原密码 *</label>
                 <input
                   type="password"
                   required
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   placeholder="请输入当前密码"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">新密码 *</label>
+                <label className="block mono-label text-steel tracking-mono">新密码 *</label>
                 <input
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="至少6位新密码"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">确认新密码 *</label>
+                <label className="block mono-label text-steel tracking-mono">确认新密码 *</label>
                 <input
                   type="password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="再次输入新密码"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls}
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={changingPass}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all disabled:opacity-50"
+                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
               >
                 {changingPass ? '正在更新...' : '更新密码'}
               </button>
@@ -641,17 +652,17 @@ const UserProfile: React.FC = () => {
       {activeTab === 'my_items' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">我发布的闲置宝贝 ({myItems.length})</h3>
+            <h3 className="text-heading-3 text-ink">我发布的闲置宝贝 ({myItems.length})</h3>
             <Link
               to="/market/publish"
-              className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl"
+              className="px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors"
             >
               + 发布新闲置
             </Link>
           </div>
 
           {myItems.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 text-xs">
+            <div className="p-12 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
               您尚未发布任何二手闲置物品
             </div>
           ) : (
@@ -659,19 +670,23 @@ const UserProfile: React.FC = () => {
               {myItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 bg-white rounded-3xl border border-slate-200 flex gap-3 items-center"
+                  className="p-4 bg-surface rounded-md border border-hairline flex gap-3 items-center"
                 >
-                  <img
-                    src={item.images?.[0]?.object_key || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=150'}
-                    alt="item"
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
+                  {item.images?.[0]?.object_key ? (
+                    <img
+                      src={item.images[0].object_key}
+                      alt={item.title}
+                      className="w-16 h-16 rounded-sm object-cover border border-hairline"
+                    />
+                  ) : (
+                    <ImagePlaceholder className="w-16 h-16 rounded-sm shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-xs text-slate-900 truncate">{item.title}</h4>
-                    <p className="text-xs font-bold text-indigo-600 mt-0.5">¥{formatPrice(item.price)}</p>
+                    <h4 className="font-bold text-body-2 text-ink truncate">{item.title}</h4>
+                    <p className="text-body-2 font-bold text-zone-market mt-0.5 font-mono">¥{formatPrice(item.price)}</p>
                     <Link
                       to={`/market/${item.id}`}
-                      className="text-[11px] text-indigo-600 hover:underline font-semibold mt-1 inline-block"
+                      className="text-caption text-zone-market hover:underline font-semibold mt-1 inline-block"
                     >
                       管理 / 查看详情 &rarr;
                     </Link>
@@ -686,10 +701,10 @@ const UserProfile: React.FC = () => {
       {/* Tab 4: My Favorites */}
       {activeTab === 'favorites' && (
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-slate-900">我的心愿与收藏 ({favorites.length})</h3>
+          <h3 className="text-heading-3 text-ink">我的心愿与收藏 ({favorites.length})</h3>
 
           {favorites.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 text-xs">
+            <div className="p-12 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
               您还没有收藏任何闲置物品
             </div>
           ) : (
@@ -698,17 +713,21 @@ const UserProfile: React.FC = () => {
                 <Link
                   key={item.id}
                   to={`/market/${item.id}`}
-                  className="p-4 bg-white rounded-3xl border border-slate-200 flex gap-3 items-center hover:border-indigo-300 transition-colors"
+                  className="p-4 bg-surface rounded-md border border-hairline flex gap-3 items-center hover:border-zone-market transition-colors"
                 >
-                  <img
-                    src={item.images?.[0]?.object_key || 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=150'}
-                    alt="fav"
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
+                  {item.images?.[0]?.object_key ? (
+                    <img
+                      src={item.images[0].object_key}
+                      alt={item.title}
+                      className="w-16 h-16 rounded-sm object-cover border border-hairline"
+                    />
+                  ) : (
+                    <ImagePlaceholder className="w-16 h-16 rounded-sm shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-xs text-slate-900 truncate">{item.title}</h4>
-                    <p className="text-xs font-bold text-indigo-600 mt-0.5">¥{formatPrice(item.price)}</p>
-                    <span className="text-[10px] text-slate-400">点击进入详情页</span>
+                    <h4 className="font-bold text-body-2 text-ink truncate">{item.title}</h4>
+                    <p className="text-body-2 font-bold text-zone-market mt-0.5 font-mono">¥{formatPrice(item.price)}</p>
+                    <span className="text-caption text-steel">点击进入详情页</span>
                   </div>
                 </Link>
               ))}

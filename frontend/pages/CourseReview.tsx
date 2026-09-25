@@ -70,22 +70,26 @@ const CourseReview: React.FC = () => {
     }
   };
 
+  const inputCls =
+    'w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-slate-500 hover:text-indigo-600 font-semibold text-sm transition-colors"
+        className="flex items-center gap-1 text-steel hover:text-ink mono-label uppercase tracking-mono transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
         取消并返回
       </button>
 
-      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-8">
+      <div className="bg-surface rounded-md p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <div className="mono-label text-zone-course tracking-mono mb-1">COURSE · 评课登机口</div>
+          <h1 className="text-heading-1 text-ink tracking-tight">
             发布真实选课评价
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-body-2 text-steel mt-1">
             分享给分、作业量、考核要求与学习建议，帮助更多学弟学妹合理规划选课
           </p>
         </div>
@@ -93,13 +97,11 @@ const CourseReview: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Select Course */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              选择课程 <span className="text-rose-500">*</span>
-            </label>
+            <label className="block mono-label text-steel tracking-mono">选择课程 <span className="text-error">*</span></label>
             <select
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none"
+              className={inputCls}
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -110,11 +112,11 @@ const CourseReview: React.FC = () => {
           </div>
 
           {/* Rating stars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 bg-panel/40 rounded-sm border border-hairline">
             {/* Overall Rating */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase">
-                课程综合推荐度: <span className="text-amber-600 font-black text-base ml-1">{rating} 星</span>
+              <label className="block mono-label text-steel tracking-mono">
+                课程综合推荐度: <span className="text-zone-course font-black text-base ml-1 font-mono tabular-nums">{rating} 星</span>
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -126,7 +128,7 @@ const CourseReview: React.FC = () => {
                   >
                     <Star
                       className={`w-7 h-7 ${
-                        star <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                        star <= rating ? 'fill-zone-course text-zone-course' : 'text-steel'
                       }`}
                     />
                   </button>
@@ -136,8 +138,8 @@ const CourseReview: React.FC = () => {
 
             {/* Teacher Rating */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase">
-                教师授课清晰度: <span className="text-amber-600 font-black text-base ml-1">{teacherRating} 星</span>
+              <label className="block mono-label text-steel tracking-mono">
+                教师授课清晰度: <span className="text-zone-course font-black text-base ml-1 font-mono tabular-nums">{teacherRating} 星</span>
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -149,7 +151,7 @@ const CourseReview: React.FC = () => {
                   >
                     <Star
                       className={`w-7 h-7 ${
-                        star <= teacherRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                        star <= teacherRating ? 'fill-zone-course text-zone-course' : 'text-steel'
                       }`}
                     />
                   </button>
@@ -161,13 +163,11 @@ const CourseReview: React.FC = () => {
           {/* Workload and Grading select */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                作业与项目负荷
-              </label>
+              <label className="block mono-label text-steel tracking-mono">作业与项目负荷</label>
               <select
                 value={workload}
                 onChange={(e) => setWorkload(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none"
+                className={inputCls}
               >
                 <option value="轻松无负担">轻松无负担（作业极少）</option>
                 <option value="适中">适中（每周1-2次小作业）</option>
@@ -177,13 +177,11 @@ const CourseReview: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                期末给分情况
-              </label>
+              <label className="block mono-label text-steel tracking-mono">期末给分情况</label>
               <select
                 value={gradingPolicy}
                 onChange={(e) => setGradingPolicy(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none"
+                className={inputCls}
               >
                 <option value="神仙给分 / 普遍高分">神仙给分 / 普遍高分</option>
                 <option value="给分较好，看重平时">给分较好，看重平时</option>
@@ -195,25 +193,23 @@ const CourseReview: React.FC = () => {
 
           {/* Content */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              详细评语与选课建议 <span className="text-rose-500">*</span>
-            </label>
+            <label className="block mono-label text-steel tracking-mono">详细评语与选课建议 <span className="text-error">*</span></label>
             <textarea
               rows={6}
               required
               placeholder="分享讲课风格（板书/PPT/互动）、点名频率、期中期末题型、避坑指南及刷题建议..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm leading-relaxed focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              className="w-full p-4 bg-surface border border-hairline rounded-sm text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4" />
             {loading ? '正在发布...' : '提交我的评课'}
           </button>
         </form>

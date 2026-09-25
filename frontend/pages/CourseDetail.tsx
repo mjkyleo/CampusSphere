@@ -9,6 +9,7 @@ import { CourseOut, CourseReviewOut } from '../types.ts';
 import { summarizeCourseReviews } from '../services/geminiService.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
+import { PassCard } from '../components/ui';
 
 const CourseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -72,9 +73,9 @@ const CourseDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-12 text-center text-slate-400">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-sm">正在加载课程评价详情...</p>
+      <div className="max-w-4xl mx-auto p-12 text-center text-steel">
+        <div className="w-10 h-10 border-4 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-body-2 mono-label tracking-mono">正在加载课程评价详情...</p>
       </div>
     );
   }
@@ -82,8 +83,8 @@ const CourseDetail: React.FC = () => {
   if (!course) {
     return (
       <div className="max-w-4xl mx-auto p-12 text-center space-y-4">
-        <h2 className="text-xl font-bold text-slate-700">未找到对应课程</h2>
-        <Link to="/courses" className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold">
+        <h2 className="text-heading-2 text-ink">未找到对应课程</h2>
+        <Link to="/courses" className="inline-block px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors">
           返回课程列表
         </Link>
       </div>
@@ -94,49 +95,49 @@ const CourseDetail: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8 pb-24">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-slate-500 hover:text-indigo-600 font-semibold text-sm transition-colors"
+        className="flex items-center gap-1 text-steel hover:text-ink mono-label uppercase tracking-mono transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
         返回课程列表
       </button>
 
-      {/* Course Header Banner */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+      {/* Course Header */}
+      <div className="bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl uppercase">
+              <span className="px-2.5 py-0.5 bg-zone-course/10 text-zone-course font-mono font-bold text-xs rounded-sm uppercase tracking-mono">
                 {course.code || 'CS-202'}
               </span>
-              <span className="text-xs text-slate-400 font-medium">{course.department || '计算机学院'}</span>
+              <span className="text-caption text-steel">{course.department || '计算机学院'}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-heading-1 text-ink tracking-tight">
               {course.name}
             </h1>
-            <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
-              <User className="w-4 h-4 text-indigo-600" />
+            <p className="text-body-2 text-slate font-medium flex items-center gap-2">
+              <User className="w-4 h-4 text-zone-course" />
               授课主讲：{course.instructor || '张伟 教授'}
             </p>
           </div>
 
-          <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200/60 flex flex-col items-center justify-center min-w-[130px] shrink-0">
-            <div className="flex items-center gap-1 text-amber-600">
-              <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
-              <span className="text-3xl font-black">{course.rating ? Number(course.rating).toFixed(1) : '4.8'}</span>
+          <div className="p-4 bg-zone-course/10 rounded-sm border border-zone-course/20 flex flex-col items-center justify-center min-w-[130px] shrink-0">
+            <div className="flex items-center gap-1 text-zone-course">
+              <Star className="w-6 h-6 fill-zone-course text-zone-course" />
+              <span className="text-3xl font-black font-display tabular-nums">{course.rating ? Number(course.rating).toFixed(1) : '4.8'}</span>
             </div>
-            <span className="text-[11px] text-amber-700 font-bold mt-1">综合评分 (满分5分)</span>
+            <span className="mono-label text-zone-course tracking-mono mt-1">综合评分 (满分5分)</span>
           </div>
         </div>
 
-        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <p className="text-body-2 text-slate leading-relaxed bg-panel/40 p-4 rounded-sm border border-hairline">
           {course.description || '本课程系统讲解学科核心思想，配备丰富实验课与讨论班，深受全校同学好评。'}
         </p>
 
         <div className="flex items-center justify-between pt-2">
-          <span className="text-xs text-slate-400 font-medium">累计收录 {reviews.length} 条真实学长学姐评课</span>
+          <span className="text-caption text-steel font-mono">累计收录 {reviews.length} 条真实学长学姐评课</span>
           <Link
             to={`/courses/review?course_id=${course.id}`}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95"
           >
             <Plus className="w-4 h-4" />
             撰写评价
@@ -144,36 +145,57 @@ const CourseDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Review Summary Box */}
-      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white space-y-4 shadow-xl border border-indigo-800/40 relative overflow-hidden">
+      {/* AI Review Summary */}
+      <div className="bg-slate rounded-md p-6 sm:p-8 text-surface space-y-4 shadow-surface border border-slate relative overflow-hidden">
         <div className="relative z-10 flex items-center gap-2">
-          <div className="p-2 bg-indigo-500/20 backdrop-blur-md rounded-xl border border-indigo-400/30">
-            <Sparkles className="w-5 h-5 text-indigo-300" />
+          <div className="p-2 bg-ink/40 rounded-sm border border-surface/20">
+            <Sparkles className="w-5 h-5 text-surface" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">AI 智能选课画像 & 评价提炼</h3>
-            <p className="text-xs text-indigo-200">基于所有学生真实评价进行语义情感提炼</p>
+            <h3 className="text-body-1 font-semibold text-surface">AI 智能选课画像 & 评价提炼</h3>
+            <p className="text-caption text-surface/70">基于所有学生真实评价进行语义情感提炼</p>
           </div>
         </div>
 
-        <div className="relative z-10 text-sm leading-relaxed text-slate-200 bg-white/5 p-4 rounded-2xl border border-white/10">
+        <div className="relative z-10 text-body-2 leading-relaxed text-panel bg-ink/40 p-4 rounded-sm border border-surface/10">
           {summarizing ? (
-            <div className="flex items-center gap-2 text-indigo-200 animate-pulse text-xs">
-              <div className="w-4 h-4 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center gap-2 text-surface/80 animate-pulse text-caption mono-label tracking-mono">
+              <div className="w-4 h-4 border-2 border-surface/60 border-t-transparent rounded-full animate-spin"></div>
               正在深度提炼课程考核难易度、作业量及得分率画像...
             </div>
           ) : (
             aiSummary || '暂无足够的评价数据进行 AI 综合画像生成。'
           )}
         </div>
-
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
+
+      {/* 课程登机卡：登机牌·航站屏世界签名组件（PassCard）落地 */}
+      <PassCard
+        title="COURSE · 选课登机卡"
+        seq={`ID ${course.id}`}
+        segments={[
+          { label: '课程代码', value: course.code || 'CS-202', mono: true },
+          { label: '授课教师', value: course.instructor || '张伟 教授' },
+          { label: '所属院系', value: course.department || '计算机学院' },
+          { label: '综合评分', value: `${Number(course.rating || 4.8).toFixed(1)} / 5.0`, mono: true }
+        ]}
+        scanCode={course.code || String(course.id)}
+        scanNote="凭课程代码登记选课意向"
+        footer={
+          <Link
+            to={`/courses/review?course_id=${course.id}`}
+            className="mono-label inline-flex items-center gap-1.5 text-zone-course hover:text-ink transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            前往评课登机口
+          </Link>
+        }
+      />
 
       {/* Reviews List */}
       <div className="space-y-4">
-        <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-indigo-600" />
+        <h3 className="text-heading-2 text-ink flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-zone-course" />
           学长学姐评价 ({reviews.length})
         </h3>
 
@@ -181,53 +203,53 @@ const CourseDetail: React.FC = () => {
           {reviews.map((rev) => (
             <div
               key={rev.id}
-              className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4 hover:border-slate-300 transition-all"
+              className="bg-surface rounded-md p-6 border border-hairline shadow-surface space-y-4 hover:border-zone-course transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-indigo-600 border border-slate-200">
+                  <div className="w-10 h-10 rounded-sm bg-panel flex items-center justify-center font-bold text-zone-course border border-hairline">
                     {rev.user_nickname?.charAt(0) || '校'}
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 text-sm block">
+                    <span className="font-bold text-ink text-body-1 block">
                       {rev.user_nickname || '匿名校友'}
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-caption text-steel font-mono">
                       {rev.created_at ? new Date(rev.created_at).toLocaleDateString() : '近日评价'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 rounded-xl text-amber-700 text-xs font-bold">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <div className="flex items-center gap-1 px-2 py-1 bg-zone-course/10 rounded-sm text-zone-course mono-label tracking-mono">
+                  <Star className="w-3.5 h-3.5 fill-zone-course text-zone-course" />
                   <span>{rev.rating} 分</span>
                 </div>
               </div>
 
               {/* Sub ratings if available */}
               {(rev.workload || rev.grading_policy) && (
-                <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex flex-wrap gap-2 text-caption mono-label tracking-mono">
                   {rev.workload && (
-                    <span className="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg border border-slate-200">
-                      作业负荷: <strong>{rev.workload}</strong>
+                    <span className="px-2.5 py-1 bg-panel text-slate rounded-sm border border-hairline">
+                      作业负荷: <strong className="text-ink">{rev.workload}</strong>
                     </span>
                   )}
                   {rev.grading_policy && (
-                    <span className="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg border border-slate-200">
-                      给分偏好: <strong>{rev.grading_policy}</strong>
+                    <span className="px-2.5 py-1 bg-panel text-slate rounded-sm border border-hairline">
+                      给分偏好: <strong className="text-ink">{rev.grading_policy}</strong>
                     </span>
                   )}
                 </div>
               )}
 
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+              <p className="text-body-2 text-slate leading-relaxed whitespace-pre-wrap">
                 {rev.content}
               </p>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+              <div className="flex items-center justify-between pt-3 border-t border-hairline text-caption mono-label tracking-mono">
                 <button
                   onClick={() => handleLikeReview(rev.id)}
-                  className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 font-semibold px-3 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors"
+                  className="flex items-center gap-1.5 text-steel hover:text-zone-course font-semibold px-3 py-1.5 rounded-sm hover:bg-zone-course/10 transition-colors"
                 >
                   <ThumbsUp className="w-3.5 h-3.5" />
                   <span>对我有用 ({rev.helpful_count || 0})</span>
@@ -235,7 +257,7 @@ const CourseDetail: React.FC = () => {
 
                 <button
                   onClick={() => openReport('comment', rev.id, `课程评价: ${rev.content.slice(0, 20)}...`)}
-                  className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors"
+                  className="text-steel hover:text-error flex items-center gap-1 transition-colors"
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
                   举报

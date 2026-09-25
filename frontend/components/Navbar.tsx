@@ -1,134 +1,276 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home, ShoppingBag, BookOpen, Utensils, Users, Share2,
-  Briefcase, MessageSquare, LayoutDashboard, User, ShieldCheck, LogOut
+  Briefcase, MessageSquare, LayoutDashboard, User, ShieldCheck, LogOut, MoreHorizontal
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { ImagePlaceholder } from './ui';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { user, admin, isAuthenticated, isAdminAuthenticated, unreadCount, logout, adminLogout } = useAuth();
+  const { user, admin, isAuthenticated, isAdminAuthenticated, unreadCount, loading, logout, adminLogout } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const navItems = [
-    { path: '/', icon: Home, label: '首页' },
-    { path: '/market', icon: ShoppingBag, label: '二手' },
-    { path: '/courses', icon: BookOpen, label: '课程' },
-    { path: '/canteens', icon: Utensils, label: '食堂' },
-    { path: '/teammates', icon: Users, label: '搭子' },
-    { path: '/share', icon: Share2, label: '分享' },
-    { path: '/jobs', icon: Briefcase, label: '兼职' },
-    { path: '/messages', icon: MessageSquare, label: '消息', badge: unreadCount }
+  // 路由变化时关闭「更多」抽屉
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname]);
+
+  const active = (path: string) =>
+    location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+
+  // 桌面横向导航（全部模块）
+  const desktopNav = [
+    { path: '/', icon: Home, label: '首页', zone: 'bg-zone-home' },
+    { path: '/market', icon: ShoppingBag, label: '二手', zone: 'bg-zone-market' },
+    { path: '/courses', icon: BookOpen, label: '课程', zone: 'bg-zone-course' },
+    { path: '/canteens', icon: Utensils, label: '食堂', zone: 'bg-zone-canteen' },
+    { path: '/teammates', icon: Users, label: '搭子', zone: 'bg-zone-teammate' },
+    { path: '/share', icon: Share2, label: '分享', zone: 'bg-zone-share' },
+    { path: '/jobs', icon: Briefcase, label: '兼职', zone: 'bg-zone-job' },
+    { path: '/messages', icon: MessageSquare, label: '消息', zone: 'bg-zone-message', badge: unreadCount }
   ];
 
+  // 移动端底部主项（4 项：首页 / 市集 / 消息 / 我的）
+  const mobilePrimary = [
+    { path: '/', icon: Home, label: '首页', zone: 'bg-zone-home' },
+    { path: '/market', icon: ShoppingBag, label: '市集', zone: 'bg-zone-market' },
+    { path: '/messages', icon: MessageSquare, label: '消息', zone: 'bg-zone-message', badge: unreadCount }
+  ];
+
+  // 「更多」抽屉：其余模块 + 管理后台 / 退出
+  const moreModules = [
+    { path: '/courses', icon: BookOpen, label: '课程', zone: 'bg-zone-course' },
+    { path: '/canteens', icon: Utensils, label: '食堂', zone: 'bg-zone-canteen' },
+    { path: '/teammates', icon: Users, label: '搭子', zone: 'bg-zone-teammate' },
+    { path: '/share', icon: Share2, label: '分享', zone: 'bg-zone-share' },
+    { path: '/jobs', icon: Briefcase, label: '兼职', zone: 'bg-zone-job' }
+  ];
+
+  const profileHref = isAdminAuthenticated ? '/admin' : isAuthenticated && user ? '/profile' : '/login';
+  const profileLabel = loading ? '…' : isAdminAuthenticated ? '后台' : isAuthenticated && user ? (user.nickname || user.username) : '登录';
+  const profileZone = isAdminAuthenticated ? 'bg-zone-message' : isAuthenticated && user ? 'bg-zone-home' : 'bg-zone-home';
+
+  const NavLink = ({ item }: { item: (typeof desktopNav)[number] }) => {
+    const isActive = active(item.path);
+    return (
+      <Link
+        to={item.path}
+        aria-current={isActive ? 'page' : undefined}
+        className={`relative flex flex-col lg:flex-row items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
+          isActive ? `${item.zone} text-surface` : 'text-steel hover:text-ink'
+        }`}
+      >
+        <div className="relative">
+          <item.icon className="w-5 h-5 lg:w-4 lg:h-4" strokeWidth={1.8} />
+          {item.badge !== undefined && item.badge > 0 && (
+            <span className="absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-alert text-ink text-[11px] font-bold rounded-full">
+              {item.badge}
+            </span>
+          )}
+        </div>
+        <span className="truncate text-[11px] lg:text-xs">{item.label}</span>
+      </Link>
+    );
+  };
+
+  const ProfileSlot = () => {
+    const isActive = active(profileHref);
+    if (loading) {
+      // auth 未就绪：渲染中性骨架占位，避免误显示「登录」入口
+      return (
+        <div className="relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 mono-label" aria-hidden="true">
+          <div className="w-5 h-5 rounded-full bg-panel animate-pulse"></div>
+          <div className="w-7 h-2 bg-panel animate-pulse rounded"></div>
+        </div>
+      );
+    }
+    return (
+      <Link
+        to={profileHref}
+        aria-current={isActive ? 'page' : undefined}
+        className={`relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
+          isActive ? `${profileZone} text-surface` : 'text-steel hover:text-ink'
+        }`}
+      >
+        <div className="relative">
+          {isAuthenticated && user ? (
+            <div className="w-5 h-5 rounded-full overflow-hidden bg-panel border border-hairline shrink-0">
+              {user.avatar ? (
+                <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+              ) : (
+                <ImagePlaceholder variant="avatar" className="w-5 h-5" />
+              )}
+            </div>
+          ) : (
+            <User className="w-5 h-5" strokeWidth={1.8} />
+          )}
+        </div>
+        <span className="truncate text-[11px] max-w-[52px]">{profileLabel}</span>
+      </Link>
+    );
+  };
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 lg:top-0 lg:bottom-auto bg-white/95 backdrop-blur-md border-t lg:border-t-0 lg:border-b border-slate-200 px-4 py-2.5 flex justify-between items-center z-50 transition-all shadow-sm">
-      {/* Brand logo */}
-      <div className="hidden lg:flex items-center gap-3 mr-6">
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 bg-gradient-to-tr from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-indigo-200 group-hover:scale-105 transition-transform">
-            C
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-lg tracking-tight text-slate-900 leading-tight">
-              CampusSphere
-            </span>
-            <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider">
-              校园生活一站式平台
-            </span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Nav links */}
-      <div className="flex flex-1 justify-around lg:justify-start lg:gap-1.5 overflow-x-auto no-scrollbar py-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`relative flex flex-col lg:flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition-all ${
-                isActive
-                  ? 'text-indigo-600 bg-indigo-50 lg:bg-indigo-50/80 shadow-xs'
-                  : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
-              }`}
-            >
-              <div className="relative">
-                <item.icon className="w-5 h-5 lg:w-4.5 lg:h-4.5" />
-                {item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full border border-white">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Right controls */}
-      <div className="hidden lg:flex items-center gap-3 ml-4">
-        {isAdminAuthenticated ? (
-          <>
-            <Link
-              to="/admin"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                location.pathname === '/admin'
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-              }`}
-              title="管理控制台"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>管理后台</span>
-            </Link>
-            <button
-              onClick={adminLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all"
-              title="退出管理后台"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>退出</span>
-            </button>
-          </>
-        ) : isAuthenticated && user ? (
-          <>
-            <Link
-              to="/profile"
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-2xl hover:bg-slate-50 border border-slate-200 transition-colors"
-            >
-              <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-100 border border-slate-300 shrink-0">
-                <img
-                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-xs font-bold text-slate-700 max-w-[90px] truncate">
-                {user.nickname || user.username}
+    <>
+      {/* 桌面顶部导航 */}
+      <nav className="hidden lg:flex fixed top-0 left-0 right-0 bg-surface border-b border-hairline px-4 py-2 items-center justify-between z-50">
+        <div className="flex items-center gap-3 mr-6">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 bg-ink rounded-lg flex items-center justify-center text-surface font-black text-lg font-display group-hover:bg-slate transition-colors">
+              C
+            </div>
+            <div className="flex flex-col">
+              <span className="font-display font-bold text-lg tracking-tight text-ink leading-tight">
+                CampusSphere
               </span>
-            </Link>
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-all"
-              title="退出登录"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>退出</span>
-            </button>
-          </>
-        ) : (
-          <Link
-            to="/login"
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>登录 / 注册</span>
+              <span className="mono-label text-steel">校园生活一站式平台</span>
+            </div>
           </Link>
+        </div>
+
+        <div className="flex flex-1 justify-start gap-1 overflow-x-auto no-scrollbar py-1">
+          {desktopNav.map((item) => (
+            <React.Fragment key={item.path}>
+              <NavLink item={item} />
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="hidden lg:flex items-center gap-3 ml-4">
+          {isAdminAuthenticated ? (
+            <>
+              <Link
+                to="/admin"
+                className={`mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors ${
+                  active('/admin') ? 'bg-ink text-surface border-ink' : 'bg-transparent text-slate border-hairline hover:border-ink'
+                }`}
+                title="管理控制台"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>管理后台</span>
+              </Link>
+              <button
+                onClick={adminLogout}
+                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate border border-hairline hover:border-ink transition-colors"
+                title="退出管理后台"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>退出</span>
+              </button>
+            </>
+          ) : isAuthenticated && user ? (
+            <>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-md border border-hairline hover:border-ink transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full overflow-hidden bg-panel border border-hairline shrink-0">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImagePlaceholder variant="avatar" className="w-7 h-7" />
+                  )}
+                </div>
+                <span className="mono-label text-slate max-w-[90px] truncate">
+                  {user.nickname || user.username}
+                </span>
+              </Link>
+              <button
+                onClick={logout}
+                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate border border-hairline hover:border-ink transition-colors"
+                title="退出登录"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>退出</span>
+              </button>
+            </>
+          ) : loading ? (
+            <div className="flex items-center gap-2.5 pl-2 pr-3 py-1.5" aria-hidden="true">
+              <div className="w-7 h-7 rounded-full bg-panel animate-pulse shrink-0"></div>
+              <div className="w-16 h-3 bg-panel animate-pulse rounded"></div>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="mono-label flex items-center gap-1.5 px-4 py-2 rounded-md bg-ink text-surface hover:bg-slate transition-colors"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>登录 / 注册</span>
+            </Link>
+          )}
+        </div>
+      </nav>
+
+      {/* 移动端底部导航：4 主项 + 更多 */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-hairline z-50">
+        {/* 更多抽屉 */}
+        {moreOpen && (
+          <div className="absolute bottom-full left-0 right-0 bg-surface border-t border-hairline shadow-elevate">
+            <div className="grid grid-cols-4 gap-1 p-3">
+              {moreModules.map((m) => {
+                const isActive = active(m.path);
+                return (
+                  <Link
+                    key={m.path}
+                    to={m.path}
+                    className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label transition-colors ${
+                      isActive ? `${m.zone} text-surface` : 'text-steel hover:text-ink'
+                    }`}
+                  >
+                    <m.icon className="w-5 h-5" strokeWidth={1.8} />
+                    <span className="text-[11px]">{m.label}</span>
+                  </Link>
+                );
+              })}
+              {isAdminAuthenticated && (
+                <Link
+                  to="/admin"
+                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label text-steel hover:text-ink"
+                >
+                  <ShieldCheck className="w-5 h-5" strokeWidth={1.8} />
+                  <span className="text-[11px]">管理</span>
+                </Link>
+              )}
+              {isAuthenticated && user && (
+                <button
+                  onClick={logout}
+                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label text-error hover:text-error"
+                >
+                  <LogOut className="w-5 h-5" strokeWidth={1.8} />
+                  <span className="text-[11px]">退出</span>
+                </button>
+              )}
+            </div>
+            <div className="px-3 pb-2">
+              <div className="mono-label text-steel text-center text-[11px] border-t border-hairline pt-2">
+                CampusSphere · 全部功能区
+              </div>
+            </div>
+          </div>
         )}
-      </div>
-    </nav>
+
+        <div className="grid grid-cols-5 items-center px-2 py-1.5">
+          {mobilePrimary.map((item) => (
+            <React.Fragment key={item.path}>
+              <NavLink item={item} />
+            </React.Fragment>
+          ))}
+          <ProfileSlot />
+          <button
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-expanded={moreOpen}
+            aria-label={moreOpen ? '收起更多功能' : '展开更多功能'}
+            className={`flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
+              moreOpen ? 'text-ink' : 'text-steel hover:text-ink'
+            }`}
+          >
+            <MoreHorizontal className="w-5 h-5" strokeWidth={1.8} />
+            <span className="text-[11px]">更多</span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 };

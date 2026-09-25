@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Image as ImageIcon, Sparkles, AlertCircle, CheckCircle2, DollarSign, Upload, Loader2 } from 'lucide-react';
+import { ChevronLeft, Sparkles, Upload, Loader2 } from 'lucide-react';
 import { api, toCents } from '../services/api.ts';
 import { ItemStatus } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
@@ -9,14 +9,6 @@ import { generateItemDescription } from '../services/geminiService.ts';
 
 // 兜底分类：后端 /api/items/categories 不可达时的默认值
 const FALLBACK_CATEGORIES = ['电子产品', '书籍资料', '日用百货', '交通工具', '运动户外', '美妆服饰', '其他'];
-
-const presetImages = [
-  'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600',
-  'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600',
-  'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?w=600',
-  'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600',
-  'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600'
-];
 
 /**
  * Convert an image reference (either a full URL or an object_key) to a
@@ -33,14 +25,14 @@ const getImageSrc = (img: string): string => {
 const MarketPublish: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { success, error, info } = useToast();
+  const { success, error } = useToast();
 
   const [title, setTitle] = useState('');
   const [priceYuan, setPriceYuan] = useState('');
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES);
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
-  const [images, setImages] = useState<string[]>([presetImages[0]]);
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -58,15 +50,6 @@ const MarketPublish: React.FC = () => {
         setCategory((prev) => prev || FALLBACK_CATEGORIES[0]);
       });
   }, []);
-
-  const handleAddImage = (url: string) => {
-    if (!url) return;
-    if (images.includes(url)) {
-      info('该图片已添加');
-      return;
-    }
-    setImages((prev) => [...prev, url]);
-  };
 
   const handleRemoveImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -178,20 +161,24 @@ const MarketPublish: React.FC = () => {
     }
   };
 
+  const inputCls =
+    'w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-slate-500 hover:text-indigo-600 font-semibold text-sm transition-colors"
+        className="flex items-center gap-1 text-steel hover:text-ink mono-label uppercase tracking-mono transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
         取消并返回
       </button>
 
-      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-8">
+      <div className="bg-surface rounded-md p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">发布闲置宝贝</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <div className="mono-label text-zone-market tracking-mono mb-1">MARKET · 发布登机口</div>
+          <h1 className="text-heading-1 text-ink tracking-tight">发布闲置宝贝</h1>
+          <p className="text-body-2 text-steel mt-1">
             转让二手书籍、电子设备、生活好物，支持 AI 一键润色商品介绍
           </p>
         </div>
@@ -199,29 +186,25 @@ const MarketPublish: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              物品标题 <span className="text-rose-500">*</span>
-            </label>
+            <label className="block mono-label text-steel tracking-mono">物品标题 <span className="text-error">*</span></label>
             <input
               type="text"
               required
               placeholder="例如: 99新 iPad Air 5 64G 蓝色 (带原装包装盒及笔)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              className={inputCls}
             />
           </div>
 
           {/* Category & Price */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                分类选择 <span className="text-rose-500">*</span>
-              </label>
+              <label className="block mono-label text-steel tracking-mono">分类选择 <span className="text-error">*</span></label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none"
+                className="w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink outline-none"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -230,11 +213,9 @@ const MarketPublish: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                转让价格 (元) <span className="text-rose-500">*</span>
-              </label>
+              <label className="block mono-label text-steel tracking-mono">转让价格 (元) <span className="text-error">*</span></label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">¥</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-steel font-mono font-bold">¥</span>
                 <input
                   type="number"
                   step="0.01"
@@ -243,7 +224,7 @@ const MarketPublish: React.FC = () => {
                   placeholder="0.00"
                   value={priceYuan}
                   onChange={(e) => setPriceYuan(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-indigo-600 focus:bg-white focus:border-indigo-600 outline-none"
+                  className={inputCls + ' pl-9 font-mono text-zone-market tabular-nums'}
                 />
               </div>
             </div>
@@ -251,18 +232,16 @@ const MarketPublish: React.FC = () => {
 
           {/* Images */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              物品图片 (已选 {images.length} 张) <span className="text-rose-500">*</span>
-            </label>
+            <label className="block mono-label text-steel tracking-mono">物品图片 (已选 {images.length} 张) <span className="text-error">*</span></label>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {images.map((img, idx) => (
-                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 group">
+                <div key={idx} className="relative aspect-square rounded-sm overflow-hidden border border-hairline group">
                   <img src={getImageSrc(img)} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(idx)}
-                    className="absolute top-2 right-2 p-1 bg-black/60 hover:bg-rose-600 text-white rounded-lg text-xs transition-colors"
+                    className="absolute top-2 right-2 p-1 bg-ink/70 hover:bg-error text-surface rounded-sm text-xs transition-colors"
                   >
                     ✕
                   </button>
@@ -270,17 +249,17 @@ const MarketPublish: React.FC = () => {
               ))}
 
               {/* File upload tile */}
-              <label className={`aspect-square rounded-2xl border-2 border-dashed border-slate-300 hover:border-indigo-500 flex flex-col items-center justify-center cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              <label className={`aspect-square rounded-sm border-2 border-dashed border-hairline hover:border-ink flex flex-col items-center justify-center cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
                 {uploading ? (
                   <>
-                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin mb-1" />
-                    <span className="text-[10px] text-slate-500 font-medium">上传中...</span>
+                    <Loader2 className="w-6 h-6 text-ink animate-spin mb-1" />
+                    <span className="text-caption text-steel">上传中...</span>
                   </>
                 ) : (
                   <>
-                    <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                    <span className="text-[10px] text-slate-500 font-medium">上传实拍图</span>
-                    <span className="text-[9px] text-slate-400">支持多选 · ≤10MB</span>
+                    <Upload className="w-6 h-6 text-steel mb-1" />
+                    <span className="text-caption text-steel mono-label tracking-mono">上传实拍图</span>
+                    <span className="text-[11px] text-steel">支持多选 · ≤10MB</span>
                   </>
                 )}
                 <input
@@ -297,39 +276,22 @@ const MarketPublish: React.FC = () => {
                 />
               </label>
             </div>
-
-            {/* Quick preset pictures selector */}
-            <div className="space-y-1.5 pt-2">
-              <span className="text-[11px] text-slate-400 font-semibold">快速选择示例校园图片库:</span>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {presetImages.map((p, i) => (
-                  <button
-                    type="button"
-                    key={i}
-                    onClick={() => handleAddImage(p)}
-                    className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 shrink-0 hover:border-indigo-600 hover:scale-105 transition-all"
-                  >
-                    <img src={p} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Description + AI Generator button */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                详细描述 (成色、购买时间、交易地点等) <span className="text-rose-500">*</span>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block mono-label text-steel tracking-mono">
+                详细描述 (成色、购买时间、交易地点等) <span className="text-error">*</span>
               </label>
 
               <button
                 type="button"
                 onClick={handleGenerateAIDescription}
                 disabled={aiGenerating}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel hover:bg-slate/10 text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono transition-colors whitespace-nowrap"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <Sparkles className="w-3.5 h-3.5 text-ink" />
                 {aiGenerating ? 'AI 正在构思...' : 'AI 智能润色文案'}
               </button>
             </div>
@@ -340,14 +302,14 @@ const MarketPublish: React.FC = () => {
               placeholder="详细描述物品的规格、使用频次、有无磨损、是否附带配件，以及期望在校内哪个区域面交..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm leading-relaxed focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              className="w-full p-4 bg-surface border border-hairline rounded-sm text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-base shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? '正在发布...' : '确认发布到市集'}
           </button>

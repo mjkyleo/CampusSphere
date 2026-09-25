@@ -142,6 +142,38 @@ def _pids_on_port(port: int) -> set[int]:
     return pids
 
 
+def _load_dotenv_overrides() -> dict[str, str]:
+    """构造后端子进程环境：以当前环境为底，再用 ``backend/.env`` 覆盖同名键。
+
+    为什么要覆盖：pydantic-settings 的优先级是「系统环境变量 > .env 文件」，
+    开发者机器上若存在同名系统变量（实测有工具注入 ``DEBUG=release``），
+    项目自己的 .env 会被悄悄顶掉，启动即 ``ValidationError``。
+    让 .env 的显式配置胜出，才符合"项目配置优先"的直觉。
+    """
+    env = dict(os.environ)
+    dotenv = BACKEND_DIR / ".env"
+    if not dotenv.is_file():
+        return env
+    try:
+        for raw in dotenv.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                # 引号包裹的值原样保留（密码里可能含 # 等字符，如 SMTP_PASS="a#b"）
+                value = value[1:-1]
+            else:
+                value = value.split("#", 1)[0].strip()
+            if key:
+                env[key] = value
+    except OSError as exc:  # noqa: BLE001 - 读不到就退回继承环境，不阻断启动
+        _warn(f"读取 {dotenv} 失败，回退继承当前环境：{exc}")
+    return env
+
+
 def _pid_alive(pid: int) -> bool:
     """跨平台判断进程是否仍在运行。
 
@@ -208,6 +240,18 @@ def _python_executable() -> str:
     path_py = shutil.which("python") or shutil.which("python3")
     if path_py:
         candidates.append(path_py)
+
+    if IS_WINDOWS:
+        # PATH 里的 python 常是 Microsoft Store 的桩程序（无项目依赖），
+        # 补扫用户级安装目录，避免每次都要手敲完整路径。
+        local_appdata = os.environ.get("LOCALAPPDATA", "")
+        if local_appdata:
+            python_home = Path(local_appdata) / "Programs" / "Python"
+            candidates += [
+                str(p / "python.exe")
+                for p in sorted(python_home.glob("Python3*"), reverse=True)
+                if (p / "python.exe").is_file()
+            ]
 
     for cand in candidates:
         if not cand or not Path(cand).is_file():
@@ -331,6 +375,9 @@ def _spawn(service: Service) -> int | None:
         "stdout": handle,
         "stderr": subprocess.STDOUT,
     }
+    if service.name == "backend":
+        # 让 backend/.env 的配置优先于系统环境变量（详见 _load_dotenv_overrides）
+        popen_kwargs["env"] = _load_dotenv_overrides()
     if IS_WINDOWS:
         popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
