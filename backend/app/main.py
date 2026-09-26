@@ -67,6 +67,14 @@ async def lifespan(app: FastAPI):
             pass
         # 启动配置热更新监听（Redis 不可用时内部优雅降级，不影响启动）
         await start_config_reloader()
+        # 预热对象存储连接（未配置 MinIO 时为空操作）：避免首个上传/签名请求
+        # 在事件循环上付出同步建连（bucket_exists）的阻塞
+        from app.core.storage import storage_client
+
+        try:
+            await storage_client.warmup()
+        except Exception as exc:
+            _logger.warning("storage_warmup_failed", error=str(exc))
         yield
     finally:
         # 关闭期资源释放顺序：后台任务 → 外部连接 → 数据库连接池。

@@ -644,7 +644,7 @@ async def _collect_image_refs(db: AsyncSession) -> list[str]:
 
 async def list_orphan_files(db: AsyncSession) -> dict:
     """扫描存储中未被任何业务记录引用的孤儿文件（只列出，不删除）。"""
-    keys = storage_client.list_keys()
+    keys = await storage_client.list_keys()
     if not keys:
         return {"files": [], "total": 0}
     refs = await _collect_image_refs(db)
@@ -663,7 +663,7 @@ async def cleanup_orphan_files(db: AsyncSession) -> dict:
     removed = 0
     for f in data["files"]:
         try:
-            storage_client.remove_key(f["key"])
+            await storage_client.remove_key(f["key"])
             removed += 1
         except Exception as exc:
             _logger.warning("orphan_remove_failed", key=f["key"], error=str(exc))

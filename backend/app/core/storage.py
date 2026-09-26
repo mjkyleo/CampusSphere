@@ -141,38 +141,57 @@ class StorageClient:
             )
         return f"/api/files/raw?key={object_key}"
 
-    def list_keys(self) -> list[dict]:
+    async def warmup(self) -> None:
+        """预热 MinIO 连接（lifespan 启动期调用，线程池执行不阻塞事件循环）。
+
+        ``_ensure_minio`` 首次调用会做同步网络 IO（``bucket_exists``）；
+        若不在启动期预热，冷启动后的**第一个**上传/签名请求会在事件循环上
+        承担这次阻塞。未配置 MinIO 时本方法为空操作。
+        """
+        await run_in_threadpool(self._ensure_minio)
+
+    async def list_keys(self) -> list[dict]:
         """枚举存储中的全部对象，返回 ``[{key, size}]``。
 
         本地降级模式下文件名约定为 ``object_key.replace("/", "_")``
         （即 ``prefix_uuid.ext``），这里按第一个 ``_`` 还原 object_key。
+        同步 MinIO/文件 IO 投入线程池，避免阻塞事件循环。
         """
         self._ensure_minio()
         if self._client is not None:
-            out = []
-            for obj in self._client.list_objects(self.bucket, recursive=True):
-                out.append({"key": obj.object_name, "size": int(obj.size or 0)})
-            return out
-        self._ensure_local()
-        out = []
-        for fn in sorted(os.listdir(self.local_root)):
-            path = os.path.join(self.local_root, fn)
-            if not os.path.isfile(path) or "_" not in fn:
-                continue
-            prefix, rest = fn.split("_", 1)
-            out.append({"key": f"{prefix}/{rest}", "size": os.path.getsize(path)})
-        return out
+            def _list_remote() -> list[dict]:
+                return [
+                    {"key": obj.object_name, "size": int(obj.size or 0)}
+                    for obj in self._client.list_objects(self.bucket, recursive=True)
+                ]
 
-    def remove_key(self, object_key: str) -> None:
-        """删除指定对象；对象不存在时静默成功（幂等）。"""
+            return await run_in_threadpool(_list_remote)
+        self._ensure_local()
+
+        def _list_local() -> list[dict]:
+            out: list[dict] = []
+            for fn in sorted(os.listdir(self.local_root)):
+                path = os.path.join(self.local_root, fn)
+                if not os.path.isfile(path) or "_" not in fn:
+                    continue
+                prefix, rest = fn.split("_", 1)
+                out.append({"key": f"{prefix}/{rest}", "size": os.path.getsize(path)})
+            return out
+
+        return await run_in_threadpool(_list_local)
+
+    async def remove_key(self, object_key: str) -> None:
+        """删除指定对象；对象不存在时静默成功（幂等）。同步 IO 投入线程池。"""
         self._ensure_minio()
         if self._client is not None:
-            self._client.remove_object(self.bucket, object_key)
+            await run_in_threadpool(
+                self._client.remove_object, self.bucket, object_key
+            )
             return
         self._ensure_local()
         path = self.local_path_for(object_key)
-        if os.path.isfile(path):
-            os.remove(path)
+        if path.is_file():
+            await run_in_threadpool(path.unlink)
 
 # 全局单例（导入即创建，但不在导入时连接网络）
 storage_client = StorageClient()
