@@ -210,10 +210,10 @@ def lifecycle_env(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = _override_get_db
 
     # 无 Redis 时让 WS 广播监听安静退出，避免后台任务抛未被检索的异常干扰断言
-    async def _no_subscribe(_channel: str) -> None:  # 下划线参数：匹配签名但无需使用
+    async def _no_psubscribe(_pattern: str) -> None:  # 下划线参数：匹配签名但无需使用
         return None
 
-    monkeypatch.setattr("app.modules.message.ws.redis_subscribe", _no_subscribe)
+    monkeypatch.setattr("app.modules.message.ws.redis_psubscribe", _no_psubscribe)
 
     yield SimpleNamespace(app=app, engine=engine, factory=factory, dispose_spy=spy)
 

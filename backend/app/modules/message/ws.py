@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -18,7 +19,7 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.core.exceptions import BizError
 from app.core.logging import get_logger
-from app.core.redis import redis_publish, redis_subscribe
+from app.core.redis import redis_publish, redis_psubscribe
 from app.core.security import decode_token, is_token_revoked
 from app.modules.message.models import Message, Participant
 from app.modules.message.seq import seq_store
@@ -27,6 +28,11 @@ from app.modules.message.service import send_message
 _logger = get_logger("message.ws")
 
 _WS_CHANNEL = "conv"
+
+# 本进程实例标识：随消息广播给其他实例，监听器据此跳过自己发布的消息，
+# 否则发布实例的本地接收者会被「本地直发 + 自身监听」重复投递。
+# 多 worker 部署时每个 worker 进程各自持有唯一值，恰好符合语义。
+_INSTANCE_ID = uuid.uuid4().hex
 
 
 class ConnectionManager:
@@ -57,8 +63,14 @@ class ConnectionManager:
                 self.disconnect(user_id, ws)
 
     async def publish(self, conversation_id: str, payload: dict) -> None:
-        """本地直发 + Redis 广播（多实例）。"""
-        # 本地直发：直接推送给本实例连接
+        """本地直发 + Redis 广播（多实例）。
+
+        投递收敛为**单一路径**：本实例连接只走本地直发；Redis 广播供其他
+        实例的监听器消费。广播体携带 ``origin``（发布实例标识）与
+        ``recipients``（全体参与者，含发送者——多端登录时发送者的其他
+        设备同样要收到回显），监听器跳过自己实例发布的消息，防止
+        「本地直发 + 自身监听」对本地用户重复投递。
+        """
         async with SessionLocal() as db:
             parts = (await db.scalars(
                 select(Participant.user_id).where(
@@ -66,9 +78,12 @@ class ConnectionManager:
                 )
             )).all()
         str_parts = [str(p) for p in parts]
+        # 本地直发：直接推送给本实例连接（发送者本人也收到，与在线多端回显一致）
         for uid in str_parts:
             await self.send_to_user(uid, payload)
-        # 跨实例广播
+        # 跨实例广播：recipients 为权威投递名单，origin 供监听器去重
+        payload["recipients"] = str_parts
+        payload["origin"] = _INSTANCE_ID
         await redis_publish(f"{_WS_CHANNEL}:{conversation_id}", json.dumps(payload, default=str))
 
     async def start_listener(self) -> None:
@@ -95,17 +110,21 @@ class ConnectionManager:
             _logger.warning("ws_listener_stop_error", error=str(exc))
 
     async def _redis_listen(self) -> None:
-        pubsub = await redis_subscribe(f"{_WS_CHANNEL}:*")
+        pubsub = await redis_psubscribe(f"{_WS_CHANNEL}:*")
         if pubsub is None:
             return
         _logger.info("ws_redis_listener_started")
         try:
             async for message in pubsub.listen():
-                if message.get("type") != "message":
+                # psubscribe 的数据消息类型是 pmessage（message 仅精确订阅产生）
+                if message.get("type") != "pmessage":
                     continue
                 try:
                     payload = json.loads(message["data"])
                 except Exception:
+                    continue
+                if payload.get("origin") == _INSTANCE_ID:
+                    # 自己实例发布的消息已由 publish() 本地直发，跳过防重复
                     continue
                 recipients = payload.get("recipients", [])
                 for uid in recipients:
@@ -278,11 +297,6 @@ async def websocket_endpoint(
                             type=mtype,
                             content=content,
                         )
-                        parts = (await db.scalars(
-                            select(Participant.user_id).where(
-                                Participant.conversation_id == conv_id
-                            )
-                        )).all()
                 except BizError as exc:
                     await websocket.send_json(
                         {
@@ -297,8 +311,8 @@ async def websocket_endpoint(
                 # 这样在线推送与离线补发携带的是**同一个** seq，游标才能对齐。
                 seq = await seq_store.append(conv_id, payload)
                 payload["seq"] = seq
-                # parts 为 UUID 对象，user_id 为 str，统一转 str 后再比较与组装
-                payload["recipients"] = [str(p) for p in parts if str(p) != user_id]
+                # recipients（全体参与者，含发送者多端回显）由 publish() 统一
+                # 查询并写入广播体，此处不再重复查库。
                 await manager.publish(conv_id, payload)
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
