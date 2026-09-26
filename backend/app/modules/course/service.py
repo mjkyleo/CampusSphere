@@ -54,6 +54,14 @@ async def get_course(db: AsyncSession, course_id: str) -> Course:
 
 
 async def add_review(db: AsyncSession, course: Course, user: User, data: CourseReviewCreate) -> CourseReview:
+    # 同一用户对同一课程仅允许一条评价（与食堂评价同规则，防脚本刷评）
+    dup = await db.scalar(
+        select(CourseReview).where(
+            CourseReview.course_id == str(course.id), CourseReview.user_id == str(user.id)
+        )
+    )
+    if dup:
+        raise BizError(ErrorCode.CONFLICT, "您已评价过该课程")
     review = CourseReview(
         course_id=str(course.id), user_id=str(user.id),
         rating=data.rating, content=data.content,

@@ -152,6 +152,15 @@ async def get_dish(db: AsyncSession, dish_id: str) -> Dish:
 
 
 async def add_review(db: AsyncSession, dish: Dish, user: User, data: CanteenReviewCreate) -> CanteenReview:
+    # 同一用户对同一菜品仅允许一条评价：接口可被脚本反复调用，无限制时
+    # 一条菜品的评价列表会被单用户刷屏（重复提交转 409）
+    dup = await db.scalar(
+        select(CanteenReview).where(
+            CanteenReview.dish_id == str(dish.id), CanteenReview.user_id == str(user.id)
+        )
+    )
+    if dup:
+        raise BizError(ErrorCode.CONFLICT, "您已评价过该菜品")
     r = CanteenReview(
         dish_id=str(dish.id), user_id=str(user.id),
         rating=data.rating, content=data.content,
