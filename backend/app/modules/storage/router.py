@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
@@ -78,19 +77,37 @@ async def upload(
             ApiResponse(code=40000, message="图片大小不能超过 10MB", data=None).model_dump(),
             status_code=400,
         )
-    await storage_client.upload_bytes(key, data, content_type=content_type)
+    try:
+        await storage_client.upload_bytes(key, data, content_type=content_type)
+    except ValueError:
+        # key 非法（穿越/越界/超长）：local_path_for 校验失败
+        return JSONResponse(
+            ApiResponse(code=40000, message="非法的文件标识", data=None).model_dump(), status_code=400
+        )
     download_url = await storage_client.presigned_download_url(key)
     return ApiResponse.ok(data={"object_key": key, "url": download_url})
 
 
 @router.get("/raw")
 async def raw(key: str = Query(...)):
-    """本地降级模式下载文件。"""
+    """本地降级模式下载文件。
+
+    信任模型与签名 URL 一致：object_key 内含 128 位随机 uuid，充当能力
+    凭证，故不做登录校验（前端 ``<img src>`` 场景也无法携带 Header）。
+    但 key 必须能映射回 uploads 根目录之内的路径 —— 路径折叠与越界校验
+    统一走 :meth:`StorageClient.local_path_for`（历史版本在此存在 Windows
+    反斜杠穿越，可读任意文件）。
+    """
     if storage_client.enabled:
         return JSONResponse(
             ApiResponse(code=40000, message="使用签名 URL 下载", data=None).model_dump(), status_code=400
         )
-    local_path = Path(storage_client.local_root) / key.replace("/", "_")
+    try:
+        local_path = storage_client.local_path_for(key)
+    except ValueError:
+        return JSONResponse(
+            ApiResponse(code=40000, message="非法的文件标识", data=None).model_dump(), status_code=400
+        )
     # 同步文件 IO 会阻塞事件循环，投入线程池执行
     if not await run_in_threadpool(local_path.is_file):
         return JSONResponse(

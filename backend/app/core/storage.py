@@ -77,6 +77,29 @@ class StorageClient:
         ext = os.path.splitext(filename)[1]
         return f"{prefix}/{uuid.uuid4().hex}{ext}"
 
+    def local_path_for(self, object_key: str) -> Path:
+        """object_key → 本地降级模式的落盘路径（穿越安全）。
+
+        上传（``upload_bytes``）与下载（``/api/files/raw``）必须共用本映射：
+        任意一方单独放宽都会造成读写的不是同一个路径。分隔符（``/``、``\\``）
+        与 ``:``（Windows 盘符 / NTFS 数据流）一律折叠为下划线，最终
+        ``resolve()`` 后校验必须仍位于 local_root 之内 —— 此前只替换了 ``/``，
+        Windows 下 ``..\\..\\`` 与绝对路径（``Path`` 拼接绝对路径会整体替换
+        基准目录）都能逃出 uploads 目录，构成任意文件读写。
+
+        :raises ValueError: key 为空、超长或折叠后仍越界（调用方应转为 4xx）。
+        """
+        if not object_key or len(object_key) > 512:
+            raise ValueError("invalid object key")
+        root = Path(self.local_root).resolve()
+        name = (
+            object_key.replace("\\", "_").replace("/", "_").replace(":", "_")
+        )
+        candidate = (root / name).resolve()
+        if not candidate.is_relative_to(root):
+            raise ValueError("object key escapes local root")
+        return candidate
+
     async def upload_bytes(
         self, object_key: str, data: bytes, content_type: str = "application/octet-stream"
     ) -> str:
@@ -96,7 +119,7 @@ class StorageClient:
         else:
             self._ensure_local()
             # 同步文件写会阻塞事件循环，与上面 MinIO 分支一致投入线程池
-            local_path = Path(self.local_root) / object_key.replace("/", "_")
+            local_path = await run_in_threadpool(self.local_path_for, object_key)
             await run_in_threadpool(local_path.write_bytes, data)
         return object_key
 
@@ -147,7 +170,7 @@ class StorageClient:
             self._client.remove_object(self.bucket, object_key)
             return
         self._ensure_local()
-        path = os.path.join(self.local_root, object_key.replace("/", "_"))
+        path = self.local_path_for(object_key)
         if os.path.isfile(path):
             os.remove(path)
 
