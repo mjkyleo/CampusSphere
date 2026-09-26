@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.common.enums import ItemStatus, TradeStatus
-from app.core.cache import NULL_SENTINEL, cache_get_json, cache_set_json, invalidate_namespace
+from app.core.cache import (
+    NULL_SENTINEL,
+    cache_get_json_with_version,
+    cache_set_json,
+    invalidate_namespace,
+)
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
@@ -99,7 +104,7 @@ async def list_items(
     page_size: int = 20,
 ) -> dict:
     # 热点列表：先查缓存（防穿透/雪崩策略见 app/core/cache.py）
-    cached = await cache_get_json(
+    cache_version, cached = await cache_get_json_with_version(
         "items",
         keyword=keyword,
         category=category,
@@ -153,9 +158,12 @@ async def list_items(
         for i in rows
     ]
     result = {"items": items, "total": total or 0, "page": page, "page_size": page_size}
+    # version 传读取时捕获的版本号：回源期间缓存被失效的话，写进旧版本键
+    # 的数据天然不可见（TOCTOU，见 app/core/cache.py）
     await cache_set_json(
         "items",
         result,
+        version=cache_version,
         keyword=keyword,
         category=category,
         status=status,
