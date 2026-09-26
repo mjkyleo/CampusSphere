@@ -216,6 +216,31 @@ async def unban_user(db: AsyncSession, user_id: str) -> User:
 _EMAIL_REGISTER_KEY = "auth.email_register"
 
 
+async def get_app_config(db: AsyncSession, key: str, default: dict) -> dict:
+    """读取 AppConfig 并按 default 的键做合并（DB 值优先，缺失字段回退默认）。
+
+    统一「后台可动态配置」读写链路的原语：此前每个配置项各自手写一遍
+    「查 key → 无则默认 → 有则逐键合并」的 8 行样板（email_register /
+    item_review / item_categories / course_departments / ai.feature 等
+    共 9 处），样板一多就出现微妙的语义分叉。需要"整值替换 + 空值回退"
+    语义的配置（如分类列表）在调用方自行处理。
+    """
+    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
+    if not cfg:
+        return default
+    return {**default, **{k: cfg.value.get(k, v) for k, v in default.items()}}
+
+
+async def upsert_app_config(db: AsyncSession, key: str, payload: dict) -> None:
+    """写入/更新 AppConfig（存在则覆盖，不存在则新建），提交并实时生效。"""
+    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
+    if cfg:
+        cfg.value = payload
+    else:
+        db.add(AppConfig(key=key, value=payload))
+    await db.commit()
+
+
 async def get_email_register_config(db: AsyncSession) -> dict:
     """读取邮箱注册规则：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = (settings.auth or {}).get("email_register", {}) or {}
@@ -224,31 +249,17 @@ async def get_email_register_config(db: AsyncSession) -> dict:
         "domains": [str(d) for d in (default.get("domains") or [])],
         "pattern": str(default.get("pattern") or ""),
     }
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _EMAIL_REGISTER_KEY)
-    )
-    if not cfg:
-        return default
-    merged = dict(default)
-    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
-    return merged
+    return await get_app_config(db, _EMAIL_REGISTER_KEY, default)
 
 
 async def update_email_register_config(db: AsyncSession, data: dict) -> dict:
     """后台更新邮箱注册规则（写 DB，实时生效）。"""
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _EMAIL_REGISTER_KEY)
-    )
     payload = {
         "enabled": bool(data.get("enabled", True)),
         "domains": [str(d) for d in (data.get("domains") or [])],
         "pattern": str(data.get("pattern") or ""),
     }
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_EMAIL_REGISTER_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _EMAIL_REGISTER_KEY, payload)
     _logger.info("admin_update_email_register", config=payload)
     return payload
 
@@ -258,28 +269,13 @@ _ITEM_REVIEW_KEY = "item.review"
 async def get_item_review_config(db: AsyncSession) -> dict:
     """读取物品发布审核开关：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = (settings.items or {}).get("review", {}) or {}
-    default = {"enabled": bool(default.get("enabled", False))}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_REVIEW_KEY)
-    )
-    if not cfg:
-        return default
-    merged = dict(default)
-    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
-    return merged
+    return await get_app_config(db, _ITEM_REVIEW_KEY, {"enabled": bool(default.get("enabled", False))})
 
 
 async def update_item_review_config(db: AsyncSession, data: dict) -> dict:
     """后台更新发布审核开关（写 DB，实时生效）。"""
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_REVIEW_KEY)
-    )
     payload = {"enabled": bool(data.get("enabled", False))}
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_ITEM_REVIEW_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _ITEM_REVIEW_KEY, payload)
     _logger.info("admin_update_item_review", config=payload)
     return payload
 
@@ -292,12 +288,9 @@ _DEFAULT_ITEM_CATEGORIES = ["电子产品", "书籍资料", "日用百货", "交
 async def get_item_categories(db: AsyncSession) -> list[str]:
     """读取二手交易分类：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = [str(c) for c in ((settings.items or {}).get("categories") or _DEFAULT_ITEM_CATEGORIES)]
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
-    )
-    if not cfg:
-        return default
-    return [str(c) for c in (cfg.value.get("categories") or [])] or default
+    merged = await get_app_config(db, _ITEM_CATEGORIES_KEY, {"categories": default})
+    # 分类是"整值替换"语义：DB 存了空列表视为未配置，回退默认
+    return [str(c) for c in merged["categories"]] or default
 
 _CONFIG_TAG_MAX_LEN = 20
 _CONFIG_TAG_MAX_COUNT = 30
@@ -325,15 +318,7 @@ def _clean_config_tags(tags: list[str], name: str, max_len: int) -> list[str]:
 async def update_item_categories(db: AsyncSession, categories: list[str]) -> list[str]:
     """后台更新二手交易分类（写 DB，实时生效）。"""
     cleaned = _clean_config_tags(categories, "分类", _CONFIG_TAG_MAX_LEN)
-    payload = {"categories": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_ITEM_CATEGORIES_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _ITEM_CATEGORIES_KEY, {"categories": cleaned})
     _logger.info("admin_update_item_categories", categories=cleaned)
     return cleaned
 
@@ -348,26 +333,14 @@ _DEFAULT_COURSE_DEPARTMENTS = [
 async def get_course_departments(db: AsyncSession) -> list[str]:
     """读取课程院系列表：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = [str(d) for d in ((settings.courses or {}).get("departments") or _DEFAULT_COURSE_DEPARTMENTS)]
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
-    )
-    if not cfg:
-        return default
-    return [str(d) for d in (cfg.value.get("departments") or [])] or default
+    merged = await get_app_config(db, _COURSE_DEPARTMENTS_KEY, {"departments": default})
+    return [str(d) for d in merged["departments"]] or default
 
 
 async def update_course_departments(db: AsyncSession, departments: list[str]) -> list[str]:
     """后台更新课程院系列表（写 DB，实时生效）。"""
     cleaned = _clean_config_tags(departments, "院系", 30)
-    payload = {"departments": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_COURSE_DEPARTMENTS_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _COURSE_DEPARTMENTS_KEY, {"departments": cleaned})
     _logger.info("admin_update_course_departments", departments=cleaned)
     return cleaned
 
@@ -407,23 +380,15 @@ async def _get_config_categories(db: AsyncSession, scope: str) -> list[str]:
     """读取某个业务域的分类列表：DB（后台配置）优先，缺省回退 school.yaml。"""
     key, section, field, fallback, _name, _maxlen = _CATEGORY_SPECS[scope]
     default = [str(c) for c in ((getattr(settings, section, None) or {}).get(field) or fallback)]
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
-    if not cfg:
-        return default
-    return [str(c) for c in (cfg.value.get(field) or [])] or default
+    merged = await get_app_config(db, key, {field: default})
+    return [str(c) for c in merged[field]] or default
 
 
 async def _update_config_categories(db: AsyncSession, scope: str, values: list[str]) -> list[str]:
     """后台更新某个业务域的分类列表（写 DB，实时生效）。"""
     key, _section, field, _fallback, name, maxlen = _CATEGORY_SPECS[scope]
     cleaned = _clean_config_tags(values, name, maxlen)
-    payload = {field: cleaned}
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=key, value=payload))
-    await db.commit()
+    await upsert_app_config(db, key, {field: cleaned})
     _logger.info(f"admin_update_{scope}_categories", categories=cleaned)
     return cleaned
 
@@ -544,15 +509,7 @@ async def get_course_department_groups(db: AsyncSession) -> list[dict]:
 async def update_course_department_groups(db: AsyncSession, groups: list[dict]) -> list[dict]:
     """后台更新课程院系分组（写 DB，实时生效）。"""
     cleaned = _clean_department_groups(groups)
-    payload = {"groups": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENT_GROUPS_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_COURSE_DEPARTMENT_GROUPS_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _COURSE_DEPARTMENT_GROUPS_KEY, {"groups": cleaned})
     _logger.info("admin_update_course_department_groups", groups=len(cleaned))
     return cleaned
 
@@ -659,12 +616,7 @@ async def get_canteen_config(db: AsyncSession) -> dict:
 async def update_canteen_config(db: AsyncSession, data: dict) -> dict:
     """后台更新食堂维度配置（写 DB，实时生效）。"""
     payload = _clean_canteen_config(data)
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == _CANTEEN_CONFIG_KEY))
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_CANTEEN_CONFIG_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _CANTEEN_CONFIG_KEY, payload)
     _logger.info("admin_update_canteen_config", campuses=len(payload["campuses"]))
     return payload
 

@@ -9,6 +9,10 @@ from pydantic import BaseModel
 # EmailRegisterConfig 为**有意的再导出**：admin.router 从本模块导入它，
 # 而实现已上移到 app.common.schemas（auth 与 admin 共用，避免 auth 顶层依赖 admin）。
 from app.common.schemas import EmailRegisterConfig  # noqa: F401
+# AiFeatureConfig 为**有意的再导出**：规范定义在 ai 模块（领域归属），
+# admin 只是后台编辑入口。此前两处各定义过一份，字段默认值一旦单边漂移，
+# 后台写入的结构与 AI 状态端点读取的结构就会悄悄分叉。
+from app.modules.ai.schemas import AiFeatureConfig  # noqa: F401
 
 
 class AdminLoginRequest(BaseModel):
@@ -118,17 +122,6 @@ class CanteenConfig(BaseModel):
     types: list[str] = []
     semesters: list[str] = []
     current_semester: str = ""
-
-
-class AiFeatureConfig(BaseModel):
-    """AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。
-
-    个人开发者无大模型 API 额度时保持关闭，前端隐藏所有 AI 入口；
-    额度到位后管理员在后台一键开启即可上线。
-    """
-
-    enabled: bool = False
-    model: str = "gemini-2.0-flash"
 
 
 class ItemReviewRejectRequest(BaseModel):

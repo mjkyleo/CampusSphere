@@ -17,13 +17,11 @@ import os
 from typing import Any
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
-from app.modules.admin.models import AppConfig
 
 _logger = get_logger("ai.service")
 
@@ -61,32 +59,23 @@ def _default_ai_config() -> dict:
 
 async def get_ai_feature_config(db: AsyncSession) -> dict:
     """读取 AI 功能开关：DB（后台配置）优先，缺省回退 school.yaml。"""
-    default = _default_ai_config()
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _AI_FEATURE_KEY)
-    )
-    if not cfg:
-        return default
-    merged = dict(default)
-    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
-    return merged
+    # 函数级导入：与 auth.service 复用 admin.service 的 AppConfig 通用原语，
+    # 避免模块加载期建立 ai → admin 的顶层依赖
+    from app.modules.admin.service import get_app_config
+
+    return await get_app_config(db, _AI_FEATURE_KEY, _default_ai_config())
 
 
 async def update_ai_feature_config(db: AsyncSession, data: dict) -> dict:
     """后台更新 AI 功能开关（写 DB，实时生效）。"""
+    from app.modules.admin.service import upsert_app_config
+
     model = str(data.get("model") or _default_ai_config()["model"]).strip()
     payload = {
         "enabled": bool(data.get("enabled", False)),
         "model": model or "gemini-2.0-flash",
     }
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _AI_FEATURE_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_AI_FEATURE_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _AI_FEATURE_KEY, payload)
     _logger.info("admin_update_ai_feature", config=payload)
     return payload
 
