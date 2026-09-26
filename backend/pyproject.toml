@@ -10,7 +10,8 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0.9",
     # 数据层
-    "sqlalchemy>=2.0.30",
+    # asyncio 扩展依赖 greenlet（Windows/干净容器上不会随主包装上，缺了直接 ImportError）
+    "sqlalchemy[asyncio]>=2.0.30",
     "asyncpg>=0.29",
     "psycopg2-binary>=2.9",
     "alembic>=1.13",
