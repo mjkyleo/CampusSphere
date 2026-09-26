@@ -160,12 +160,32 @@ async def redis_publish(channel: str, message: str) -> int:
 
 
 async def redis_subscribe(channel: str):
-    """订阅频道，返回 pubsub 对象（无 Redis 时返回 None）。"""
+    """订阅频道，返回 pubsub 对象（无 Redis 时返回 None）。
+
+    注意：本函数只匹配**字面量**频道名。传入 ``"conv:*"`` 这类通配串
+    订阅的是一个恰好叫 ``conv:*`` 的具体频道，永远不会命中
+    ``conv:<id>`` 的发布 —— 通配匹配必须用 :func:`redis_psubscribe`。
+    """
     client = await get_redis()
     if client is None:
         return None
     pubsub = client.pubsub()
     await pubsub.subscribe(channel)
+    return pubsub
+
+
+async def redis_psubscribe(pattern: str):
+    """ glob 模式订阅频道（``psubscribe``），无 Redis 时返回 None。
+
+    与 :func:`redis_subscribe` 配对使用：精确频道走 subscribe，
+    ``"conv:*"`` 这类模式走本函数。模式订阅收到的消息类型是
+    ``pmessage``（而非 ``message``），消费方过滤时必须一并放行。
+    """
+    client = await get_redis()
+    if client is None:
+        return None
+    pubsub = client.pubsub()
+    await pubsub.psubscribe(pattern)
     return pubsub
 
 
