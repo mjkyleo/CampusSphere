@@ -110,46 +110,73 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # SQLite 轻量迁移：create_all 不会给已存在的表补列，这里对已知表执行 ALTER。
-# key 为表名，value 为 (列名, 列 DDL) 列表。
-_SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
-    "user_profiles": [
-        ("campus", "VARCHAR(64) DEFAULT ''"),
-        ("contact_wx", "VARCHAR(64) DEFAULT ''"),
-    ],
-    "users": [
-        ("is_admin", "BOOLEAN DEFAULT 0"),
-    ],
-    "courses": [
-        ("department", "VARCHAR(64) DEFAULT ''"),
-    ],
-    "canteens": [
-        ("image", "VARCHAR(512) DEFAULT ''"),
-    ],
-    "stalls": [
-        ("image", "VARCHAR(512) DEFAULT ''"),
-    ],
-    "dishes": [
-        ("image", "VARCHAR(512) DEFAULT ''"),
-    ],
+# 结构为 (表名, [(列名, 列 DDL), ...]) 的**列表**而非 dict：历史版本曾因
+# dict 字面量里 "canteens" 键写了两次，前一条迁移被静默覆盖丢弃（Python
+# 保留后值），老库永远补不上列。列表允许同表多次出现，按序执行且幂等
+# （已存在的列自动跳过），从结构上杜绝这类 bug。
+_SQLITE_COLUMN_MIGRATIONS: list[tuple[str, list[tuple[str, str]]]] = [
+    (
+        "user_profiles",
+        [
+            ("campus", "VARCHAR(64) DEFAULT ''"),
+            ("contact_wx", "VARCHAR(64) DEFAULT ''"),
+        ],
+    ),
+    (
+        "users",
+        [
+            ("is_admin", "BOOLEAN DEFAULT 0"),
+        ],
+    ),
+    (
+        "courses",
+        [
+            ("department", "VARCHAR(64) DEFAULT ''"),
+        ],
+    ),
+    (
+        "canteens",
+        [
+            ("image", "VARCHAR(512) DEFAULT ''"),
+        ],
+    ),
+    (
+        "stalls",
+        [
+            ("image", "VARCHAR(512) DEFAULT ''"),
+        ],
+    ),
+    (
+        "dishes",
+        [
+            ("image", "VARCHAR(512) DEFAULT ''"),
+        ],
+    ),
     # 搭子组队：分类改为后台配置驱动后需要落库（原为前端写死常量）
-    "teams": [
-        ("category", "VARCHAR(32) DEFAULT '其他'"),
-        ("max_members", "INTEGER DEFAULT 3"),
-        ("contact_info", "VARCHAR(255) DEFAULT ''"),
-    ],
+    (
+        "teams",
+        [
+            ("category", "VARCHAR(32) DEFAULT '其他'"),
+            ("max_members", "INTEGER DEFAULT 3"),
+            ("contact_info", "VARCHAR(255) DEFAULT ''"),
+        ],
+    ),
     # 食堂按武大实际结构扩维：学部 / 餐饮区 / 类型 / 楼层 / 描述 / 标签 / 学期
-    "canteens": [
-        ("campus", "VARCHAR(32) DEFAULT ''"),
-        ("zone", "VARCHAR(32) DEFAULT ''"),
-        ("canteen_type", "VARCHAR(32) DEFAULT ''"),
-        ("floor", "VARCHAR(32) DEFAULT ''"),
-        ("description", "TEXT DEFAULT ''"),
-        ("features", "TEXT DEFAULT '[]'"),
-        ("popular_dishes", "TEXT DEFAULT '[]'"),
-        ("opening_hours", "VARCHAR(64) DEFAULT ''"),
-        ("semester", "VARCHAR(32) DEFAULT ''"),
-    ],
-}
+    (
+        "canteens",
+        [
+            ("campus", "VARCHAR(32) DEFAULT ''"),
+            ("zone", "VARCHAR(32) DEFAULT ''"),
+            ("canteen_type", "VARCHAR(32) DEFAULT ''"),
+            ("floor", "VARCHAR(32) DEFAULT ''"),
+            ("description", "TEXT DEFAULT ''"),
+            ("features", "TEXT DEFAULT '[]'"),
+            ("popular_dishes", "TEXT DEFAULT '[]'"),
+            ("opening_hours", "VARCHAR(64) DEFAULT ''"),
+            ("semester", "VARCHAR(32) DEFAULT ''"),
+        ],
+    ),
+]
 
 
 # SQLite 轻量索引迁移：create_all 只会给**新建**的表建索引，已存在的表不会补。
@@ -169,11 +196,15 @@ _SQLITE_INDEX_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
 
 async def _run_sqlite_column_migrations(conn) -> None:
     """为 SQLite 已存在的表补充新列（幂等：已存在的列跳过）。"""
-    for table, cols in _SQLITE_COLUMN_MIGRATIONS.items():
+    for table, cols in _SQLITE_COLUMN_MIGRATIONS:
         try:
             result = await conn.exec_driver_sql(f"PRAGMA table_info({table})")
             existing = {row[1] for row in result.fetchall()}
         except Exception:
+            continue
+        if not existing:
+            # 表不存在（PRAGMA 返回空集）：create_all 尚未建的表无需补列，
+            # 直接跳过，避免 ALTER 抛 "no such table" 打断启动。
             continue
         for col, ddl in cols:
             if col not in existing:
