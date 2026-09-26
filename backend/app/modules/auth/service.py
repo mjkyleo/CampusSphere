@@ -9,6 +9,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 以**模块形式**导入，使调用点在运行时通过属性查找解析 send_email，
@@ -32,9 +33,11 @@ from app.modules.auth.models import OAuthAccount, RefreshToken, User
 
 _logger = get_logger("auth.service")
 
-_CODE_TTL = settings.code_ttl_seconds  # 验证码有效期（可配置）
 _RATE_LIMIT_PREFIX = "vcode:limit:"
 _TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
+# 验证码 TTL 一律在调用点读取 settings.code_ttl_seconds：
+# 配置热更新会原地刷新 settings，模块级快照常量不会跟随（曾导致热更新后
+# 新验证码仍用旧 TTL），故不再提供 _CODE_TTL 常量。
 
 # 验证码用途 → 邮件文案（缺了会把主题写成"【武汉大学】bind_email验证码"）
 _PURPOSE_LABELS = {
@@ -93,7 +96,7 @@ async def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
     subject = f"【{settings.school_name}】{label}验证码"
     body = (
         f"您的{label}验证码是：{code}\n\n"
-        f"有效期 {_CODE_TTL // 60} 分钟，请勿告知他人。\n"
+        f"有效期 {settings.code_ttl_seconds // 60} 分钟，请勿告知他人。\n"
         f"若非本人操作，请忽略此邮件。\n"
     )
     def _dispatch() -> str:
@@ -199,7 +202,13 @@ async def register(db: AsyncSession, data) -> User:
     user.status = UserStatus.NORMAL.value
     user.set_password(data.password)
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # check-then-insert 竞态兜底：上面的唯一性查询与插入之间存在时间窗，
+        # 并发注册同名账号由唯一约束拦截，转 409 而非透出 500
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "用户名或邮箱已被注册") from exc
     await db.refresh(user)
     _logger.info("user_registered", user_id=str(user.id))
     return user
@@ -310,7 +319,7 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
         raise BizError(ErrorCode.TOO_MANY_REQUESTS, "发送过于频繁，请稍后再试")
     code = generate_code(6)
     # 验证码存 Redis（带 TTL）；无 Redis 时降级为内存（仅开发）
-    await redis_set(f"vcode:{purpose}:{target}", code, ttl=_CODE_TTL)
+    await redis_set(f"vcode:{purpose}:{target}", code, ttl=settings.code_ttl_seconds)
     # 新验证码下发即清零尝试次数，避免上一轮的重试记录连坐新验证码
     await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
     # 入库存好之后再派发邮件：即使发信失败，重试也不会重复生成新码
@@ -347,7 +356,7 @@ async def verify_code(target: str, code: str, purpose: str) -> bool:
     if not stored:
         return False
 
-    tries = await redis_incr(tries_key, ttl=_CODE_TTL)
+    tries = await redis_incr(tries_key, ttl=settings.code_ttl_seconds)
     if tries > settings.code_max_attempts:
         await redis_set(key, "", ttl=1)
         await redis_delete(tries_key)
@@ -379,7 +388,12 @@ async def phone_login(db: AsyncSession, target: str, code: str) -> dict:
             user.email = target
         user.set_password(uuid.uuid4().hex)  # 随机密码，后续引导设置
         db.add(user)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError as exc:
+            # 同一账号两端的并发首次登录会推导出相同用户名，唯一约束拦截后转 409
+            await db.rollback()
+            raise BizError(ErrorCode.CONFLICT, "登录初始化冲突，请稍后重试") from exc
         await db.refresh(user)
     return await issue_tokens(db, user)
 
