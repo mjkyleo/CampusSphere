@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -40,9 +41,21 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ChangePasswordRequest(BaseModel):
+    """修改密码：需原密码验证（P1-4：此前前端为假成功 stub，后端无端点）。"""
+
+    old_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 class SendCodeRequest(BaseModel):
     target: str = Field(description="手机号或邮箱")
-    purpose: str = Field(default="login", description="login/register/email")
+    # purpose 直接拼进验证码/限流/尝试计数的 Redis 键（vcode:{purpose}:{target} 等）。
+    # 收敛为字面量枚举：自由串会把验证码写进限流计数键（purpose="limit:login"），
+    # 对任意手机号/邮箱的验证码通道制造持续 429，或作废他人待验证码（"tries:..."）。
+    purpose: Literal["login", "register", "bind_email", "bind_phone"] = Field(
+        default="login", description="login/register/bind_email/bind_phone"
+    )
     captcha_ticket: str | None = Field(
         default=None,
         description="滑块验证票据（captcha_enabled 时必填，由 /captcha/verify 签发）",
@@ -113,7 +126,8 @@ class GeetestVerifyRequest(BaseModel):
 class VerifyCodeRequest(BaseModel):
     target: str
     code: str
-    purpose: str = "login"
+    # 与 SendCodeRequest.purpose 同一取值集合（见该处注释）
+    purpose: Literal["login", "register", "bind_email", "bind_phone"] = "login"
 
 
 class VerifyEmailRequest(BaseModel):

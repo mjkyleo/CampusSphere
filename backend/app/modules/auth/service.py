@@ -35,6 +35,11 @@ _logger = get_logger("auth.service")
 
 _RATE_LIMIT_PREFIX = "vcode:limit:"
 _TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
+# purpose 合法取值：purpose 会拼进 vcode/限流/尝试计数三类 Redis 键，
+# 自由串可把验证码写进限流计数键（如 "limit:login"）制造持续 429，
+# 或作废他人待验证码。schema 层已用 Literal 收敛，此处对服务层直调
+# （测试/内部调用）兜底，两处取值集合必须保持一致。
+_CODE_PURPOSES = frozenset({"login", "register", "bind_email", "bind_phone"})
 # 验证码 TTL 一律在调用点读取 settings.code_ttl_seconds：
 # 配置热更新会原地刷新 settings，模块级快照常量不会跟随（曾导致热更新后
 # 新验证码仍用旧 TTL），故不再提供 _CODE_TTL 常量。
@@ -302,8 +307,25 @@ async def logout(db: AsyncSession, access_token: str, refresh_token: str) -> Non
     _logger.info("user_logged_out")
 
 
+async def change_password(db: AsyncSession, user: User, old_password: str, new_password: str) -> None:
+    """修改密码：验证原密码后更新（P1-4：此前前端为假成功 stub）。
+
+    "认为账号被盗来改密码"的用户必须先证明持有原账号 —— 原密码错误时
+    明确报错而非假成功，否则用户获得虚假的安全感。
+    """
+    if not user.check_password(old_password or ""):
+        raise BizError(ErrorCode.VALIDATION, "原密码不正确")
+    if old_password == new_password:
+        raise BizError(ErrorCode.VALIDATION, "新密码不能与原密码相同")
+    user.set_password(new_password)
+    await db.commit()
+    _logger.info("password_changed", user_id=str(user.id))
+
+
 async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str:
     """生成并存储验证码；对同一 target 做发送频率限制（默认每分钟 1 次）。"""
+    if purpose not in _CODE_PURPOSES:
+        raise BizError(ErrorCode.VALIDATION, "purpose 不合法")
     target = (target or "").strip()
     # 邮箱统一小写：注册/绑定时会以 lower(email) 读取验证码，
     # 若此处不规范化，用户输入含大写字母就会取不到刚收到的验证码。
@@ -345,6 +367,8 @@ async def verify_code(target: str, code: str, purpose: str) -> bool:
     因此累计错误次数达到上限就作废该验证码，迫使用户重新获取。
     比较使用恒定时间算法，避免通过响应耗时逐位试探。
     """
+    if purpose not in _CODE_PURPOSES:
+        return False
     target = (target or "").strip()
     # 与 send_code 保持同一套规范化规则，避免大小写导致取不到验证码
     if is_valid_email(target):
@@ -458,7 +482,11 @@ def validate_email_rule(email: str, rule: dict) -> None:
         try:
             ok = re.fullmatch(pattern, email) is not None
         except re.error:
-            ok = True  # 后台配置了非法正则时放行，避免阻断正常流程
+            # P3：非法正则此前静默放行（fail-open），等于规则被绕过。
+            # 改为 fail-closed：配置坏了宁可拒绝注册（管理员能在后台修正），
+            # 也不能让"任意邮箱注册"静默生效。正则在后台保存时已校验可编译。
+            _logger.error("email_rule_pattern_invalid", pattern=pattern)
+            raise BizError(ErrorCode.VALIDATION, "注册规则配置异常，请联系管理员")
         if not ok:
             raise BizError(ErrorCode.VALIDATION, "邮箱不符合注册规则")
 

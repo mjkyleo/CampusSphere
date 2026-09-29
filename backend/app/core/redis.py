@@ -164,6 +164,29 @@ async def redis_delete(key: str) -> None:
         _memory_expiry.pop(key, None)
 
 
+async def redis_getdel(key: str) -> str | None:
+    """原子「读取并删除」（P2-14：一次性票据消费防 TOCTOU 重放）。
+
+    Redis ≥6.2 原生 GETDEL；旧版本/内存兜底退化为 get+delete（非原子，
+    与历史行为一致——降级环境本就只在开发场景出现）。
+    """
+    client = await get_redis()
+    if client is not None:
+        try:
+            return await client.getdel(key)
+        except Exception:
+            # 旧版 Redis 不支持 GETDEL：退化为两步（保持可用，放弃原子性）
+            raw = await client.get(key)
+            if raw is not None:
+                await client.delete(key)
+            return raw
+    if key not in _memory_fallback or _mem_expired(key):
+        return None
+    raw = _memory_fallback.pop(key)
+    _memory_expiry.pop(key, None)
+    return raw
+
+
 async def redis_publish(channel: str, message: str) -> int:
     """发布消息到频道，返回接收者数量。"""
     client = await get_redis()

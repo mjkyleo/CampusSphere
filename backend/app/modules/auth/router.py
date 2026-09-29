@@ -28,6 +28,7 @@ from app.modules.auth.schemas import (
     BindingsOut,
     BindOAuthRequest,
     BindPhoneRequest,
+    ChangePasswordRequest,
     EmailRegisterRequest,
     EmailRegisterResponse,
     GeetestVerifyRequest,
@@ -48,6 +49,7 @@ from app.modules.auth.schemas import (
 from app.modules.auth.service import (
     bind_email,
     bind_phone,
+    change_password,
     issue_tokens,
     list_bindings,
     login,
@@ -194,6 +196,22 @@ async def logout_user(
         actor_label=current_user.username,
     )
     return ApiResponse.ok(message="已注销")
+
+
+@router.post("/password", response_model=ApiResponse[None])
+async def change_password_endpoint(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """修改密码（需验证原密码）。
+
+    P1-4：此前前端 ``changePassword`` 是返回假成功的 stub，后端本无该端点；
+    对"认为账号被盗想改密码"的用户构成直接安全伤害。原密码错误时透出
+    明确错误（42200），不做任何静默成功。
+    """
+    await change_password(db, user, data.old_password, data.new_password)
+    return ApiResponse.ok(message="密码修改成功")
 
 
 # ---------------------------------------------------------------------------
@@ -438,8 +456,12 @@ async def bind_oauth_endpoint(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """补充绑定 QQ / 微信（需 OAuth 授权码 + state 防 CSRF）。"""
-    if data.state and not await verify_oauth_state(data.provider, data.state):
+    """补充绑定 QQ / 微信（需 OAuth 授权码 + state 防 CSRF）。
+
+    P2-13：state 此前可选——不传即跳过校验，防线名存实亡。现改为必传，
+    缺失或校验失败一律拒绝；state 经 GET /api/auth/{provider}/state 获取。
+    """
+    if not data.state or not await verify_oauth_state(data.provider, data.state):
         raise BizError(ErrorCode.FORBIDDEN, "state 校验失败")
     await bind_oauth(db, user, data.provider, data.code, data.redirect_uri)
     return ApiResponse.ok(message="绑定成功")

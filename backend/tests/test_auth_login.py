@@ -138,3 +138,60 @@ def test_login_wrong_password_rejected(client):
 def test_login_empty_account_rejected(client):
     r = client.post("/api/auth/login", json={"account": "", "password": "secret123"})
     assert r.json()["code"] != 0
+
+
+# ---------------------------------------------------------------------------
+# 修改密码（P1-4：此前前端为假成功 stub，后端无端点）
+# ---------------------------------------------------------------------------
+def test_change_password_success_and_relogin(client):
+    """原密码验证通过 → 修改成功；新密码可登录，旧密码失效。"""
+    user = register_login(client, "chpw_user")
+    h = {"Authorization": f"Bearer {user['access_token']}"}
+
+    r = client.post(
+        "/api/auth/password",
+        json={"old_password": "secret123", "new_password": "brand-new-pw-456"},
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["code"] == 0, r.text
+
+    # 旧密码登录失败
+    assert _login(client, "chpw_user", password="secret123").json()["code"] == 40100
+    # 新密码登录成功
+    assert _login(client, "chpw_user", password="brand-new-pw-456").json()["code"] == 0
+
+
+def test_change_password_wrong_old_password_rejected(client):
+    """原密码错误 → 42200 明确报错，密码保持不变（不做静默成功）。"""
+    user = register_login(client, "chpw_wrong")
+    h = {"Authorization": f"Bearer {user['access_token']}"}
+
+    r = client.post(
+        "/api/auth/password",
+        json={"old_password": "totally-wrong", "new_password": "brand-new-pw-456"},
+        headers=h,
+    )
+    assert r.json()["code"] == 42200, r.text
+
+    # 原密码仍可登录：密码未被改动
+    assert _login(client, "chpw_wrong", password="secret123").json()["code"] == 0
+
+
+def test_change_password_requires_authentication(client):
+    r = client.post(
+        "/api/auth/password",
+        json={"old_password": "x", "new_password": "brand-new-pw-456"},
+    )
+    assert r.status_code == 401
+
+
+def test_change_password_rejects_same_password(client):
+    user = register_login(client, "chpw_same")
+    h = {"Authorization": f"Bearer {user['access_token']}"}
+    r = client.post(
+        "/api/auth/password",
+        json={"old_password": "secret123", "new_password": "secret123"},
+        headers=h,
+    )
+    assert r.json()["code"] != 0, r.text

@@ -41,7 +41,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
-from app.core.redis import redis_delete, redis_get, redis_set
+from app.core.redis import redis_delete, redis_get, redis_getdel, redis_set
 
 _logger = get_logger("auth.captcha")
 
@@ -320,12 +320,12 @@ async def issue_ticket() -> str:
 
 
 async def consume_ticket(ticket: str | None) -> bool:
-    """消费票据（一次性）。返回是否存在且有效。"""
+    """消费票据（一次性）。返回是否存在且有效。
+
+    P2-14：原 get-then-delete 存在 TOCTOU——并发双请求都可读到票据后各自
+    通过校验，少量复用。改用原子 GETDEL：读取与作废一步完成，重放窗口归零。
+    """
     if not ticket:
         return False
-    raw = await redis_get(_TICKET_PREFIX + ticket)
-    if not raw:
-        return False
-    # 无论后续是否成功，票据都立即作废，避免重放
-    await redis_delete(_TICKET_PREFIX + ticket)
-    return True
+    raw = await redis_getdel(_TICKET_PREFIX + ticket)
+    return raw is not None and raw != ""
