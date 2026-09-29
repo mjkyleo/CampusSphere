@@ -3,8 +3,30 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 from fastapi.testclient import TestClient
+
+
+def user_key(user_id: str, ext: str = ".bin") -> str:
+    """生成 P1-2 信任链要求的服务端命名空间对象键。
+
+    ``uploads/{user_id}/{32位hex}{ext}`` —— 与后端 ``gen_user_object_key``
+    同构，测试里构造的 key 必须能通过 ``ItemImageIn`` / ``ShareCreate``
+    的形态与归属校验。
+    """
+    return f"uploads/{user_id}/{uuid.uuid4().hex}{ext}"
+
+
+def key_from_token(token: str, ext: str = ".bin") -> str:
+    """从 access token 解出 user_id（不验签，仅测试用）并生成其命名空间键。"""
+    import base64
+    import json
+
+    seg = token.split(".")[1]
+    seg += "=" * (-len(seg) % 4)
+    sub = json.loads(base64.urlsafe_b64decode(seg))["sub"]
+    return user_key(sub, ext)
 
 
 def register_login(

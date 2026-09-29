@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from helpers import admin_login, auth_header, register_login, seed_admin
+from helpers import admin_login, auth_header, key_from_token, register_login, seed_admin
 
 
 def _publish_item(client, headers, title="E2E 二手自行车", price=19900):
@@ -30,7 +30,7 @@ def _publish_item(client, headers, title="E2E 二手自行车", price=19900):
             "description": "九成新，可小刀",
             "price": price,
             "category": "bike",
-            "images": [{"object_key": "misc/e2e.bin", "sort_order": 0}],
+            "images": [{"object_key": key_from_token(headers["Authorization"].removeprefix("Bearer ")), "sort_order": 0}],
         },
         headers=headers,
     )

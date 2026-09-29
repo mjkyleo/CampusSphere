@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, register_login
 
 
 def _create_item(client, token, title="二手自行车", price=19900):
@@ -11,7 +11,7 @@ def _create_item(client, token, title="二手自行车", price=19900):
         "description": "九成新",
         "price": price,
         "category": "bike",
-        "images": [{"object_key": "misc/abc123.bin", "sort_order": 0}],
+        "images": [{"object_key": key_from_token(token), "sort_order": 0}],
     }
     r = client.post("/api/items", json=payload, headers=auth_header(token))
     assert r.status_code == 200, r.text

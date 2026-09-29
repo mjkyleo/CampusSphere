@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.common.enums import ItemStatus, TradeStatus
+from app.common.utils import escape_like
 from app.core.cache import (
     NULL_SENTINEL,
     cache_get_json_with_version,
@@ -17,6 +20,7 @@ from app.core.cache import (
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
+from app.core.storage import ensure_user_object_key
 from app.modules.admin.models import AppConfig
 from app.modules.auth.models import User
 from app.modules.item.models import Item, ItemImage, TradeSession
@@ -49,6 +53,12 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
         status=status,
     )
     for img in data.images:
+        # P1-2：schema 已把关键形态，此处校验**归属**——图片键必须签发给
+        # 物品 owner 本人，防止把他人上传的对象挂到自己的物品上展示。
+        try:
+            ensure_user_object_key(img.object_key, str(owner.id))
+        except ValueError as exc:
+            raise BizError(ErrorCode.VALIDATION, "图片不属于当前用户，请重新上传") from exc
         item.images.append(
             ItemImage(object_key=img.object_key, sort_order=img.sort_order)
         )
@@ -120,7 +130,8 @@ async def list_items(
 
     stmt = select(Item).where(Item.deleted_at.is_(None))
     if keyword:
-        stmt = stmt.where(Item.title.ilike(f"%{keyword}%"))
+        like = f"%{escape_like(keyword)}%"
+        stmt = stmt.where(Item.title.ilike(like, escape="\\"))
     if category:
         stmt = stmt.where(Item.category == category)
     if status is not None:
@@ -211,7 +222,11 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
 
 
 async def delete_item(db: AsyncSession, item: Item) -> None:
-    await db.delete(item)
+    # P2-6：owner 删除改为**软删除**，与管理员删除（admin.service.admin_delete_item）
+    # 语义对齐——硬删除会级联销毁进行中的交易会话（FK CASCADE），把双方的
+    # 交易凭据连带抹掉。软删除后 get_item/list_items 过滤 deleted_at，
+    # 物品从广场与详情消失，历史会话数据保留。
+    item.deleted_at = datetime.now(UTC)
     await db.commit()
     # 写操作：失效物品列表缓存
     await invalidate_namespace("items")
@@ -278,3 +293,90 @@ async def create_trade_session(
     await invalidate_namespace("items")
     _logger.info("trade_session_created", trade_id=str(ts.id), conv=str(conv.id))
     return ts
+
+
+# ---------------------------------------------------------------------------
+# 交易会话生命周期（P2-1）
+#
+# 此前 TradeSession 创建后 status 永不变更、无任何端点：卖家把 RESERVED
+# 物品重新上架后，部分唯一索引让所有新抢占 409，物品与旧会话互相锁死。
+# complete / cancel 提供唯一的出口——cancel 同时把物品释放回 ON_SALE。
+# ---------------------------------------------------------------------------
+async def get_trade(db: AsyncSession, trade_id: str) -> TradeSession:
+    trade = await db.get(TradeSession, trade_id)
+    if not trade:
+        raise BizError(ErrorCode.NOT_FOUND, "交易会话不存在")
+    return trade
+
+
+def _ensure_trade_participant(trade: TradeSession, user: User) -> None:
+    if str(user.id) not in (str(trade.buyer_id), str(trade.seller_id)):
+        raise BizError(ErrorCode.FORBIDDEN, "仅交易双方可操作该交易")
+
+
+async def complete_trade(db: AsyncSession, trade: TradeSession, user: User) -> TradeSession:
+    """确认完成：会话 PENDING/IN_PROGRESS → COMPLETED，物品 RESERVED → SOLD。
+
+    两个 CAS 在同一事务：物品不在 RESERVED（如被卖家重新上架）时整体失败，
+    需先取消交易——避免"交易完成但物品在别人手里"的错位。
+    """
+    _ensure_trade_participant(trade, user)
+    result = await db.execute(
+        update(TradeSession)
+        .where(
+            TradeSession.id == str(trade.id),
+            TradeSession.status.in_(
+                [TradeStatus.PENDING.value, TradeStatus.IN_PROGRESS.value]
+            ),
+        )
+        .values(status=TradeStatus.COMPLETED.value)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.CONFLICT, "该交易已完成或已取消")
+    await cas_item_status(
+        db,
+        str(trade.item_id),
+        ItemStatus.RESERVED.value,
+        ItemStatus.SOLD.value,
+        message="物品已不在交易保留状态（可能已被重新上架），请先取消交易",
+    )
+    await db.commit()
+    await db.refresh(trade)
+    await invalidate_namespace("items")
+    _logger.info("trade_completed", trade_id=str(trade.id), actor=str(user.id))
+    return trade
+
+
+async def cancel_trade(db: AsyncSession, trade: TradeSession, user: User) -> TradeSession:
+    """取消交易：会话 → CANCELLED，物品释放回 ON_SALE（解锁卡死状态）。
+
+    物品释放是尽力而为：若物品已被改到其他状态（卖家手动下架等），
+    跳过释放但取消本身仍然生效。
+    """
+    _ensure_trade_participant(trade, user)
+    result = await db.execute(
+        update(TradeSession)
+        .where(
+            TradeSession.id == str(trade.id),
+            TradeSession.status.in_(
+                [TradeStatus.PENDING.value, TradeStatus.IN_PROGRESS.value]
+            ),
+        )
+        .values(status=TradeStatus.CANCELLED.value)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.CONFLICT, "该交易已完成或已取消")
+    try:
+        await cas_item_status(
+            db, str(trade.item_id), ItemStatus.RESERVED.value, ItemStatus.ON_SALE.value
+        )
+    except BizError:
+        _logger.info(
+            "trade_cancel_item_not_reserved",
+            trade_id=str(trade.id), item_id=str(trade.item_id),
+        )
+    await db.commit()
+    await db.refresh(trade)
+    await invalidate_namespace("items")
+    _logger.info("trade_cancelled", trade_id=str(trade.id), actor=str(user.id))
+    return trade

@@ -17,7 +17,7 @@ import io
 from pathlib import Path
 
 import pytest
-from helpers import auth_header, register_login
+from helpers import auth_header, register_login, user_key
 from PIL import Image
 
 
@@ -99,9 +99,10 @@ class TestRawEndpointTraversal:
 
     def test_raw_serves_legitimate_object(self, client):
         user = register_login(client, "travuser")
+        key = user_key(user["user_id"], ".png")
         r = client.post(
             "/api/files/upload",
-            data={"key": "misc/ok.png"},
+            data={"key": key},
             files={"file": ("ok.png", _png_bytes(), "image/png")},
             headers=auth_header(user["access_token"]),
         )
@@ -109,7 +110,7 @@ class TestRawEndpointTraversal:
         # 网关中间件要求非公开路径携带 token；该端点实际仅供本地联调/测试回读
         resp = client.get(
             "/api/files/raw",
-            params={"key": "misc/ok.png"},
+            params={"key": key},
             headers=auth_header(user["access_token"]),
         )
         assert resp.status_code == 200

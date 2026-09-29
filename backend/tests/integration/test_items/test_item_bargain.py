@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import pytest
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, register_login
 
 pytestmark = pytest.mark.integration
 
@@ -21,7 +21,7 @@ def _publish(client, token: str, title: str = "议价测试物品") -> dict:
             "description": "可议价",
             "price": 8000,
             "category": "书籍资料",
-            "images": [{"object_key": "misc/deal.bin", "sort_order": 0}],
+            "images": [{"object_key": key_from_token(token), "sort_order": 0}],
         },
         headers=auth_header(token),
     )

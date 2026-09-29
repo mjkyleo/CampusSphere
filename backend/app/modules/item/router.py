@@ -14,10 +14,13 @@ from app.modules.auth.deps import get_current_user, get_current_user_optional
 from app.modules.auth.models import User
 from app.modules.item.schemas import ItemCreate, ItemOut, ItemUpdate, TradeSessionOut
 from app.modules.item.service import (
+    cancel_trade,
+    complete_trade,
     create_item,
     create_trade_session,
     delete_item,
     get_item,
+    get_trade,
     list_items,
     update_item,
 )
@@ -40,6 +43,7 @@ async def list_all(
     keyword: str = Query(default=""),
     category: str = Query(default=""),
     status: int = Query(default=None),
+    owner_id: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -47,6 +51,7 @@ async def list_all(
     result = await list_items(
         db, keyword=keyword, category=category,
         status=status if status is not None else None,
+        owner_id=owner_id,
         page=page, page_size=page_size,
     )
     return ApiResponse.ok(data=result)
@@ -55,7 +60,8 @@ async def list_all(
 @router.get("/search", response_model=ApiResponse[list])
 async def search(
     q: str = Query(default="", min_length=1),
-    limit: int = Query(default=20, le=50),
+    # P3：limit 此前缺 ge=1，Postgres 下 LIMIT -1/0 会 500；负值同样拒绝
+    limit: int = Query(default=20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -98,6 +104,16 @@ async def update(
 ):
     item = await get_item(db, item_id)
     require_owner_or_scope(item.owner_id, principal, Scope.ADMIN)
+    # P1-1：开启审核后新物品为 PENDING，状态机允许 PENDING → ON_SALE/OFF_SHELF，
+    # 该出口仅供管理员审核使用（admin.service.approve/reject_item 走独立路径）。
+    # 若不拦，发布者可直接 PATCH status 自审上架，还能与管理员审核竞争（先抢先赢）。
+    if (
+        item.status == ItemStatus.PENDING.value
+        and data.status is not None
+        and data.status != item.status
+        and not principal.has(Scope.ADMIN)
+    ):
+        raise BizError(ErrorCode.FORBIDDEN, "待审核物品的状态需由管理员审核后变更")
     item = await update_item(db, item, data)
     return ApiResponse.ok(data=ItemOut.model_validate(item))
 
@@ -127,4 +143,31 @@ async def trade(
 ):
     item = await get_item(db, item_id)
     ts = await create_trade_session(db, item, user)
+    return ApiResponse.ok(data=TradeSessionOut.model_validate(ts))
+
+
+# ---------------------------------------------------------------------------
+# 交易会话生命周期（P2-1）：此前会话创建后永不变更，RESERVED 物品被
+# 重新上架后部分唯一索引让所有新抢占 409，无解困路径。
+# NOTE: /trades/* 为两段路径，不会与 /{item_id} 单段匹配冲突。
+# ---------------------------------------------------------------------------
+@router.post("/trades/{trade_id}/complete", response_model=ApiResponse[TradeSessionOut])
+async def trade_complete(
+    trade_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """交易双方确认完成：会话 → COMPLETED，物品 → SOLD。"""
+    ts = await complete_trade(db, await get_trade(db, trade_id), user)
+    return ApiResponse.ok(data=TradeSessionOut.model_validate(ts))
+
+
+@router.post("/trades/{trade_id}/cancel", response_model=ApiResponse[TradeSessionOut])
+async def trade_cancel(
+    trade_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """交易双方取消：会话 → CANCELLED，物品释放回 ON_SALE。"""
+    ts = await cancel_trade(db, await get_trade(db, trade_id), user)
     return ApiResponse.ok(data=TradeSessionOut.model_validate(ts))

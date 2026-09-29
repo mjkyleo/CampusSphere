@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from helpers import auth_header, register_login
+from helpers import auth_header, register_login, user_key
 
 from app.tasks.summary import generate_trade_summary
 
@@ -25,7 +25,7 @@ def _create_trade(client):
             "description": "九成新",
             "price": 2000,
             "category": "book",
-            "images": [{"object_key": "misc/sum1.bin", "sort_order": 0}],
+            "images": [{"object_key": user_key(seller["user_id"]), "sort_order": 0}],
         },
         headers=auth_header(seller["access_token"]),
     )

@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import urllib3
@@ -27,6 +29,38 @@ try:
 except Exception:
     Minio = None  # type: ignore
     _MINIO_AVAILABLE = False
+
+# 服务端签发的对象键形态（P1-2 信任链）：
+#   uploads/{用户UUID}/{32位hex}.{1-8位字母数字扩展名}
+# 上传入口（presign）只签发该形态的 key，入库入口（ItemImageIn/ShareCreate）
+# 只接受该形态的 key —— 客户端无法把任意字符串（他人对象、URL、穿越路径）
+# 挂到自己的业务记录上。
+OBJECT_KEY_RE = re.compile(r"^uploads/[0-9a-fA-F-]{36}/[0-9a-f]{32}(?:\.[A-Za-z0-9]{1,8})?$")
+
+# 直传体积上限：与 /api/files/upload 的 MAX_IMAGE_SIZE 保持一致（10MB）
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+
+def gen_user_object_key(user_id: str, filename: str) -> str:
+    """生成绑定上传者的对象键：``uploads/{user_id}/{uuid}{ext}``。
+
+    前缀由服务端决定（客户端传什么 prefix 都不影响命名空间），
+    uuid 文件名不可枚举；键与上传者绑定后，业务入库校验才能确认
+    "图片确实是他自己传的"。
+    """
+    ext = os.path.splitext(filename or "")[1].lower()
+    return f"uploads/{user_id}/{uuid.uuid4().hex}{ext}"
+
+
+def ensure_user_object_key(key: str, user_id: str) -> None:
+    """校验 key 为服务端签发给该用户的对象键（P1-2 信任链闭环）。
+
+    :raises ValueError: 形态不符（非 uploads/{uuid}/{32hex}.ext）或不属于该用户。
+    """
+    if not key or not OBJECT_KEY_RE.match(key):
+        raise ValueError("object key must be a server-issued uploads/{user}/{uuid} key")
+    if not key.startswith(f"uploads/{user_id}/"):
+        raise ValueError("object key does not belong to this user")
 
 
 class StorageClient:
@@ -74,6 +108,12 @@ class StorageClient:
 
     @staticmethod
     def gen_object_key(prefix: str, filename: str) -> str:
+        """旧版键生成：``{prefix}/{uuid}{ext}``。
+
+        .. deprecated:: P1-2
+            prefix 客户端可控导致命名空间不可信，新代码一律用
+            :func:`gen_user_object_key`（服务端绑定上传者）。保留仅为兼容。
+        """
         ext = os.path.splitext(filename)[1]
         return f"{prefix}/{uuid.uuid4().hex}{ext}"
 
@@ -132,6 +172,45 @@ class StorageClient:
             )
         # 本地降级：返回内部上传地址
         return f"/api/files/upload?key={object_key}"
+
+    async def presigned_upload_post(
+        self,
+        object_key: str,
+        expires_seconds: int = 600,
+        max_size: int = MAX_UPLOAD_SIZE,
+    ) -> dict:
+        """带策略的预签名直传（POST form），返回 ``{"url", "fields"}``。
+
+        相比 presigned_put_object（裸 PUT，服务端无法约束内容），POST policy
+        把约束**写进签名**，MinIO 服务端会拒绝越界请求：
+
+        * ``key`` 精确等于签发键 —— 客户端改 key 即签名失效，无法覆盖他人对象
+        * ``content-length-range`` 限制体积（防超大对象撑爆配额）
+        * ``content-type`` 必须以 image/ 开头（与扩展名白名单双保险）
+
+        本地降级模式无签名机制，返回内部上传端点（该端点自行校验 key 归属
+        与内容），``fields`` 为空。
+        """
+        self._ensure_minio()
+        if self._client is not None:
+            from minio.datatypes import PostPolicy
+
+            def _build() -> dict:
+                policy = PostPolicy(
+                    self.bucket, datetime.now(UTC) + timedelta(seconds=expires_seconds)
+                )
+                policy.add_equals_condition("key", object_key)
+                policy.add_content_length_range_condition(1, max_size)
+                policy.add_starts_with_condition("Content-Type", "image/")
+                form = self._client.presigned_post_policy(policy)
+                # key 的取值本身也是必须回传的表单字段（policy 只含约束条件）
+                form["key"] = object_key
+                return form
+
+            fields = await run_in_threadpool(_build)
+            scheme = "https" if settings.minio_secure else "http"
+            return {"url": f"{scheme}://{settings.minio_endpoint}/{self.bucket}", "fields": fields}
+        return {"url": "/api/files/upload", "fields": {}}
 
     async def presigned_download_url(self, object_key: str, expires: int = 600) -> str:
         self._ensure_minio()

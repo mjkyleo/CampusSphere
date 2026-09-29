@@ -1,7 +1,9 @@
 """文件上传路由：/api/files/*。
 
-- 客户端先请求 presign 拿到 object_key 与（MinIO）临时上传 URL
-- 浏览器直传 MinIO；本地降级模式则通过 /api/files/upload 由后端落盘
+- 客户端先请求 presign 拿到 object_key 与直传策略（MinIO 为带 policy 的
+  POST form；本地降级则通过 /api/files/upload 由后端落盘）
+- 对象键一律由**服务端**生成并绑定上传者：``uploads/{user_id}/{uuid}{ext}``，
+  客户端传入的 prefix 不参与命名空间（P1-2 信任链）
 - 仅允许图片上传（类型白名单 + 大小限制），拒绝其他文件类型
 """
 
@@ -14,7 +16,12 @@ from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.core.response import ApiResponse
-from app.core.storage import storage_client
+from app.core.storage import (
+    MAX_UPLOAD_SIZE,
+    ensure_user_object_key,
+    gen_user_object_key,
+    storage_client,
+)
 from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 
@@ -28,7 +35,7 @@ ALLOWED_IMAGE_TYPES: dict[str, set[str]] = {
     "image/gif": {".gif"},
 }
 ALLOWED_IMAGE_EXTS: set[str] = {ext for exts in ALLOWED_IMAGE_TYPES.values() for ext in exts}
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_IMAGE_SIZE = MAX_UPLOAD_SIZE  # 10MB
 
 
 def _image_ext_error(filename: str) -> JSONResponse:
@@ -42,16 +49,32 @@ def _image_ext_error(filename: str) -> JSONResponse:
 async def presign(
     prefix: str = Form(default="misc"),
     filename: str = Form(default="file.bin"),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     # MinIO 直传模式下内容无法在后端二次校验，这里先按扩展名白名单拦截
     ext = os.path.splitext(filename or "")[1].lower()
     if ext not in ALLOWED_IMAGE_EXTS:
         return _image_ext_error(filename)
-    object_key = storage_client.gen_object_key(prefix, filename)
-    upload_url = await storage_client.presigned_upload_url(object_key)
+    # 对象键由服务端生成并绑定上传者；prefix 仅作兼容保留，不参与命名空间，
+    # 否则客户端可指定任意前缀预签名，覆盖同名已知对象。
+    object_key = gen_user_object_key(str(user.id), filename)
+    if storage_client.enabled:
+        post = await storage_client.presigned_upload_post(object_key)
+        return ApiResponse.ok(
+            data={
+                "object_key": object_key,
+                "upload_url": post["url"],
+                "fields": post["fields"],
+                "direct": True,
+            }
+        )
     return ApiResponse.ok(
-        data={"object_key": object_key, "upload_url": upload_url, "direct": storage_client.enabled}
+        data={
+            "object_key": object_key,
+            "upload_url": f"/api/files/upload?key={object_key}",
+            "fields": {},
+            "direct": False,
+        }
     )
 
 
@@ -59,8 +82,18 @@ async def presign(
 async def upload(
     key: str = Form(...),
     file: UploadFile = File(...),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
+    # 信任链（P1-2）：key 必须是服务端签发给**当前用户**的命名空间键，
+    # 否则任何登录用户可用任意 key 覆盖他人对象（头像/物品图片——uuid
+    # 不可猜但也不是秘密）。形态与归属统一在 ensure_user_object_key 校验。
+    try:
+        ensure_user_object_key(key, str(user.id))
+    except ValueError:
+        return JSONResponse(
+            ApiResponse(code=40000, message="非法的文件标识", data=None).model_dump(),
+            status_code=400,
+        )
     data = await file.read()
     content_type = (file.content_type or "").lower()
     allowed_exts = ALLOWED_IMAGE_TYPES.get(content_type)
@@ -74,8 +107,7 @@ async def upload(
         return _image_ext_error(file.filename or "")
     if len(data) > MAX_IMAGE_SIZE:
         return JSONResponse(
-            ApiResponse(code=40000, message="图片大小不能超过 10MB", data=None).model_dump(),
-            status_code=400,
+            ApiResponse(code=40000, message="图片大小不能超过 10MB", data=None).model_dump(), status_code=400
         )
     try:
         await storage_client.upload_bytes(key, data, content_type=content_type)
