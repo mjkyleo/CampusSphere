@@ -41,6 +41,10 @@ PUBLIC_PATHS = {
     "/api/admin/login",
     "/api/admin/discover",
     "/api/ai/status",
+    # 本地降级模式的匿名图片下载（P2-12）：设计模型是"key 内含 128 位
+    # 随机 uuid 即能力凭证"（同签名 URL），且 <img src> 无法携带 Header。
+    # 缺席白名单会让本地模式的全部图片 401。
+    "/api/files/raw",
     "/health",
     # 前端 dev server（frontend/server.ts）本地实现了 /api/health 并直接返回
     # 200。生产改为 nginx 统一转发 /api/* 后，该路径会落到后端 —— 若不放行，
@@ -147,6 +151,10 @@ class GatewayMiddleware(BaseHTTPMiddleware):
             "/api/auth/captcha/slider",
             "/api/auth/captcha/verify",
             "/api/auth/captcha/geetest/verify",
+            # P3：管理员登录与网关 discover 是口令爆破/密钥探测的第一目标，
+            # 此前仅受全局 120/min/IP 保护且无账号锁定，纳入严格限流。
+            "/api/admin/login",
+            "/api/admin/discover",
         }
         if request.url.path in _auth_strict_paths:
             auth_limit_key = f"ratelimit:auth:{client}:{int(time.time() // 60)}"
@@ -212,4 +220,25 @@ class GatewayMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         _logger.info("request_end", status=response.status_code, cost_ms=cost)
         clear_request()
+        return response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """全应用安全响应头（P3）。
+
+    此前无任何安全头：nosniff 防 MIME 嗅探、frame-ancestors 'none' 防点击
+    劫持（API 返回 JSON，直接禁帧）、HSTS 仅在 HTTPS 场景由反代补齐时
+    才有意义——这里统一下发，反代无需各自维护。CSP 对纯 JSON API 取
+    最严格的 default-src 'none'。
+    """
+
+    def __init__(self, app) -> None:
+        super().__init__(app)
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         return response

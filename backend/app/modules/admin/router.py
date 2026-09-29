@@ -12,6 +12,8 @@ from app.core.response import ApiResponse
 from app.modules.admin.deps import get_current_admin, require_admin
 from app.modules.admin.gateway import gateway_enforced, issue_gateway_token, require_admin_gateway
 from app.modules.admin.models import AdminUser
+from app.modules.audit.actions import ActorType, AuditAction, AuditResult
+from app.modules.audit.service import record_audit_log
 from app.modules.admin.schemas import (
     AdminDiscoverRequest,
     AdminLoginRequest,
@@ -86,6 +88,19 @@ from app.modules.report.service import list_reports
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+async def _audit(*, action: str, operator: AdminUser, target: str = "", detail: dict | None = None) -> None:
+    """管理端关键动作写审计（P3：此前 ADMIN_* 零调用，审计页答不了
+    "谁把谁提了权/封了人/改了配置"）。record_audit_log 自身不外抛。"""
+    await record_audit_log(
+        action=action,
+        actor_type=ActorType.ADMIN,
+        actor_id=str(operator.id),
+        actor_label=operator.username,
+        result=AuditResult.SUCCESS,
+        detail={"target": target, **(detail or {})},
+    )
+
+
 @router.post("/discover", response_model=ApiResponse[dict])
 async def discover(data: AdminDiscoverRequest):
     """用网关密钥换取短时网关令牌（HMAC）。密钥错误一律 404，避免暴露管理端存在。"""
@@ -149,14 +164,14 @@ async def users(
 
 
 @router.post("/users/{user_id}/ban", response_model=ApiResponse[dict])
-async def ban(user_id: str, data: BanRequest, db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
-    user = await ban_user(db, user_id, data.reason)
+async def ban(user_id: str, data: BanRequest, db: AsyncSession = Depends(get_db), admin: AdminUser = Depends(require_admin)):
+    user = await ban_user(db, user_id, data.reason, operator=admin)
     return ApiResponse.ok(data={"id": str(user.id), "status": user.status})
 
 
 @router.post("/users/{user_id}/unban", response_model=ApiResponse[dict])
-async def unban(user_id: str, db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
-    user = await unban_user(db, user_id)
+async def unban(user_id: str, db: AsyncSession = Depends(get_db), admin: AdminUser = Depends(require_admin)):
+    user = await unban_user(db, user_id, operator=admin)
     return ApiResponse.ok(data={"id": str(user.id), "status": user.status})
 
 
@@ -223,9 +238,13 @@ async def admin_get_item_review(db: AsyncSession = Depends(get_db), _=Depends(re
 
 @router.put("/items/review-config", response_model=ApiResponse[ItemReviewConfig])
 async def admin_put_item_review(
-    data: ItemReviewConfig, db: AsyncSession = Depends(get_db), _=Depends(require_admin)
+    data: ItemReviewConfig, db: AsyncSession = Depends(get_db), admin: AdminUser = Depends(require_admin)
 ):
     payload = await update_item_review_config(db, data.model_dump())
+    await _audit(
+        action=AuditAction.ADMIN_UPDATE_CONFIG, operator=admin,
+        target="item.review", detail={"enabled": payload.get("enabled")},
+    )
     return ApiResponse.ok(data=ItemReviewConfig(**payload))
 
 
@@ -456,10 +475,11 @@ async def admin_update_item_view(
 async def admin_delete_item_view(
     item_id: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_admin),
+    admin: AdminUser = Depends(require_admin),
 ):
     """Soft-delete any item. Bypasses owner check."""
     await admin_delete_item(db, item_id)
+    await _audit(action=AuditAction.ADMIN_DELETE_ITEM, operator=admin, target=item_id)
     return ApiResponse.ok(message="已删除")
 
 
@@ -467,10 +487,11 @@ async def admin_delete_item_view(
 async def admin_approve_item_view(
     item_id: str,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_admin),
+    admin: AdminUser = Depends(require_admin),
 ):
     """审核通过：待审核(PENDING) -> 上架(ON_SALE)。"""
     item = await approve_item(db, item_id)
+    await _audit(action=AuditAction.ADMIN_AUDIT_ITEM, operator=admin, target=item_id, detail={"result": "approve"})
     return ApiResponse.ok(data=ItemOut.model_validate(item))
 
 
@@ -479,10 +500,11 @@ async def admin_reject_item_view(
     item_id: str,
     data: ItemReviewRejectRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_admin),
+    admin: AdminUser = Depends(require_admin),
 ):
     """审核拒绝：待审核(PENDING) -> 下架(OFF_SHELF)。"""
     item = await reject_item(db, item_id, reason=data.reason)
+    await _audit(action=AuditAction.ADMIN_AUDIT_ITEM, operator=admin, target=item_id, detail={"result": "reject", "reason": data.reason})
     return ApiResponse.ok(data=ItemOut.model_validate(item))
 
 

@@ -60,8 +60,10 @@ async def ensure_seed(db: AsyncSession) -> None:
     """初始化默认角色与管理员（每次启动调用，幂等）。
 
     账号与密码读取自配置（school.yaml 的 ``admin.bootstrap.*`` 或由 ``.env`` 覆盖），
-    不再硬编码于源码。仅当配置未提供密码时，回退到开发/测试用弱口令 ``admin123`` 并告警——
-    生产环境必须在配置中指定强密码（由 ``validate_admin_security`` 在启动期拦截弱配置）。
+    不再硬编码于源码。仅当**且仅在 debug 模式**下配置未提供密码时，回退到开发
+    弱口令 ``admin123``；非 debug 未配置则拒绝创建引导管理员并 CRITICAL 告警
+    （P2-24：生产校验层已在启动期 SystemExit 拦截，此处是纵深防御——
+    网关联调被放宽的极端配置下也不会凭空造出一个弱口令管理员）。
 
     为什么要**每次启动都同步权限**（而非"管理员已存在就直接返回"）
     -------------------------------------------------------------
@@ -77,7 +79,19 @@ async def ensure_seed(db: AsyncSession) -> None:
         _logger.info("admin_seed_disabled")
         return
     username = settings.admin_bootstrap_username or "siteadmin"
-    password = settings.admin_bootstrap_password or "admin123"
+    password = settings.admin_bootstrap_password
+    if not password:
+        if settings.debug:
+            password = "admin123"
+            _logger.warning("admin_seed_weak_fallback_debug_only", username=username)
+        else:
+            # P2-24：非 debug 且未配置强密码——宁可不建管理员，也不落弱口令
+            _logger.critical(
+                "admin_seed_skipped_no_password",
+                username=username,
+                detail="Set admin.bootstrap.password (>= min_length) to enable bootstrap admin creation",
+            )
+            return
 
     # --- 角色与权限：每次启动同步（只增不减，避免回收已授予的能力）---
     role = await _sync_roles(db)
@@ -186,6 +200,7 @@ async def promote_user_to_admin(
     await db.commit()
     await db.refresh(user)
     _logger.warning("admin_promote_user", operator=operator.username, target=user.username)
+    await _audit_admin_action("admin.promote_user", operator, target=str(user.username))
     return user
 
 
@@ -195,22 +210,45 @@ async def list_users(db: AsyncSession, page: int = 1, page_size: int = 20) -> di
     return await user_list(db, page=page, page_size=page_size)
 
 
-async def ban_user(db: AsyncSession, user_id: str, reason: str = "") -> User:
+async def _audit_admin_action(
+    action: str,
+    operator: AdminUser | None,
+    target: str = "",
+    detail: dict | None = None,
+) -> None:
+    """管理员关键动作统一写审计（P3：此前 ADMIN_* 动作零调用，审计页
+    答不了"谁把谁提了权/封了人"）。record_audit_log 自身保证不外抛。"""
+    from app.modules.audit.actions import ActorType, AuditResult
+    from app.modules.audit.service import record_audit_log
+
+    await record_audit_log(
+        action=action,
+        actor_type=ActorType.ADMIN,
+        actor_id=str(operator.id) if operator else None,
+        actor_label=operator.username if operator else "",
+        result=AuditResult.SUCCESS,
+        detail={"target": target, **(detail or {})},
+    )
+
+
+async def ban_user(db: AsyncSession, user_id: str, reason: str = "", operator: AdminUser | None = None) -> User:
     user = await db.get(User, user_id)
     if not user:
         raise BizError(ErrorCode.NOT_FOUND, "用户不存在")
     user.status = UserStatus.BANNED.value
     await db.commit()
-    _logger.warning("admin_ban_user", user_id=user_id, reason=reason)
+    _logger.warning("admin_ban_user", user_id=user_id, reason=reason, operator=getattr(operator, "username", ""))
+    await _audit_admin_action("admin.ban_user", operator, target=str(user.username), detail={"reason": reason})
     return user
 
 
-async def unban_user(db: AsyncSession, user_id: str) -> User:
+async def unban_user(db: AsyncSession, user_id: str, operator: AdminUser | None = None) -> User:
     user = await db.get(User, user_id)
     if not user:
         raise BizError(ErrorCode.NOT_FOUND, "用户不存在")
     user.status = UserStatus.NORMAL.value
     await db.commit()
+    await _audit_admin_action("admin.unban_user", operator, target=str(user.username))
     return user
 
 _EMAIL_REGISTER_KEY = "auth.email_register"
@@ -253,12 +291,23 @@ async def get_email_register_config(db: AsyncSession) -> dict:
 
 
 async def update_email_register_config(db: AsyncSession, data: dict) -> dict:
-    """后台更新邮箱注册规则（写 DB，实时生效）。"""
+    """后台更新邮箱注册规则（写 DB，实时生效）。
+
+    P3：pattern 在保存入口校验可编译——非法/病态正则（ReDoS 源）在此被拒，
+    而不是等到注册请求触发 fail-closed 拒绝或拖垮公共端点。
+    """
+    import re as _re
+
     payload = {
         "enabled": bool(data.get("enabled", True)),
         "domains": [str(d) for d in (data.get("domains") or [])],
         "pattern": str(data.get("pattern") or ""),
     }
+    if payload["pattern"]:
+        try:
+            _re.compile(payload["pattern"])
+        except _re.error as exc:
+            raise BizError(ErrorCode.VALIDATION, f"邮箱规则正则非法：{exc}") from exc
     await upsert_app_config(db, _EMAIL_REGISTER_KEY, payload)
     _logger.info("admin_update_email_register", config=payload)
     return payload
