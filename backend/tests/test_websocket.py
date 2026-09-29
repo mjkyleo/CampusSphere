@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, register_login
 
 
 def _create_trade_context(client):
@@ -16,7 +16,7 @@ def _create_trade_context(client):
             "description": "九成新",
             "price": 1000,
             "category": "book",
-            "images": [{"object_key": "misc/ws1.bin", "sort_order": 0}],
+            "images": [{"object_key": key_from_token(seller["access_token"]), "sort_order": 0}],
         },
         headers=auth_header(seller["access_token"]),
     )
@@ -163,6 +163,42 @@ def test_ws_reconnect_with_up_to_date_seq_compensates_nothing(ws_client):
         got = ws.receive_json()
 
     assert got["event"] == "pong", f"不应补发已收到的消息，但收到了 {got}"
+
+
+def test_ws_compensate_rejects_non_participant(ws_client):
+    """非会话成员带 conv/last_seq 连接不得补发他人私聊历史（P0-2）。
+
+    会话 ID 会经合法渠道泄露（如 TradeSessionOut.conversation_id 返回给买家），
+    补发前必须校验连接者是会话参与者，否则任意登录用户都能拉取私聊内容。
+    """
+    seller, buyer, trade = _create_trade_context(ws_client)
+    conv_id = trade["conversation_id"]
+
+    # 买家先发 2 条离线消息进会话
+    with ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws:
+        for content in ("私信一", "私信二"):
+            ws.send_json(
+                {"event": "message:send", "conversation_id": conv_id, "content": content}
+            )
+            ws.receive_json()
+
+    # 无关第三者拿到 conv_id 后试图按 seq 补发 → 应收到 40300 错误且收不到任何消息
+    outsider = register_login(ws_client, "wsconvthief")
+    with ws_client.websocket_connect(
+        f"/ws?token={outsider['access_token']}&conv={conv_id}&last_seq=0"
+    ) as ws:
+        got = ws.receive_json()
+
+    assert got["event"] == "error", f"非参与者不应收到补发消息，但收到了 {got}"
+    assert got["data"]["code"] == 40300
+
+    # 参与者不受影响：同样的请求由卖家发起应正常补发
+    with ws_client.websocket_connect(
+        f"/ws?token={seller['access_token']}&conv={conv_id}&last_seq=0"
+    ) as ws:
+        first = ws.receive_json()
+    assert first["event"] == "message:new"
+    assert first["data"]["content"] in ("私信一", "私信二")
 
 
 def test_ws_online_push_carries_seq(ws_client):

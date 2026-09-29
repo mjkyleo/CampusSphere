@@ -10,17 +10,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import uuid
 from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
+from app.common.enums import UserStatus
 from app.core.database import SessionLocal
-from app.core.exceptions import BizError
+from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
 from app.core.redis import redis_publish, redis_psubscribe
 from app.core.security import decode_token, is_token_revoked
+from app.modules.auth.models import User
 from app.modules.message.models import Message, Participant
 from app.modules.message.seq import seq_store
 from app.modules.message.service import send_message
@@ -110,27 +113,45 @@ class ConnectionManager:
             _logger.warning("ws_listener_stop_error", error=str(exc))
 
     async def _redis_listen(self) -> None:
-        pubsub = await redis_psubscribe(f"{_WS_CHANNEL}:*")
-        if pubsub is None:
-            return
-        _logger.info("ws_redis_listener_started")
-        try:
-            async for message in pubsub.listen():
-                # psubscribe 的数据消息类型是 pmessage（message 仅精确订阅产生）
-                if message.get("type") != "pmessage":
-                    continue
+        # P2-10：监听循环带自愈——启动失败或运行中异常都会带退避重启，
+        # 而不是静默退出（多实例部署的跨实例投递曾会因此永久失效）。
+        # 仅 stop_listener 主动取消（CancelledError）才真正退出。
+        backoff = 1
+        while True:
+            try:
+                pubsub = await redis_psubscribe(f"{_WS_CHANNEL}:*")
+                if pubsub is None:
+                    # 无 Redis（降级内存直发）：单实例语义完整，无需重试
+                    _logger.info("ws_redis_listener_unavailable_no_redis")
+                    return
+                _logger.info("ws_redis_listener_started")
+                backoff = 1
+                async for message in pubsub.listen():
+                    # psubscribe 的数据消息类型是 pmessage（message 仅精确订阅产生）
+                    if message.get("type") != "pmessage":
+                        continue
+                    try:
+                        payload = json.loads(message["data"])
+                    except Exception:
+                        continue
+                    if payload.get("origin") == _INSTANCE_ID:
+                        # 自己实例发布的消息已由 publish() 本地直发，跳过防重复
+                        continue
+                    recipients = payload.get("recipients", [])
+                    for uid in recipients:
+                        await self.send_to_user(uid, payload)
+            except asyncio.CancelledError:
+                # stop_listener 的主动取消：正常退出路径
+                return
+            except Exception as exc:
+                backoff = min(backoff * 2, 30)
+                _logger.error(
+                    "ws_redis_listener_error_restarting", error=str(exc), backoff_seconds=backoff
+                )
                 try:
-                    payload = json.loads(message["data"])
-                except Exception:
-                    continue
-                if payload.get("origin") == _INSTANCE_ID:
-                    # 自己实例发布的消息已由 publish() 本地直发，跳过防重复
-                    continue
-                recipients = payload.get("recipients", [])
-                for uid in recipients:
-                    await self.send_to_user(uid, payload)
-        except asyncio.CancelledError:
-            return
+                    await asyncio.sleep(backoff)
+                except asyncio.CancelledError:
+                    return
 
 
 manager = ConnectionManager()
@@ -145,7 +166,57 @@ async def _authenticate(token: str | None) -> str | None:
         return None
     if payload.get("type") != "access" or await is_token_revoked(token):
         return None
-    return payload.get("sub")
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    # P2-9：REST 侧会拒绝封禁账号，WS 通道此前漏查 User.status——
+    # 被封禁用户保留完整收发能力。连接层统一拦截。
+    async with SessionLocal() as db:
+        user = await db.get(User, user_id)
+    if user is None or user.status == UserStatus.BANNED.value:
+        return None
+    return user_id
+
+
+# ---------------------------------------------------------------------------
+# P2-9：WS 发送节流与内容上限
+# ---------------------------------------------------------------------------
+# 每用户每分钟最多发送的消息条数（进程内滑动窗口；多实例时各实例独立计数，
+# 攻击者需要连接多个实例才能放大，显著抬高滥用成本）。
+_WS_SEND_RATE_LIMIT = 30
+# 单条消息内容长度上限（与 REST 发送侧约束保持一致的量级）
+_WS_MAX_CONTENT_LEN = 2000
+# user_id -> 最近发送时间戳（monotonic 秒）
+_send_timestamps: dict[str, list[float]] = {}
+
+
+def _allow_send(user_id: str) -> bool:
+    now = time.monotonic()
+    window = _send_timestamps.setdefault(user_id, [])
+    while window and now - window[0] > 60:
+        window.pop(0)
+    if len(window) >= _WS_SEND_RATE_LIMIT:
+        return False
+    window.append(now)
+    return True
+
+
+async def _is_participant(conversation_id: str, user_id: str) -> bool:
+    """校验 user_id 是否为该会话的参与者。
+
+    ``conv`` 参数来自客户端查询串，在用于任何历史读取（断线补发）前必须
+    校验归属：否则任意登录用户可凭合法渠道泄露的会话 ID（如
+    ``TradeSessionOut.conversation_id``）拉取他人私聊历史（P0-2）。
+    REST 侧 ``get_messages`` 一直有此校验，WS 路径此前漏掉了。
+    """
+    async with SessionLocal() as db:
+        row = await db.scalar(
+            select(Participant.user_id).where(
+                Participant.conversation_id == conversation_id,
+                Participant.user_id == user_id,
+            )
+        )
+    return row is not None
 
 
 async def _compensate(ws: WebSocket, conversation_id: str, since: str | None) -> None:
@@ -242,7 +313,13 @@ async def websocket_endpoint(
         # 断线补偿：连接建立后立即补齐离线期间错过的消息
         try:
             if conv:
-                if last_seq is not None:
+                # 参与者校验：非会话成员拒绝补发（防越权读取他人私聊历史）。
+                # 校验失败只拒绝补发，不断开连接，实时收发能力不受影响。
+                if not await _is_participant(conv, user_id):
+                    await websocket.send_json(
+                        {"event": "error", "data": {"code": 40300, "message": "无权读取该会话"}}
+                    )
+                elif last_seq is not None:
                     # last_seq=0 是合法游标，表示"我从第 0 条开始，请全量补发"；
                     # 不能写成 `if last_seq:`（0 为假值会跳过补偿，与 seq.py
                     # "0 表示全量补发" 的契约冲突）。仅当参数缺省（None）时才不补偿。
@@ -267,7 +344,9 @@ async def websocket_endpoint(
                 continue
             if event == "message:read":
                 conv_id = data.get("conversation_id")
-                if conv_id:
+                # P2-9：已读回执此前无参与者校验——可对任意会话伪造"我已读"。
+                # 仅会话成员的已读事件才广播。
+                if conv_id and await _is_participant(conv_id, user_id):
                     await manager.publish(
                         conv_id,
                         {
@@ -286,6 +365,28 @@ async def websocket_endpoint(
                     mtype = 0
                 if not conv_id:
                     await websocket.send_json({"event": "error", "data": {"code": 42200, "message": "缺少 conversation_id"}})
+                    continue
+                # P2-9：内容必须是非空字符串且不超过长度上限
+                if (
+                    not isinstance(content, str)
+                    or not content.strip()
+                    or len(content) > _WS_MAX_CONTENT_LEN
+                ):
+                    await websocket.send_json(
+                        {
+                            "event": "error",
+                            "data": {"code": 42200, "message": f"消息内容需为 1-{_WS_MAX_CONTENT_LEN} 个字符"},
+                        }
+                    )
+                    continue
+                # P2-9：每用户发送节流（滑动窗口），防脚本刷屏拖垮广播
+                if not _allow_send(user_id):
+                    await websocket.send_json(
+                        {
+                            "event": "error",
+                            "data": {"code": ErrorCode.TOO_MANY_REQUESTS, "message": "发送过于频繁，请稍后再试"},
+                        }
+                    )
                     continue
                 try:
                     # 持久化（会话校验：非会话成员/会话不存在将抛出 BizError）
@@ -316,7 +417,9 @@ async def websocket_endpoint(
                 await manager.publish(conv_id, payload)
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
+        _send_timestamps.pop(user_id, None)  # 节流窗口随连接释放，防字典无界增长
         _logger.info("ws_disconnected", user_id=user_id)
     except Exception as exc:
         _logger.error("ws_error", error=str(exc))
         manager.disconnect(user_id, websocket)
+        _send_timestamps.pop(user_id, None)

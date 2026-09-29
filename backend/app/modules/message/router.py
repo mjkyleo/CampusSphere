@@ -22,10 +22,13 @@ router = APIRouter(prefix="/api/messages", tags=["message"])
 
 @router.get("/conversations", response_model=ApiResponse[list])
 async def conversations(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    data = await list_conversations(db, str(user.id))
+    # P2-19：分页参数化（默认 50 与前端一次性拉取量对齐），避免全量扫描
+    data = await list_conversations(db, str(user.id), page=page, page_size=page_size)
     return ApiResponse.ok(data=data)
 
 

@@ -43,12 +43,17 @@ async def create_conversation(
     await db.flush()
     for uid in set(participant_ids):
         db.add(Participant(conversation_id=str(conv.id), user_id=uid))
-    await db.commit()
-    await db.refresh(conv)
+    await db.flush()
+    # P2-2：不在内部 commit——调用方（create_trade_session）把会话创建与
+    # 物品抢占放在**同一事务**里，内部提交会打断原子性：异常时残留
+    # conversation_id=NULL 的 PENDING 会话（叠加会话无生命周期 = 物品永久卡死）。
+    # 提交职责归调用方。
     return conv
 
 
-async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
+async def list_conversations(
+    db: AsyncSession, user_id: str, page: int = 1, page_size: int = 50
+) -> list[dict]:
     """列出某用户的会话列表（含参与者 / 最后一条消息 / 未读数）。
 
     性能：旧实现对每个会话再发 3 条查询（participants / last_message /
@@ -58,7 +63,8 @@ async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
     2. 用窗口函数一次性取每个会话的"最后一条消息"；
     3. 用 ``GROUP BY`` 一次性取每个会话的未读计数。
 
-    无论会话数量多少，固定 ~4 条 SQL，列表接口随会话数线性膨胀的问题消除。
+    P2-19：会话列表分页——此前无分页时窗口函数会扫描该用户**全部**会话的
+    全部消息；分页后 conv_ids 只含当前页，后续批量查询的扫描范围随之收敛。
     """
     convs = (
         await db.scalars(
@@ -66,6 +72,8 @@ async def list_conversations(db: AsyncSession, user_id: str) -> list[dict]:
             .join(Participant, Participant.conversation_id == Conversation.id)
             .where(Participant.user_id == user_id)
             .order_by(Conversation.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
     ).all()
     if not convs:
