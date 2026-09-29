@@ -11,6 +11,7 @@ from app.modules.auth.deps import get_current_user
 from app.modules.auth.models import User
 from app.modules.teammate.schemas import JoinRequest, TeamCreate, TeamMemberOut, TeamOut
 from app.modules.teammate.service import (
+    close_team,
     create_team,
     get_team,
     join_team,
@@ -59,3 +60,11 @@ async def join(team_id: str, data: JoinRequest, db: AsyncSession = Depends(get_d
     team = await get_team(db, team_id)
     member = await join_team(db, team, user, data.role)
     return ApiResponse.ok(data=TeamMemberOut.model_validate(member))
+
+
+@router.post("/{team_id}/close", response_model=ApiResponse[TeamOut])
+async def close(team_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """队长关闭招募（P2-22：此前前端是 localStorage mock，永不落库）。"""
+    team = await get_team(db, team_id)
+    updated = await close_team(db, team, user)
+    return ApiResponse.ok(data=TeamOut.model_validate(updated))

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from helpers import admin_login, auth_header, register_login, seed_admin
+import pytest
+from helpers import admin_login, auth_header, register_login, seed_admin, run_async
 
 
 def test_course_create_and_review(client):
@@ -28,6 +29,59 @@ def test_course_create_and_review(client):
     detail = client.get(f"/api/courses/{course_id}", headers=h)
     assert detail.status_code == 200
     assert len(detail.json()["data"]["reviews"]) >= 1
+
+
+def test_course_review_duplicate_rejected(client):
+    """同一用户重复评价同一课程 → 409（P1-7：应用层 + 唯一索引双保险）。"""
+    user = register_login(client, "coursedup1")
+    h = auth_header(user["access_token"])
+    c = client.post(
+        "/api/courses",
+        json={"code": "CS201", "name": "操作系统", "teacher": "张", "credits": 3, "semester": "2025秋"},
+        headers=h,
+    ).json()["data"]
+
+    first = client.post(f"/api/courses/{c['id']}/reviews", json={"rating": 5, "content": "好"}, headers=h)
+    assert first.status_code == 200, first.text
+    dup = client.post(f"/api/courses/{c['id']}/reviews", json={"rating": 1, "content": "再评一次"}, headers=h)
+    assert dup.status_code == 200
+    assert dup.json()["code"] == 40900
+
+
+def test_course_review_unique_index_blocks_concurrent_insert(client, session_factory):
+    """绕过应用层检查的直接双插必须被唯一索引拦下（P1-7 的核心兜底）。
+
+    应用层的 SELECT-then-INSERT 存在竞态窗口，唯一索引才是并发安全的
+    最后一道防线 —— 本用例直接向 ORM 塞重复行验证索引真实存在。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.modules.course.models import Course, CourseReview
+
+    user = register_login(client, "courseidx1")
+    h = auth_header(user["access_token"])
+    course = client.post(
+        "/api/courses",
+        json={"code": "CS301", "name": "编译原理", "teacher": "刘", "credits": 4, "semester": "2025秋"},
+        headers=h,
+    ).json()["data"]
+    client.post(f"/api/courses/{course['id']}/reviews", json={"rating": 5, "content": "首评"}, headers=h)
+
+    async def _dup_insert():
+        factory = session_factory
+        async with factory() as db:
+            from sqlalchemy import select
+
+            cid = (await db.scalar(select(Course.id).where(Course.code == "CS301")))
+            db.add(CourseReview(course_id=str(cid), user_id=user["user_id"], rating=1, content="并发插入"))
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                raise
+
+    with pytest.raises(IntegrityError):
+        run_async(_dup_insert())
 
 
 def test_canteen_stall_dish_review(client, session_factory):

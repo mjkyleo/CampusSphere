@@ -19,3 +19,5 @@ class ShareResource(Base, PKMixin, TimestampMixin):
     file_key: Mapped[str] = mapped_column(String(255), default="")  # 对象存储 key
     category: Mapped[str] = mapped_column(String(32), default="other")
     downloads: Mapped[int] = mapped_column(Integer, default=0)
+    # 点赞数（P2-22：此前仅前端 mock，落库需要真实列）
+    likes: Mapped[int] = mapped_column(Integer, default=0)

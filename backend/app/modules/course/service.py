@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BizError, ErrorCode
@@ -19,10 +20,14 @@ from app.modules.course.schemas import (
 async def list_courses(
     db: AsyncSession, keyword: str = "", department: str = "", page: int = 1, page_size: int = 20
 ) -> dict:
+    # P2-17：Course.reviews 已从模型级 selectin 改回默认惰性——列表不再把
+    # 全库课程评价拉进内存（响应不序列化它们），评价经 list_reviews 按需查。
     stmt = select(Course)
     if keyword:
-        like = f"%{keyword}%"
-        stmt = stmt.where(Course.name.ilike(like) | Course.code.ilike(like))
+        from app.common.utils import escape_like
+
+        like = f"%{escape_like(keyword)}%"
+        stmt = stmt.where(Course.name.ilike(like, escape="\\") | Course.code.ilike(like, escape="\\"))
     if department:
         stmt = stmt.where(Course.department == department)
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
@@ -36,12 +41,25 @@ async def list_courses(
 
 
 async def create_course(db: AsyncSession, data: CourseCreate) -> Course:
-    dup = await db.scalar(select(Course).where(Course.code == data.code))
-    if dup:
-        raise BizError(ErrorCode.CONFLICT, "课程代码已存在")
-    course = Course(**data.model_dump())
+    # 院系收敛到后台配置列表内（同 job/share/teammate 的分类收敛模式）：
+    # 前端传了已被运营下线的院系时落到"其他"，避免筛选项与数据脱节。
+    from app.modules.admin.service import get_course_departments
+
+    payload = data.model_dump()
+    if payload.get("department"):
+        departments = await get_course_departments(db)
+        if payload["department"] not in departments:
+            # 不在配置列表内：落空串（与模型默认一致，等价"未分组"），
+            # 避免写进一个筛选页点不出来的脏院系
+            payload["department"] = ""
+    course = Course(**payload)
     db.add(course)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # P3：并发创建同 code 课程——唯一约束兜底，转 409 而非裸 500
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "课程代码已存在") from exc
     await db.refresh(course)
     return course
 
@@ -67,7 +85,13 @@ async def add_review(db: AsyncSession, course: Course, user: User, data: CourseR
         rating=data.rating, content=data.content,
     )
     db.add(review)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # P1-7：并发双击/脚本同时插入时 SELECT 拦不住，由
+        # uq_course_review_user 唯一索引兜底，此处转 409。
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "您已评价过该课程") from exc
     await db.refresh(review)
     return review
 

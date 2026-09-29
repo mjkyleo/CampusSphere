@@ -51,3 +51,29 @@ async def download(share_id: str, db: AsyncSession = Depends(get_db), _: User = 
     url = await presign_download(sr)
     await increment_download(db, sr)
     return ApiResponse.ok(data={"url": url})
+
+
+@router.post("/{share_id}/like", response_model=ApiResponse[dict])
+async def like(share_id: str, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+    """资源点赞（P2-22：此前前端是 localStorage mock，永不落库）。
+
+    单条原子 UPDATE，并发点赞不丢计数；不做单用户去重（轻量社交信号，
+    防刷由全局限流兜底）。
+    """
+    from sqlalchemy import func, select, update
+
+    from app.core.exceptions import BizError, ErrorCode
+    from app.modules.share.models import ShareResource
+
+    result = await db.execute(
+        update(ShareResource)
+        .where(ShareResource.id == share_id)
+        .values(likes=ShareResource.likes + 1)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.NOT_FOUND, "资源不存在")
+    await db.commit()
+    likes = await db.scalar(
+        select(func.coalesce(ShareResource.likes, 0)).where(ShareResource.id == share_id)
+    )
+    return ApiResponse.ok(data={"likes": int(likes or 0)})

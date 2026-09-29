@@ -5,9 +5,10 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils import mask_email, mask_phone
+from app.common.utils import escape_like, mask_email, mask_phone
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
 from app.modules.auth.models import User
@@ -62,8 +63,8 @@ async def list_users(db: AsyncSession, q: str = "", page: int = 1, page_size: in
     """用户列表（搜索最终接 Meilisearch，此处 DB 模糊匹配兜底）。"""
     stmt = select(User).where(User.deleted_at.is_(None))
     if q:
-        like = f"%{q}%"
-        stmt = stmt.where(or_(User.username.ilike(like), User.nickname.ilike(like)))
+        like = f"%{escape_like(q)}%"
+        stmt = stmt.where(or_(User.username.ilike(like, escape="\\"), User.nickname.ilike(like, escape="\\")))
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
     stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     rows = (await db.scalars(stmt)).all()
@@ -93,3 +94,61 @@ async def search_users(db: AsyncSession, q: str, limit: int = 20):
     except Exception as exc:
         _logger.warning("meili_search_fallback", error=str(exc))
     return (await list_users(db, q=q, page_size=limit))["items"]
+
+
+# ---------------------------------------------------------------------------
+# 物品收藏（P2-22：此前前端收藏是纯 toast 假动作，无任何落库）
+# ---------------------------------------------------------------------------
+async def list_favorites(db: AsyncSession, user: User) -> list[dict]:
+    """当前用户的收藏列表（含物品详情，剔除已删除物品）。"""
+    from app.modules.item.models import Item
+    from app.modules.item.schemas import ItemOut
+    from app.modules.user.models import UserFavorite
+
+    rows = (
+        await db.scalars(
+            select(Item)
+            .join(UserFavorite, UserFavorite.item_id == Item.id)
+            .where(UserFavorite.user_id == str(user.id), Item.deleted_at.is_(None))
+            .options(selectinload(Item.images))
+            .order_by(UserFavorite.created_at.desc())
+        )
+    ).all()
+    return [ItemOut.model_validate(i).model_dump() for i in rows]
+
+
+async def add_favorite(db: AsyncSession, user: User, item_id: str) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    from app.core.cache import invalidate_namespace
+    from app.modules.item.models import Item
+    from app.modules.user.models import UserFavorite
+
+    item = await db.get(Item, item_id)
+    if not item or item.deleted_at is not None:
+        raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
+    if str(item.owner_id) == str(user.id):
+        raise BizError(ErrorCode.CONFLICT, "不能收藏自己发布的物品")
+    db.add(UserFavorite(user_id=str(user.id), item_id=str(item.id)))
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # 并发双击由 uq_user_favorite 兜底：已收藏视作成功（幂等语义）
+        await db.rollback()
+        _logger.info("favorite_duplicate_ignored", user_id=str(user.id), item_id=item_id)
+        return
+    await invalidate_namespace("items")
+
+
+async def remove_favorite(db: AsyncSession, user: User, item_id: str) -> None:
+    from app.modules.user.models import UserFavorite
+
+    fav = await db.scalar(
+        select(UserFavorite).where(
+            UserFavorite.user_id == str(user.id), UserFavorite.item_id == str(item_id)
+        )
+    )
+    if not fav:
+        raise BizError(ErrorCode.NOT_FOUND, "该物品不在收藏中")
+    await db.delete(fav)
+    await db.commit()

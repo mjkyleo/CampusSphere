@@ -176,6 +176,20 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, list[tuple[str, str]]]] = [
             ("semester", "VARCHAR(32) DEFAULT ''"),
         ],
     ),
+    # P2-22：评价点赞计数（课程评价"有用"数）与资源点赞数——此前仅有
+    # 前端 mock，落库需要补列
+    (
+        "course_reviews",
+        [
+            ("helpful_count", "INTEGER DEFAULT 0"),
+        ],
+    ),
+    (
+        "shares",
+        [
+            ("likes", "INTEGER DEFAULT 0"),
+        ],
+    ),
 ]
 
 
@@ -189,6 +203,53 @@ _SQLITE_INDEX_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
             "uq_trade_session_active_item",
             "CREATE UNIQUE INDEX uq_trade_session_active_item "
             "ON trade_sessions (item_id) WHERE status IN (0, 1)",
+        ),
+    ],
+    # P1-7：评价去重的并发兜底——同一用户对同一课程/菜品仅一条评价。
+    # 与模型层 __table_args__ 的命名唯一索引保持同名，老库补齐后行为一致。
+    "course_reviews": [
+        (
+            "uq_course_review_user",
+            "CREATE UNIQUE INDEX uq_course_review_user "
+            "ON course_reviews (course_id, user_id)",
+        ),
+    ],
+    "canteen_reviews": [
+        (
+            "uq_canteen_review_user",
+            "CREATE UNIQUE INDEX uq_canteen_review_user "
+            "ON canteen_reviews (dish_id, user_id)",
+        ),
+    ],
+    # P1-9：同一举报人对同一目标仅一条工单（并发兜底 + auto-ban 统计前提）
+    "reports": [
+        (
+            "uq_report_reporter_target",
+            "CREATE UNIQUE INDEX uq_report_reporter_target "
+            "ON reports (reporter_id, target_type, target_id)",
+        ),
+    ],
+    # P2-3 / P2-4：同一申请人对同一岗位 / 同一用户对同一团队仅一条记录
+    "job_applications": [
+        (
+            "uq_job_application",
+            "CREATE UNIQUE INDEX uq_job_application "
+            "ON job_applications (job_id, applicant_id)",
+        ),
+    ],
+    "team_members": [
+        (
+            "uq_team_member",
+            "CREATE UNIQUE INDEX uq_team_member "
+            "ON team_members (team_id, user_id)",
+        ),
+    ],
+    # P2-22：收藏去重（同一用户对同一物品仅一条）
+    "user_favorites": [
+        (
+            "uq_user_favorite",
+            "CREATE UNIQUE INDEX uq_user_favorite "
+            "ON user_favorites (user_id, item_id)",
         ),
     ],
 }

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models import Base, PKMixin, TimestampMixin
@@ -81,14 +81,24 @@ class Dish(Base, PKMixin, TimestampMixin):
 
     stall: Mapped[Stall] = relationship(back_populates="dishes")
     reviews: Mapped[list[CanteenReview]] = relationship(
-        back_populates="dish", cascade="all, delete-orphan", lazy="selectin"
+        # P2-17：不用模型级 selectin——Dish 会被 canteen 列表批量加载，
+        # eager 装载等于每次列表把全库菜品评价拉进内存。删除菜品时的
+        # 级联清理由 flush 内按需惰性加载 + DB 级 ON DELETE CASCADE 完成。
+        back_populates="dish", cascade="all, delete-orphan"
     )
 
 
 class CanteenReview(Base, PKMixin, TimestampMixin):
-    """菜品评价。"""
+    """菜品评价。
+
+    P1-7：同一用户对同一菜品仅允许一条评价，命名唯一索引兜底并发双插
+    （同 course_reviews 的 uq_course_review_user）。
+    """
 
     __tablename__ = "canteen_reviews"
+    __table_args__ = (
+        Index("uq_canteen_review_user", "dish_id", "user_id", unique=True),
+    )
 
     dish_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("dishes.id", ondelete="CASCADE"), index=True
