@@ -27,6 +27,9 @@ const CourseDetail: React.FC = () => {
     if (!id) return;
     const fetchCourseAndReviews = async () => {
       setLoading(true);
+      // P3：切课程先清空上一门课的 AI 画像，避免串课显示旧文案
+      setAiSummary('');
+      setReviews([]);
       try {
         const cRes = await api.courses.get(id);
         if (cRes.code === 0 && cRes.data) {
@@ -37,12 +40,13 @@ const CourseDetail: React.FC = () => {
           const revList = rRes.data.items || [];
           setReviews(revList);
 
-          // Trigger AI summary
+          // Trigger AI summary（P3：补 .catch，避免未处理拒绝在控制台报错）
           if (revList.length > 0) {
             setSummarizing(true);
             const reviewTexts = revList.map((r) => r.content);
             summarizeCourseReviews(reviewTexts)
               .then((sum) => setAiSummary(sum || '暂无总结'))
+              .catch(() => setAiSummary(''))
               .finally(() => setSummarizing(false));
           }
         }
@@ -60,9 +64,10 @@ const CourseDetail: React.FC = () => {
     if (!id) return;
     try {
       const res = await api.courses.likeReview(id, reviewId);
-      if (res.code === 0) {
+      if (res.code === 0 && res.data) {
+        // 以服务端返回的计数为准（P2-22 起为真实落库端点）
         setReviews((prev) =>
-          prev.map((r) => (r.id === reviewId ? { ...r, helpful_count: (r.helpful_count || 0) + 1 } : r))
+          prev.map((r) => (r.id === reviewId ? { ...r, helpful_count: res.data!.helpful_count } : r))
         );
         success('已点赞该评价，感谢您的反馈！');
       }

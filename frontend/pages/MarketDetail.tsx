@@ -92,6 +92,28 @@ const MarketDetail: React.FC = () => {
     }
   };
 
+  // P2-22：收藏接真实端点（此前是纯 toast 假动作，无任何落库）
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const handleFavorite = async () => {
+    if (!user) {
+      info('请先登录后再收藏');
+      return;
+    }
+    setFavoriteLoading(true);
+    try {
+      const res = await api.users.addFavorite(item.id);
+      if (res.code === 0) {
+        success('已添加到我的收藏');
+      } else {
+        error(res.message || '收藏失败');
+      }
+    } catch {
+      error('收藏操作异常');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
   // Owner: Delete
   const handleDeleteItem = async () => {
     if (!window.confirm('确定要删除这条闲置发布吗？操作不可恢复。')) return;
@@ -265,8 +287,9 @@ const MarketDetail: React.FC = () => {
                   {actionLoading ? '正在建立交易会话...' : '发起交易与在线咨询'}
                 </button>
                 <button
-                  onClick={() => info('已添加到我的收藏')}
-                  className="p-3.5 bg-panel hover:bg-slate text-slate rounded-sm transition-colors"
+                  onClick={handleFavorite}
+                  disabled={favoriteLoading}
+                  className="p-3.5 bg-panel hover:bg-slate text-slate rounded-sm transition-colors disabled:opacity-50"
                   title="收藏"
                 >
                   <Heart className="w-4 h-4" />

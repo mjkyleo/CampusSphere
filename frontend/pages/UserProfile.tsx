@@ -74,7 +74,8 @@ const UserProfile: React.FC = () => {
         if (res.code === 0 && res.data) setMyItems(res.data.items || []);
       });
       api.users.getFavorites(user.id).then((res) => {
-        if (res.code === 0 && res.data) setFavorites(res.data.items || []);
+        // 后端返回物品数组（P2-22 前是 mock 的 {items} 结构）
+        if (res.code === 0 && res.data) setFavorites(Array.isArray(res.data) ? res.data : (res.data as any).items || []);
       });
     }
   }, [user]);
@@ -240,7 +241,13 @@ const UserProfile: React.FC = () => {
         refreshBindings();
       }
     } else {
-      const res = await api.auth.bindOAuth(provider, 'auth_code_mock');
+      // state 防 CSRF：绑定前先向后端领取，一次性消费（P2-13 后端强制校验）
+      const stateRes = await api.auth.oauthState(provider);
+      if (stateRes.code !== 0 || !stateRes.data) {
+        error(stateRes.message || '获取绑定凭据失败，请重试');
+        return;
+      }
+      const res = await api.auth.bindOAuth(provider, 'auth_code_mock', stateRes.data);
       if (res.code === 0) {
         success(`已成功绑定 ${provider === 'wechat' ? '微信' : 'QQ'} 账号！`);
         refreshBindings();

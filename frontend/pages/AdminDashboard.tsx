@@ -782,7 +782,7 @@ const AdminDashboard: React.FC = () => {
     try {
       const res = await api.admin.updateUserStatus(userId, nextStatus);
       if (res.code === 0) {
-        success(nextStatus === 1 ? '用户已解封恢复正常' : '已成功封禁该违规用户');
+        success(nextStatus === 1 ? '已成功封禁该违规用户' : '用户已解封恢复正常');
         fetchAdminData();
       }
     } catch {
@@ -1062,9 +1062,9 @@ const AdminDashboard: React.FC = () => {
                     <td className="p-4 font-bold text-success">信用良好 (5.0)</td>
                     <td className="p-4">
                       {u.status === 1 ? (
-                        <span className="px-2 py-0.5 bg-success/10 text-success rounded font-bold">正常</span>
-                      ) : (
                         <span className="px-2 py-0.5 bg-error/10 text-error rounded font-bold">已封禁</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-success/10 text-success rounded font-bold">正常</span>
                       )}
                     </td>
                     <td className="p-4 text-right">
@@ -1072,11 +1072,11 @@ const AdminDashboard: React.FC = () => {
                         onClick={() => handleToggleUserBan(u.id, u.status)}
                         className={`px-3 py-1 rounded-sm font-bold text-xs transition-colors ${
                           u.status === 1
-                            ? 'bg-error/10 text-error hover:bg-error/20'
-                            : 'bg-success/10 text-success hover:bg-emerald-100'
+                            ? 'bg-success/10 text-success hover:bg-emerald-100'
+                            : 'bg-error/10 text-error hover:bg-error/20'
                         }`}
                       >
-                        {u.status === 1 ? '封禁账号' : '解除封禁'}
+                        {u.status === 1 ? '解除封禁' : '封禁账号'}
                       </button>
                     </td>
                   </tr>

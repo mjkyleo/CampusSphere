@@ -93,11 +93,20 @@ const ShareFeed: React.FC = () => {
   const handleDownload = async (share: ShareOut) => {
     try {
       const res = await api.shares.download(share.id);
-      if (res.code === 0) {
+      if (res.code === 0 && res.data?.download_url) {
+        const url = res.data.download_url;
+        // 只允许 http(s) 链接，防止后端配置异常时把 javascript:/data: 之类地址交给浏览器
+        if (!/^https?:\/\//i.test(url)) {
+          error('下载链接无效，请联系管理员');
+          return;
+        }
         setShares((prev) =>
           prev.map((s) => (s.id === share.id ? { ...s, downloads: (s.downloads || 0) + 1 } : s))
         );
         success(`正在启动安全下载通道: 《${share.title}》`);
+        window.open(url, '_blank', 'noopener');
+      } else {
+        error(res.message || '获取下载链接失败');
       }
     } catch {
       error('下载服务异常');

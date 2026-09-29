@@ -16,6 +16,8 @@ type WsEventHandler = (data: any) => void;
 /** Listener invoked when the connection state changes. */
 type ConnectionListener = (connected: boolean) => void;
 
+import { getStoredAccessToken } from './api.ts';
+
 const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds
 const MAX_RECONNECT_DELAY_MS = 30_000; // cap at 30s
 const BASE_RECONNECT_DELAY_MS = 1_000; // start at 1s
@@ -142,7 +144,18 @@ class WebSocketClient {
 
   /** Open a new WebSocket connection using the current token. */
   private openSocket(): void {
-    if (!this.token) return;
+    // P2-21：每次建连都重读 localStorage 里的最新 access token——
+    // 重连此前永远用 connect() 时捕获的旧 token，REST 侧静默刷新后
+    // 无人重建 WS，过期后进入永久"正在重连…"循环。
+    const latestToken = getStoredAccessToken();
+    if (latestToken) {
+      this.token = latestToken;
+    }
+    if (!this.token) {
+      // 本地已无令牌（登出/清理）：不再重连，等待上层主动 connect()
+      this.shouldReconnect = false;
+      return;
+    }
 
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const params = new URLSearchParams();

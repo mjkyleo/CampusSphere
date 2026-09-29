@@ -12,9 +12,8 @@ export const ReportModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  if (!reportModal.isOpen) return null;
-
   // Esc 关闭 + 打开时聚焦弹窗面板（可访问性）
+  // hooks 必须全部声明在早退之前：开合切换时 hook 数量不变，否则整棵组件树崩溃
   useEffect(() => {
     if (!reportModal.isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -24,6 +23,8 @@ export const ReportModal: React.FC = () => {
     panelRef.current?.focus();
     return () => window.removeEventListener('keydown', onKey);
   }, [reportModal.isOpen, closeReport]);
+
+  if (!reportModal.isOpen) return null;
 
   const typeLabels: Record<string, string> = {
     user: '违规用户',
