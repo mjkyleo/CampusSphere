@@ -46,7 +46,7 @@ echo ============================================================
 echo  CampusSphere is ready:
 echo    Frontend : http://localhost:5173
 echo    Backend  : http://127.0.0.1:8000  (API docs: /docs)
-echo    Admin    : admin / admin123  (change password after login)
+echo    Admin    : siteadmin / (bootstrap password from config)  (change it after login)
 echo    Verify code: dev mode auto-fills on the login page
 echo    Logs     : backend\uvicorn.log / frontend\vite.log
 echo ============================================================

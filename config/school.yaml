@@ -246,7 +246,7 @@ ai:
 # - gateway.key：管理端"网关密钥"，仅用于换取短时网关令牌，不写入前端源码；
 #   部署后通过安全渠道告知管理员。缺失/过短（<16）时生产启动会被 validate_admin_security 拦截。
 # - bootstrap：首次启动自动创建的管理员账号，密码至少 admin_gateway_min_length 位；
-#   未配置密码时回退到开发用弱口令 admin123（仅本地/测试，生产必须显式配置）。
+#   未配置密码时仅 DEBUG 模式回退弱口令 admin123；生产启动会被 validate_admin_security 拒绝（P2-24）。
 admin:
   bootstrap:
     enabled: true

@@ -14,6 +14,9 @@ scrape_configs:
         labels:
           service: 'campus-life-platform'
 
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['nginx:80']
+  # P3：nginx:80 抓取目标默认拓扑（core profile，无 gateway）下常驻 DOWN，
+  # `up{job="nginx"} == 0` 告警长期误报（狼来了）。该目标仅在 gateway profile
+  # 有意义——部署网关拓扑时取消注释并确认 prometheus 能解析 nginx 主机名。
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx:80']

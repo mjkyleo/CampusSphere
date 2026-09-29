@@ -221,7 +221,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build worker image
-        run: docker build -t campus-worker:ci -f deploy/Dockerfile.worker backend
+        # P2-26：实际部署用 backend/Dockerfile 的 worker target（deploy/Dockerfile.worker
+        # 已声明废弃）——CI 必须构建真实镜像，绿灯才有意义。
+        run: docker build -t campus-worker:ci --target worker -f backend/Dockerfile backend
 
   # ---------------- 数据库迁移校验（对应审计 P1-2） ----------------
   # 运行 alembic 迁移链，并用 `alembic check` 强制「模型变更须出迁移脚本」，

@@ -12,7 +12,9 @@ import os
 import sys
 
 URL = os.environ.get("URL", "http://localhost:5173/")
-OUT_DIR = r"C:/Users/86132/.workbuddy/clipboard-images"
+# 截图输出目录：默认落在仓库 .run/ 下（可用 OUT_DIR 覆盖）。
+# 此前硬编码个人绝对路径，他人机器上一跑即炸。
+OUT_DIR = os.environ.get("OUT_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".run", "screenshots"))
 os.makedirs(OUT_DIR, exist_ok=True)
 out_path = os.path.join(OUT_DIR, "campussphere-after-fix.png")
 
