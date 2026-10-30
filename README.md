@@ -48,9 +48,9 @@ CampusSphere 是一套面向高校的模块化单体校园生活平台（Python 
 | 兼职 / 分享 / 组队 | 发布与申请流转，分类均由后台配置驱动 |
 | 即时消息 | WebSocket 实时私信，Redis 广播，跨实例支持；会话列表窗口函数合并查询，历史消息分页 |
 | 举报系统 | 多目标举报、自动封禁策略、工单升级 |
-| 管理后台 | 数据看板、举报处理、审核配置、邮箱注册规则动态覆盖 |
+| 管理后台 | 数据看板、举报处理、审核配置、邮箱注册规则动态覆盖、管理操作审计日志（audit 模块） |
 | AI 助手 | 校园智能洞察、物品文案生成、课程评价摘要、帖子分类（Gemini 多模型自动兜底，无 Key 时降级为内置文案） |
-| 基础设施 | Celery 异步任务、MinIO 对象存储、Meilisearch 全文搜索、OpenTelemetry 可观测、structlog 结构化日志 |
+| 基础设施 | Celery 异步任务、MinIO 对象存储、Meilisearch 全文搜索（写侧经 Celery 增量同步，含全量重建脚本 reindex_search.py）、OpenTelemetry 可观测、structlog 结构化日志 |
 | 演示数据 | `backend/scripts/seed_demo_users.py` 一键灌入 10 个演示账号及全功能使用记录 |
 
 ### 技术栈

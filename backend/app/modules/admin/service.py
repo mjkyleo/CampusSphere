@@ -28,6 +28,7 @@ from app.modules.item.schemas import ItemUpdate
 from app.modules.item.service import cas_item_status
 from app.modules.item.statemachine import validate_transition
 from app.modules.report.models import Report
+from app.search import sync as search_sync
 
 _logger = get_logger("admin.service")
 
@@ -522,7 +523,7 @@ def _clean_department_groups(raw: list[dict]) -> list[dict]:
                 raise BizError(ErrorCode.BAD_REQUEST, f"院系名称「{name}」过长（最多 30 个字符）")
             depts.append(name)
     if len(merged) > 20:
-        raise BizError(ErrorCode.BAD_REQUEST, f"学部分组数量过多（最多 20 个）")
+        raise BizError(ErrorCode.BAD_REQUEST, "学部分组数量过多（最多 20 个）")
     return [{"group": g, "departments": d} for g, d in merged.items() if d]
 
 
@@ -802,6 +803,7 @@ async def admin_update_item(db: AsyncSession, item_id: str, data: ItemUpdate) ->
         await cas_item_status(db, str(item.id), item.status, data.status)
     await db.commit()
     await db.refresh(item)
+    search_sync.index_item(item)
     _logger.info("admin_update_item", item_id=item_id, status=item.status)
     return item
 
@@ -817,6 +819,7 @@ async def admin_delete_item(db: AsyncSession, item_id: str) -> None:
         raise BizError(ErrorCode.NOT_FOUND, "物品不存在")
     item.deleted_at = datetime.now(UTC)
     await db.commit()
+    search_sync.remove_item(item)
     _logger.warning("admin_delete_item", item_id=item_id)
 
 
@@ -833,6 +836,7 @@ async def approve_item(db: AsyncSession, item_id: str) -> Item:
         )
         await db.commit()
         await db.refresh(item)
+        search_sync.index_item(item)
         _logger.info("admin_approve_item", item_id=item_id)
     return item
 

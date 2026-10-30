@@ -2,8 +2,10 @@
  * Singleton WebSocket client for real-time messaging.
  *
  * Features:
- * - Connects to `ws://{host}/ws?token=<jwt>&since=<iso>` (goes through Express proxy)
- * - 30-second heartbeat ping to keep the connection alive
+ * - Connects to `ws://{host}/ws`, then authenticates with a first frame
+ *   `{event: 'auth', token}` (the JWT never travels in the URL, so it
+ *   cannot leak into reverse-proxy access logs)
+ * - 30-second heartbeat ping after successful authentication
  * - Exponential backoff reconnection (1s → 2s → 4s → ... → max 30s)
  * - `since` parameter sent on reconnect for server-side message compensation
  * - Event-based pub/sub: register listeners via `on(event, handler)`
@@ -158,8 +160,8 @@ class WebSocketClient {
     }
 
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    // token 走连接后的首帧 auth（见 onopen），URL 只带非敏感的补发游标
     const params = new URLSearchParams();
-    params.set('token', this.token);
     // On reconnect, include `since` so the backend can replay missed messages
     if (this.lastMessageAt) {
       params.set('since', this.lastMessageAt);
@@ -176,7 +178,9 @@ class WebSocketClient {
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
-      this.startHeartbeat();
+      // 鉴权首帧必须在任何其他帧（含心跳 ping）之前发出——
+      // 服务端在 auth 前只读这一帧，别的帧会被判为未授权而断开
+      this.ws!.send(JSON.stringify({ event: 'auth', token: this.token }));
       this.notifyConnection();
     };
 
@@ -185,6 +189,19 @@ class WebSocketClient {
         const payload = JSON.parse(event.data as string);
         const eventName: string | undefined = payload?.event;
         if (!eventName) return;
+
+        if (eventName === 'auth:ok') {
+          // 鉴权通过后才启动心跳：避免 auth 完成前发出 ping 帧占用首帧窗口
+          this.startHeartbeat();
+          this.notifyConnection();
+          return;
+        }
+
+        if (eventName === 'error' && payload.data?.code === 40100) {
+          // 鉴权被拒（token 失效/账号封禁）：重连也只会重复失败，
+          // 停止自动重连，等 REST 层刷新令牌后由上层重新 connect()
+          this.shouldReconnect = false;
+        }
 
         // Track latest message timestamp for reconnection compensation
         if (eventName === 'message:new' && payload.data?.created_at) {

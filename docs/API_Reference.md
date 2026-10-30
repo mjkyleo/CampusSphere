@@ -1,6 +1,6 @@
 # campus-life-platform — API 接口文档
 
-> 版本：`1.0.0` | 接口总数：128 | 生成时间：2026-09-05 17:55
+> 版本：`1.0.0` | 接口总数：137 | 生成时间：2026-10-01 22:17
 
 > 约定：业务错误统一返回 **HTTP 200**，错误码在响应体 `code` 字段（如 40100 未认证 / 40300 禁止 / 40400 未找到 / 40900 冲突 / 42200 参数错误）。
 
@@ -58,10 +58,10 @@
 
 ### `AiFeatureConfig`
 
-AI 智能助手功能开关（DB 值覆盖 school.yaml 默认值）。
+AI 智能助手功能开关（后台可动态配置，DB 值覆盖 school.yaml 默认值）。
 
-个人开发者无大模型 API 额度时保持关闭，前端隐藏所有 AI 入口；
-额度到位后管理员在后台一键开启即可上线。
+个人开发者模式下默认关闭：避免无大模型 API 额度时前端展示假数据，
+管理员可在后台一键开启/关闭，实现"功能先抽离、额度到位再上线"。
 
 - `enabled`：boolean，可选。
 - `model`：string，可选。
@@ -502,6 +502,13 @@ AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
 
 - `content`：string，必填。
 
+### `ChangePasswordRequest`
+
+修改密码：需原密码验证（P1-4：此前前端为假成功 stub，后端无端点）。
+
+- `old_password`：string，必填。
+- `new_password`：string，必填。
+
 ### `CourseCreate`
 
 - `code`：string，必填。
@@ -549,6 +556,7 @@ AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
 - `user_id`：string，必填。
 - `rating`：integer，必填。
 - `content`：string，必填。
+- `helpful_count`：integer，可选。
 
 ### `CourseSummaryRequest`
 
@@ -779,7 +787,7 @@ AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
 
 ### `ReportCreate`
 
-- `target_type`：string，必填。user/item/message/comment/share
+- `target_type`：string 枚举 ['user', 'item', 'message', 'comment', 'share', 'course', 'stall']，必填。user/item/message/comment/share/course/stall
 - `target_id`：string，必填。
 - `reason`：string，必填。
 
@@ -821,7 +829,7 @@ AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
 ### `SendCodeRequest`
 
 - `target`：string，必填。手机号或邮箱
-- `purpose`：string，可选。login/register/email
+- `purpose`：string 枚举 ['login', 'register', 'bind_email', 'bind_phone']，可选。login/register/bind_email/bind_phone
 - `captcha_ticket`：string | null，可选。滑块验证票据（captcha_enabled 时必填，由 /captcha/verify 签发）
 
 ### `ShareCategoriesConfig`
@@ -846,6 +854,7 @@ AI 功能状态（公开端点，供前端决定是否渲染 AI 区块）。
 - `file_key`：string，必填。
 - `category`：string，必填。
 - `downloads`：integer，必填。
+- `likes`：integer，可选。
 - `download_url`：string | null，可选。
 
 ### `SliderCaptchaOut`
@@ -2052,6 +2061,26 @@ AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
 
 - `200`：Successful Response — `ApiResponse_NoneType_`
 
+### POST `/api/auth/password` — Change Password Endpoint
+
+修改密码（需验证原密码）。
+
+P1-4：此前前端 ``changePassword`` 是返回假成功的 stub，后端本无该端点；
+对"认为账号被盗想改密码"的用户构成直接安全伤害。原密码错误时透出
+明确错误（42200），不做任何静默成功。
+
+**请求体**
+
+> 必填
+
+- `old_password`：string，必填。
+- `new_password`：string，必填。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_NoneType_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ### POST `/api/auth/captcha/geetest/verify` — Captcha Geetest Verify
 
 极验二次校验：通过后签发一次性票据（供 send-code 使用）。
@@ -2106,7 +2135,7 @@ AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
 > 必填
 
 - `target`：string，必填。手机号或邮箱
-- `purpose`：string，可选。login/register/email
+- `purpose`：string 枚举 ['login', 'register', 'bind_email', 'bind_phone']，可选。login/register/bind_email/bind_phone
 - `captcha_ticket`：string | null，可选。滑块验证票据（captcha_enabled 时必填，由 /captcha/verify 签发）
 
 **响应**
@@ -2180,6 +2209,9 @@ AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
 ### POST `/api/auth/bind/oauth` — Bind Oauth Endpoint
 
 补充绑定 QQ / 微信（需 OAuth 授权码 + state 防 CSRF）。
+
+P2-13：state 此前可选——不传即跳过校验，防线名存实亡。现改为必传，
+缺失或校验失败一律拒绝；state 经 GET /api/auth/{provider}/state 获取。
 
 **请求体**
 
@@ -2344,6 +2376,23 @@ AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
 - `200`：Successful Response — `ApiResponse_CourseReviewOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
+### POST `/api/courses/reviews/{review_id}/like` — Like Review
+
+评价"有用"点赞（P2-22：此前前端是 localStorage mock，永不落库）。
+
+NOTE: 路径为两段静态前缀，不会与 /{course_id} 单段匹配冲突。
+计数为单条原子 UPDATE，并发点赞不丢计数；不做单用户去重（轻量
+社交信号，防刷由全局限流兜底）。
+
+**请求参数**
+
+- `review_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ---
 
 ## files
@@ -2351,6 +2400,12 @@ AI 功能开关状态（公开）：前端据此条件渲染 AI 入口。
 ### GET `/api/files/raw` — Raw
 
 本地降级模式下载文件。
+
+信任模型与签名 URL 一致：object_key 内含 128 位随机 uuid，充当能力
+凭证，故不做登录校验（前端 ``<img src>`` 场景也无法携带 Header）。
+但 key 必须能映射回 uploads 根目录之内的路径 —— 路径折叠与越界校验
+统一走 :meth:`StorageClient.local_path_for`（历史版本在此存在 Windows
+反斜杠穿越，可读任意文件）。
 
 **请求参数**
 
@@ -2418,6 +2473,7 @@ Service 层的 ``delete_item`` 只负责删除，不知道"管理员"这个概�
 - `keyword`（查询，可选）：string。
 - `category`（查询，可选）：string。
 - `status`（查询，可选）：integer。
+- `owner_id`（查询，可选）：string。
 - `page`（查询，可选）：integer。
 - `page_size`（查询，可选）：integer。
 
@@ -2502,6 +2558,32 @@ Service 层的 ``delete_item`` 只负责删除，不知道"管理员"这个概�
 **请求参数**
 
 - `item_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_TradeSessionOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/items/trades/{trade_id}/complete` — Trade Complete
+
+交易双方确认完成：会话 → COMPLETED，物品 → SOLD。
+
+**请求参数**
+
+- `trade_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_TradeSessionOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/items/trades/{trade_id}/cancel` — Trade Cancel
+
+交易双方取消：会话 → CANCELLED，物品释放回 ON_SALE。
+
+**请求参数**
+
+- `trade_id`（路径，必填）：string。
 
 **响应**
 
@@ -2625,9 +2707,15 @@ Prometheus 指标端点。
 
 ### GET `/api/messages/conversations` — Conversations
 
+**请求参数**
+
+- `page`（查询，可选）：integer。
+- `page_size`（查询，可选）：integer。
+
 **响应**
 
 - `200`：Successful Response — `ApiResponse_list_`
+- `422`：Validation Error — `HTTPValidationError`
 
 ### GET `/api/messages/conversations/{conversation_id}` — History
 
@@ -2689,7 +2777,7 @@ Prometheus 指标端点。
 
 > 必填
 
-- `target_type`：string，必填。user/item/message/comment/share
+- `target_type`：string 枚举 ['user', 'item', 'message', 'comment', 'share', 'course', 'stall']，必填。user/item/message/comment/share/course/stall
 - `target_id`：string，必填。
 - `reason`：string，必填。
 
@@ -2769,6 +2857,22 @@ Prometheus 指标端点。
 - `200`：Successful Response — `ApiResponse_ShareOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
+### POST `/api/shares/{share_id}/like` — Like
+
+资源点赞（P2-22：此前前端是 localStorage mock，永不落库）。
+
+单条原子 UPDATE，并发点赞不丢计数；不做单用户去重（轻量社交信号，
+防刷由全局限流兜底）。
+
+**请求参数**
+
+- `share_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_dict_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ---
 
 ## teammate
@@ -2840,9 +2944,35 @@ Prometheus 指标端点。
 - `200`：Successful Response — `ApiResponse_TeamMemberOut_`
 - `422`：Validation Error — `HTTPValidationError`
 
+### POST `/api/teams/{team_id}/close` — Close
+
+队长关闭招募（P2-22：此前前端是 localStorage mock，永不落库）。
+
+**请求参数**
+
+- `team_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_TeamOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
 ---
 
 ## user
+
+### DELETE `/api/users/me/favorites/{item_id}` — Remove Favorite Endpoint
+
+取消收藏。
+
+**请求参数**
+
+- `item_id`（路径，必填）：string。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_NoneType_`
+- `422`：Validation Error — `HTTPValidationError`
 
 ### GET `/api/users/me` — Get Me
 
@@ -2875,6 +3005,14 @@ Prometheus 指标端点。
 - `200`：Successful Response — `ApiResponse_list_`
 - `422`：Validation Error — `HTTPValidationError`
 
+### GET `/api/users/me/favorites` — List Favorites Endpoint
+
+当前用户的收藏列表（含物品详情）。
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_list_`
+
 ### PATCH `/api/users/me` — Update Me
 
 **请求体**
@@ -2892,6 +3030,19 @@ Prometheus 指标端点。
 **响应**
 
 - `200`：Successful Response — `ApiResponse_UserProfileOut_`
+- `422`：Validation Error — `HTTPValidationError`
+
+### POST `/api/users/me/favorites` — Add Favorite Endpoint
+
+收藏物品（幂等：重复收藏不报错）。
+
+**请求参数**
+
+- `item_id`（查询，必填）：string。要收藏的物品 ID
+
+**响应**
+
+- `200`：Successful Response — `ApiResponse_NoneType_`
 - `422`：Validation Error — `HTTPValidationError`
 
 ---

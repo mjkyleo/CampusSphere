@@ -1020,6 +1020,13 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     return { code: 0, message: 'ok', data: db.canteens as any };
   }
 
+  // Canteens: Dish detail（该菜品的全部评价；须排在 /canteens/{id} 之前）
+  if (path.startsWith('/api/canteens/dishes/') && method === 'GET') {
+    const dishId = path.split('/')[4];
+    const reviews = db.canteenReviews.filter((r: any) => r.dish_id === dishId);
+    return { code: 0, message: 'ok', data: { dish: null, reviews } as any };
+  }
+
   // Canteens: Get
   if (path.startsWith('/api/canteens/') && !path.includes('/reviews') && method === 'GET') {
     const id = path.split('/')[3];
@@ -1027,28 +1034,15 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     return { code: 0, message: 'ok', data: c as any };
   }
 
-  // Canteens: Reviews
-  if (path.includes('/canteens/') && path.includes('/reviews') && method === 'GET') {
-    const canteenId = path.split('/')[3];
-    const stallId = params.get('stall_id');
-    let reviews = db.canteenReviews.filter((r: any) => r.canteen_id === canteenId);
-    if (stallId) {
-      reviews = reviews.filter((r: any) => r.stall_id === stallId);
-    }
-    return { code: 0, message: 'ok', data: { total: reviews.length, items: reviews } as any };
-  }
-
-  // Canteens: Add Review
-  if (path.includes('/canteens') && path.includes('/reviews') && method === 'POST') {
+  // Canteens: Add Review（菜品维度，字段与后端 CanteenReviewCreate 对齐）
+  if (path.startsWith('/api/canteens/dishes/') && path.endsWith('/reviews') && method === 'POST') {
+    const dishId = path.split('/')[4];
     const newRev: CanteenReviewOut = {
       id: 'cant-rev-' + Date.now(),
-      canteen_id: body.canteen_id || 'cant-1',
-      stall_id: body.stall_id || 'stl-1-1',
-      dish_name: body.dish_name || '美味佳肴',
+      dish_id: dishId,
       user_id: db.currentUser.id,
       user_nickname: db.currentUser.nickname,
-      rating: body.rating || 5,
-      price_cents: body.price_cents,
+      rating: body.rating ?? 5,
       content: body.content || '',
       created_at: new Date().toISOString()
     };
@@ -1408,11 +1402,10 @@ export const api = {
     },
     configs: () => request<CanteenConfig>('/api/canteens/configs'),
     get: (id: string) => request<CanteenOut>(`/api/canteens/${id}`),
-    getDish: (dishId: string) => request<DishOut>(`/api/canteens/dishes/${dishId}`),
-    getReviews: (canteenId: string, stallId?: string) =>
-      request<{ total: number; items: CanteenReviewOut[] }>(`/api/canteens/${canteenId}/reviews${stallId ? `?stall_id=${stallId}` : ''}`),
-    addReview: (data: { canteen_id: string; stall_id: string; dish_name: string; rating: number; content: string; price_cents?: number }) =>
-      request<CanteenReviewOut>(`/api/canteens/${data.canteen_id}/reviews`, { method: 'POST', body: JSON.stringify(data) }),
+    // 后端评价是「菜品」维度：读用 /canteens/dishes/{id}（返回 { dish, reviews }），
+    // 写用 /canteens/dishes/{id}/reviews（只接受 rating + content，需登录）。
+    dishReviews: (dishId: string) =>
+      request<{ dish: DishOut; reviews: CanteenReviewOut[] }>(`/api/canteens/dishes/${dishId}`),
     reviewDish: (dishId: string, rating: number, content: string) =>
       request<CanteenReviewOut>(`/api/canteens/dishes/${dishId}/reviews`, { method: 'POST', body: JSON.stringify({ rating, content }) })
   },

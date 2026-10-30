@@ -5,8 +5,8 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.common.utils import escape_like, mask_email, mask_phone
 from app.core.exceptions import BizError, ErrorCode
@@ -56,6 +56,10 @@ async def update_profile(
         profile.grade = data.grade
     await db.commit()
     await db.refresh(profile)
+    # 同步用户搜索索引（最佳努力，见 app/search/sync.py）
+    from app.search import sync as search_sync
+
+    search_sync.index_user(user)
     return profile
 
 
@@ -132,7 +136,7 @@ async def add_favorite(db: AsyncSession, user: User, item_id: str) -> None:
     db.add(UserFavorite(user_id=str(user.id), item_id=str(item.id)))
     try:
         await db.commit()
-    except IntegrityError as exc:
+    except IntegrityError:
         # 并发双击由 uq_user_favorite 兜底：已收藏视作成功（幂等语义）
         await db.rollback()
         _logger.info("favorite_duplicate_ignored", user_id=str(user.id), item_id=item_id)

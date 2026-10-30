@@ -111,6 +111,6 @@ def escape_like(keyword: str) -> str:
     return (
         (keyword or "")
         .replace("\\", "\\\\")
-        .replace("%", "\%")
-        .replace("_", "\_")
+        .replace("%", r"\%")
+        .replace("_", r"\_")
     )

@@ -26,6 +26,7 @@ from app.modules.auth.models import User
 from app.modules.item.models import Item, ItemImage, TradeSession
 from app.modules.item.schemas import ItemCreate, ItemUpdate
 from app.modules.item.statemachine import validate_transition
+from app.search import sync as search_sync
 
 _logger = get_logger("item.service")
 
@@ -67,6 +68,8 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
     await db.refresh(item)
     # 写操作：整体失效「物品列表」缓存，避免新发布不立即可见
     await invalidate_namespace("items")
+    # 同步搜索索引（待审核物品不会进索引，见 search/sync.py 可见性策略）
+    search_sync.index_item(item)
     _logger.info("item_created", item_id=str(item.id), owner=str(owner.id))
     return item
 
@@ -218,6 +221,8 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
     await db.refresh(item)
     # 写操作：失效物品列表缓存（状态/标题变更会影响广场展示）
     await invalidate_namespace("items")
+    # 状态改回待审核时 index_item 内部会转为从索引移除
+    search_sync.index_item(item)
     return item
 
 
@@ -230,6 +235,7 @@ async def delete_item(db: AsyncSession, item: Item) -> None:
     await db.commit()
     # 写操作：失效物品列表缓存
     await invalidate_namespace("items")
+    search_sync.remove_item(item)
 
 
 async def create_trade_session(

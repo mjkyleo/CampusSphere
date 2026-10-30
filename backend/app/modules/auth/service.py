@@ -8,7 +8,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -283,15 +283,40 @@ async def refresh_token(db: AsyncSession, refresh_token: str) -> dict:
     if payload.get("type") != "refresh":
         raise BizError(ErrorCode.UNAUTHORIZED, "令牌类型错误")
     jti = payload.get("jti")
-    rt = await db.scalar(select(RefreshToken).where(RefreshToken.jti == jti))
-    if not rt or rt.revoked:
-        raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 已失效")
-    user = await db.get(User, payload["sub"])
-    if not user:
-        raise BizError(ErrorCode.UNAUTHORIZED, "用户不存在")
-    # 吊销旧 refresh，签发新 token
-    rt.revoked = True
+    user_id = payload.get("sub")
+    # CAS 式一次性消费：条件 UPDATE 保证同一 refresh token 在并发下也只有
+    # 一个请求能完成轮换（此前先读后写存在竞态——两个并发刷新同时读到
+    # revoked=False，各自签发一套新 token，等于刷新令牌被克隆）。
+    result = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.jti == jti, RefreshToken.revoked.is_(False))
+        .values(revoked=True)
+    )
     await db.commit()
+    if result.rowcount != 1:
+        rt = await db.scalar(select(RefreshToken).where(RefreshToken.jti == jti))
+        if not rt:
+            raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 无效")
+        # 重用检测（RFC 6819）：已轮换的 refresh token 被再次提交，是令牌
+        # 泄露的强信号。此时无法区分"攻击者重放"与"客户端重复提交"，
+        # 保守处理——吊销该用户全部 refresh token 强制重新登录，把泄露
+        # 面收敛到最多一个 access token 的存活期（15 分钟）。
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == rt.user_id)
+            .values(revoked=True)
+        )
+        await db.commit()
+        _logger.warning(
+            "refresh_token_reuse_detected",
+            user_id=str(rt.user_id),
+            jti=jti,
+            token_user_id=str(user_id),
+        )
+        raise BizError(ErrorCode.UNAUTHORIZED, "检测到令牌重用，为保护账号请重新登录")
+    user = await db.get(User, user_id)
+    if not user or user.deleted_at is not None:
+        raise BizError(ErrorCode.UNAUTHORIZED, "用户不存在")
     return await issue_tokens(db, user)
 
 
@@ -486,7 +511,7 @@ def validate_email_rule(email: str, rule: dict) -> None:
             # 改为 fail-closed：配置坏了宁可拒绝注册（管理员能在后台修正），
             # 也不能让"任意邮箱注册"静默生效。正则在后台保存时已校验可编译。
             _logger.error("email_rule_pattern_invalid", pattern=pattern)
-            raise BizError(ErrorCode.VALIDATION, "注册规则配置异常，请联系管理员")
+            raise BizError(ErrorCode.VALIDATION, "注册规则配置异常，请联系管理员") from None
         if not ok:
             raise BizError(ErrorCode.VALIDATION, "邮箱不符合注册规则")
 

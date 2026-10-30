@@ -1,9 +1,13 @@
 """WebSocket 实时通信。
 
-- 连接鉴权：``/ws?token=<access>&since=<iso>``
+- 连接鉴权：建立连接后客户端须在超时窗口内发送首帧
+  ``{"event": "auth", "token": <access>}``（token 走 WS 帧，不再走 URL
+  查询串——查询串会被 nginx / 反代访问日志原样记录，等于把长期有效的
+  登录凭证写进日志文件）
 - user_id -> {websocket} 映射（支持多端）
 - Redis Pub/Sub 多实例广播（单实例/无 Redis 时降级为内存直发）
-- 心跳（ping/pong）、断线重连消息补偿（since）
+- 心跳（ping/pong）、断线重连消息补偿（conv/last_seq/since 仍走查询串，
+  均为非敏感游标参数）
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from app.common.enums import UserStatus
 from app.core.database import SessionLocal
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
-from app.core.redis import redis_publish, redis_psubscribe
+from app.core.redis import redis_psubscribe, redis_publish
 from app.core.security import decode_token, is_token_revoked
 from app.modules.auth.models import User
 from app.modules.message.models import Message, Participant
@@ -178,6 +182,31 @@ async def _authenticate(token: str | None) -> str | None:
     return user_id
 
 
+# 首帧鉴权超时：给足慢网络握手余量，同时压短未授权连接的资源占用窗口
+_WS_AUTH_TIMEOUT_SECONDS = 10
+
+
+async def _authenticate_first_frame(websocket: WebSocket) -> str | None:
+    """等待并校验鉴权首帧 ``{"event": "auth", "token": <access>}``。
+
+    token 经 WS 帧传递而非 URL 查询串（查询串会进反代访问日志）。超时、
+    首帧不是 auth、或 token 校验失败均返回 None，由调用方统一拒绝。
+    """
+    try:
+        raw = await asyncio.wait_for(
+            websocket.receive_text(), timeout=_WS_AUTH_TIMEOUT_SECONDS
+        )
+    except (TimeoutError, WebSocketDisconnect):
+        return None
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(data, dict) or data.get("event") != "auth":
+        return None
+    return await _authenticate(data.get("token"))
+
+
 # ---------------------------------------------------------------------------
 # P2-9：WS 发送节流与内容上限
 # ---------------------------------------------------------------------------
@@ -283,18 +312,21 @@ def _message_event(m: Message) -> dict:
 
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str = "",
     since: str = "",
     conv: str = "",
     last_seq: int | None = None,
 ):
     """WebSocket 入口（注册于 /ws）。
 
-    断线重连的补发口径（按优先级）:
+    鉴权采用**首帧模式**：连接建立后客户端须立即发送
+    ``{"event": "auth", "token": <access>}``，超时未发或校验失败即断开
+    （token 不走 URL 查询串，避免被反代访问日志记录）。
 
-    1. ``/ws?token=..&conv=<会话ID>&last_seq=<N>`` —— **推荐**。
+    断线重连的补发口径（按优先级，均为查询串游标参数）:
+
+    1. ``/ws?conv=<会话ID>&last_seq=<N>`` —— **推荐**。
        基于 LocalSeq 的精确补发，只推 seq > N 的缺失消息（见 seq.py）。
-    2. ``/ws?token=..&conv=<会话ID>&since=<ISO 时间>`` —— 兼容旧客户端，
+    2. ``/ws?conv=<会话ID>&since=<ISO 时间>`` —— 兼容旧客户端，
        按时间戳补发（同刻度消息可能丢失或重复，已废弃）。
 
     .. note::
@@ -302,11 +334,12 @@ async def websocket_endpoint(
        什么也没补 —— 这是本次修复的一个真实缺陷。
     """
     await websocket.accept()
-    user_id = await _authenticate(token)
+    user_id = await _authenticate_first_frame(websocket)
     if not user_id:
         await websocket.send_json({"event": "error", "data": {"code": 40100, "message": "未授权"}})
         await websocket.close()
         return
+    await websocket.send_json({"event": "auth:ok", "data": {"user_id": user_id}})
 
     await manager.connect(user_id, websocket)
     try:

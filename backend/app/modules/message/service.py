@@ -128,7 +128,7 @@ async def list_conversations(
             )
         ).all()
         user_by_id = {u.id: u for u in users}
-        for c, tid in zip(convs, peer_ids):
+        for c, tid in zip(convs, peer_ids, strict=True):
             u = user_by_id.get(tid) if tid else None
             if u:
                 target_user_by_conv[str(c.id)] = {

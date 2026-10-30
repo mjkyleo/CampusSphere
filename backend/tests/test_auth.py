@@ -38,6 +38,32 @@ def test_refresh_token(client):
     assert body["data"]["access_token"]
 
 
+def test_refresh_token_reuse_revokes_family(client):
+    """重用检测（RFC 6819）：已轮换的 refresh token 再次提交 → 401，
+    且该用户后续的所有 refresh token（含轮换出的新令牌）全部吊销。
+    """
+    data = register_login(client, "authuser6")
+    # 第一次刷新：正常轮换，拿到新令牌对
+    r1 = client.post("/api/auth/refresh", json={"refresh_token": data["refresh_token"]})
+    assert r1.status_code == 200
+    rotated = r1.json()["data"]
+    assert rotated["refresh_token"] != data["refresh_token"]
+
+    # 攻击者重放旧 refresh token → 触发重用检测
+    r2 = client.post("/api/auth/refresh", json={"refresh_token": data["refresh_token"]})
+    assert r2.status_code == 200
+    assert r2.json()["code"] == 40100
+
+    # 合法客户端手里的"新"refresh token 也已被连坐吊销 → 401
+    r3 = client.post("/api/auth/refresh", json={"refresh_token": rotated["refresh_token"]})
+    assert r3.status_code == 200
+    assert r3.json()["code"] == 40100
+
+    # 轮换出的 access token 在剩余有效期内仍可用（吊销面收敛在刷新链路）
+    r4 = client.get("/api/users/me", headers=auth_header(rotated["access_token"]))
+    assert r4.status_code == 200
+
+
 def test_logout_revokes_token(client):
     data = register_login(client, "authuser5")
     old_access = data["access_token"]

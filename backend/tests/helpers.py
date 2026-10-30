@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from contextlib import contextmanager
 
 from fastapi.testclient import TestClient
 
@@ -48,6 +49,22 @@ def register_login(
 
 def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+@contextmanager
+def open_ws(ws_client: TestClient, token: str | None, qs: str = ""):
+    """建立 WebSocket 连接并完成首帧鉴权，yield 已鉴权的 socket。
+
+    协议：连接后立即发送 ``{"event": "auth", "token": <jwt>}``，
+    服务端校验通过回 ``auth:ok``（本助手负责排空该确认帧）。
+    ``token=None`` 时不发送 auth 帧，用于未授权拒绝用例。
+    """
+    with ws_client.websocket_connect(f"/ws{qs}") as ws:
+        if token is not None:
+            ws.send_json({"event": "auth", "token": token})
+            ok = ws.receive_json()
+            assert ok["event"] == "auth:ok", ok
+        yield ws
 
 
 def seed_admin(session_factory):

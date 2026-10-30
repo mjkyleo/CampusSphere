@@ -12,8 +12,6 @@ from app.core.response import ApiResponse
 from app.modules.admin.deps import get_current_admin, require_admin
 from app.modules.admin.gateway import gateway_enforced, issue_gateway_token, require_admin_gateway
 from app.modules.admin.models import AdminUser
-from app.modules.audit.actions import ActorType, AuditAction, AuditResult
-from app.modules.audit.service import record_audit_log
 from app.modules.admin.schemas import (
     AdminDiscoverRequest,
     AdminLoginRequest,

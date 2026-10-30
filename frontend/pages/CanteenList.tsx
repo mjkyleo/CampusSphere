@@ -24,9 +24,11 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
-              {canteen.opening_hours || '06:30 - 22:00'}
-            </span>
+            {canteen.opening_hours && (
+              <span className="px-2 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
+                {canteen.opening_hours}
+              </span>
+            )}
             {canteen.canteen_type && (
               <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-sm tracking-mono">
                 {canteen.canteen_type}
@@ -48,10 +50,16 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
             </div>
           )}
         </div>
-        <div className="p-3 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-1.5 text-zone-canteen text-sm font-black shrink-0">
-          <Star className="w-4 h-4 fill-zone-canteen text-zone-canteen" />
-          <span className="font-display tabular-nums">{canteen.rating ? Number(canteen.rating).toFixed(1) : '4.7'}</span>
-        </div>
+        {canteen.rating ? (
+          <div className="p-3 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-1.5 text-zone-canteen text-sm font-black shrink-0">
+            <Star className="w-4 h-4 fill-zone-canteen text-zone-canteen" />
+            <span className="font-display tabular-nums">{Number(canteen.rating).toFixed(1)}</span>
+          </div>
+        ) : (
+          <div className="px-3 py-2 bg-panel rounded-sm border border-hairline text-steel text-[11px] font-mono font-bold shrink-0 tracking-mono">
+            暂无评分
+          </div>
+        )}
       </div>
 
       {canteen.features && canteen.features.length > 0 && (
@@ -65,10 +73,12 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
       )}
 
       <div className="space-y-2 text-body-2 text-steel">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-steel shrink-0" />
-          <span>{canteen.location || '主校区核心餐饮区'}</span>
-        </div>
+        {canteen.location && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-steel shrink-0" />
+            <span>{canteen.location}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Coffee className="w-4 h-4 text-steel shrink-0" />
           <span>收录档口：{canteen.stalls?.length || 0} 个风味窗口</span>

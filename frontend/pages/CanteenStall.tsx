@@ -4,7 +4,7 @@ import {
   ChevronLeft, Star, Utensils, MessageSquare, Plus,
   MapPin, Clock, DollarSign, Send, ShieldAlert, Heart
 } from 'lucide-react';
-import { api, formatPrice, toCents } from '../services/api.ts';
+import { api, formatPrice } from '../services/api.ts';
 import { CanteenOut, CanteenStallOut, CanteenReviewOut } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
@@ -17,15 +17,27 @@ const CanteenStall: React.FC = () => {
 
   const [canteen, setCanteen] = useState<CanteenOut | null>(null);
   const [selectedStallId, setSelectedStallId] = useState<string>('');
+  const [selectedDishId, setSelectedDishId] = useState<string>('');
   const [reviews, setReviews] = useState<CanteenReviewOut[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New review form
-  const [dishName, setDishName] = useState('');
-  const [priceYuan, setPriceYuan] = useState('');
   const [rating, setRating] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const loadReviews = async (dishId: string) => {
+    if (!dishId) {
+      setReviews([]);
+      return;
+    }
+    try {
+      const res = await api.canteens.dishReviews(dishId);
+      setReviews(res.code === 0 && res.data ? res.data.reviews || [] : []);
+    } catch {
+      setReviews([]);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -35,13 +47,11 @@ const CanteenStall: React.FC = () => {
         const cRes = await api.canteens.get(id);
         if (cRes.code === 0 && cRes.data) {
           setCanteen(cRes.data);
-          const firstStall = cRes.data.stalls?.[0]?.id || '';
-          setSelectedStallId(firstStall);
-
-          const rRes = await api.canteens.getReviews(id, firstStall || undefined);
-          if (rRes.code === 0 && rRes.data) {
-            setReviews(rRes.data.items || []);
-          }
+          const firstStall = cRes.data.stalls?.[0];
+          const firstDish = firstStall?.dishes?.[0];
+          setSelectedStallId(firstStall?.id || '');
+          setSelectedDishId(firstDish?.id || '');
+          await loadReviews(firstDish?.id || '');
         }
       } catch {
         // Handled in mock engine
@@ -54,26 +64,22 @@ const CanteenStall: React.FC = () => {
   }, [id]);
 
   const handleSelectStall = async (stallId: string) => {
-    if (!id) return;
+    const stall = canteen?.stalls?.find((s) => s.id === stallId);
+    const firstDish = stall?.dishes?.[0];
     setSelectedStallId(stallId);
-    try {
-      const rRes = await api.canteens.getReviews(id, stallId);
-      if (rRes.code === 0 && rRes.data) {
-        setReviews(rRes.data.items || []);
-      }
-    } catch {
-      // Handled
-    }
+    setSelectedDishId(firstDish?.id || '');
+    await loadReviews(firstDish?.id || '');
+  };
+
+  const handleSelectDish = async (dishId: string) => {
+    setSelectedDishId(dishId);
+    await loadReviews(dishId);
   };
 
   const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !selectedStallId) {
-      error('请先选择对应档口');
-      return;
-    }
-    if (!dishName.trim()) {
-      error('请填写菜品名称');
+    if (!selectedDishId) {
+      error('请先选择要点评的菜品');
       return;
     }
     if (!reviewContent.trim()) {
@@ -83,21 +89,11 @@ const CanteenStall: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const priceCents = priceYuan ? toCents(parseFloat(priceYuan)) : undefined;
-      const res = await api.canteens.addReview({
-        canteen_id: id,
-        stall_id: selectedStallId,
-        dish_name: dishName.trim(),
-        rating,
-        content: reviewContent.trim(),
-        price_cents: priceCents
-      });
+      const res = await api.canteens.reviewDish(selectedDishId, rating, reviewContent.trim());
 
       if (res.code === 0 && res.data) {
         success('美食点评发布成功！');
         setReviews((prev) => [res.data, ...prev]);
-        setDishName('');
-        setPriceYuan('');
         setReviewContent('');
       } else {
         error(res.message || '发布点评失败');
@@ -130,6 +126,11 @@ const CanteenStall: React.FC = () => {
   }
 
   const selectedStall = canteen.stalls?.find((s) => s.id === selectedStallId);
+  const selectedDish = selectedStall?.dishes?.find((d) => d.id === selectedDishId);
+  const pricedDishes = (selectedStall?.dishes || []).filter((d) => d.price > 0);
+  const priceRange = pricedDishes.length
+    ? `档口标价 ¥${formatPrice(Math.min(...pricedDishes.map((d) => d.price)))} - ¥${formatPrice(Math.max(...pricedDishes.map((d) => d.price)))}`
+    : '该档口暂未标价';
 
   const inputCls =
     'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
@@ -148,9 +149,11 @@ const CanteenStall: React.FC = () => {
       <div className="bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2.5 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
-              {canteen.opening_hours || '06:30 - 22:00'}
-            </span>
+            {canteen.opening_hours && (
+              <span className="px-2.5 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
+                {canteen.opening_hours}
+              </span>
+            )}
             {canteen.canteen_type && (
               <span className="px-2.5 py-0.5 bg-panel text-slate font-mono font-bold text-xs rounded-sm tracking-mono">
                 {canteen.canteen_type}
@@ -168,13 +171,15 @@ const CanteenStall: React.FC = () => {
             )}
           </div>
           <h1 className="text-heading-1 text-ink tracking-tight">{canteen.name}</h1>
-          {(canteen.campus || canteen.zone) && (
+          {(canteen.campus || canteen.zone || canteen.location) && (
             <p className="text-caption text-steel flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" />
-              {[canteen.campus, canteen.zone].filter(Boolean).join(' · ')} · {canteen.location || '主校区'},
+              {[canteen.campus, canteen.zone, canteen.location].filter(Boolean).join(' · ')}
             </p>
           )}
-          <p className="text-body-2 text-steel">{canteen.description || '提供南北风味小吃、特色面点与健康轻食'}</p>
+          {canteen.description && (
+            <p className="text-body-2 text-steel">{canteen.description}</p>
+          )}
           {canteen.features && canteen.features.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {canteen.features.map((f) => (
@@ -186,13 +191,19 @@ const CanteenStall: React.FC = () => {
           )}
         </div>
 
-        <div className="p-4 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-2 text-zone-canteen shrink-0">
-          <Star className="w-6 h-6 fill-zone-canteen text-zone-canteen" />
-          <div>
-            <span className="text-2xl font-black font-display tabular-nums">{canteen.rating ? Number(canteen.rating).toFixed(1) : '4.7'}</span>
-            <span className="mono-label text-zone-canteen block tracking-mono">食堂口碑均分</span>
+        {canteen.rating ? (
+          <div className="p-4 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-2 text-zone-canteen shrink-0">
+            <Star className="w-6 h-6 fill-zone-canteen text-zone-canteen" />
+            <div>
+              <span className="text-2xl font-black font-display tabular-nums">{Number(canteen.rating).toFixed(1)}</span>
+              <span className="mono-label text-zone-canteen block tracking-mono">食堂口碑均分</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-4 py-3 bg-panel rounded-sm border border-hairline text-steel mono-label shrink-0 tracking-mono">
+            暂无评分
+          </div>
+        )}
       </div>
 
       {/* 招牌菜展示 */}
@@ -234,13 +245,15 @@ const CanteenStall: React.FC = () => {
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-bold text-body-1 truncate">{stall.name}</span>
-                  <div className={`flex items-center gap-0.5 text-xs font-bold font-mono ${isSelected ? 'text-surface' : 'text-zone-canteen'}`}>
-                    <Star className="w-3 h-3 fill-current" />
-                    <span>{stall.rating ? Number(stall.rating).toFixed(1) : '4.8'}</span>
-                  </div>
+                  {stall.rating && (
+                    <div className={`flex items-center gap-0.5 text-xs font-bold font-mono ${isSelected ? 'text-surface' : 'text-zone-canteen'}`}>
+                      <Star className="w-3 h-3 fill-current" />
+                      <span>{Number(stall.rating).toFixed(1)}</span>
+                    </div>
+                  )}
                 </div>
                 <p className={`text-caption truncate ${isSelected ? 'text-surface/80' : 'text-steel'}`}>
-                  {stall.description || '招牌特色风味'}
+                  {stall.description || `${stall.dishes?.length || 0} 个在售菜品`}
                 </p>
               </button>
             );
@@ -255,19 +268,30 @@ const CanteenStall: React.FC = () => {
             <h3 className="text-heading-3 text-ink flex items-center gap-2">
               <span>{selectedStall.name} - 招牌菜单</span>
             </h3>
-            <span className="text-caption text-steel font-mono">平均消费 ¥12 - ¥22</span>
+            <span className="text-caption text-steel font-mono">{priceRange}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {selectedStall.dishes?.map((dish, i) => (
-              <div
-                key={i}
-                className="p-3.5 bg-panel/40 rounded-sm border border-hairline flex items-center justify-between"
+            {selectedStall.dishes?.map((dish) => (
+              <button
+                type="button"
+                key={dish.id}
+                onClick={() => handleSelectDish(dish.id)}
+                className={`p-3.5 rounded-sm border flex items-center justify-between text-left transition-colors ${
+                  dish.id === selectedDishId
+                    ? 'bg-zone-canteen/10 border-zone-canteen'
+                    : 'bg-panel/40 border-hairline hover:border-zone-canteen'
+                }`}
               >
-                <span className="text-body-2 font-semibold text-ink">{dish}</span>
-                <span className="text-caption font-bold text-zone-canteen mono-label tracking-mono">档口招牌</span>
-              </div>
+                <span className="text-body-2 font-semibold text-ink">{dish.name}</span>
+                <span className="text-caption font-bold text-zone-canteen mono-label tracking-mono">
+                  {dish.price > 0 ? `¥${formatPrice(dish.price)}` : '未标价'}
+                </span>
+              </button>
             ))}
+            {(!selectedStall.dishes || selectedStall.dishes.length === 0) && (
+              <p className="text-body-2 text-steel sm:col-span-3">该档口暂未上架菜品</p>
+            )}
           </div>
         </div>
       )}
@@ -279,49 +303,40 @@ const CanteenStall: React.FC = () => {
           <div className="bg-surface rounded-md p-6 border border-hairline shadow-surface space-y-4">
             <h3 className="text-heading-3 text-ink flex items-center gap-2">
               <Plus className="w-4 h-4 text-zone-canteen" />
-              点评这家档口
+              点评档口菜品
             </h3>
 
             <form onSubmit={handleAddReview} className="space-y-4">
               <div className="space-y-1">
-                <label className="block mono-label text-steel tracking-mono">菜品名称 *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="例如: 招牌红烧牛肉面"
-                  value={dishName}
-                  onChange={(e) => setDishName(e.target.value)}
+                <label className="block mono-label text-steel tracking-mono">选择菜品 *</label>
+                <select
+                  value={selectedDishId}
+                  onChange={(e) => handleSelectDish(e.target.value)}
                   className={inputCls}
-                />
+                >
+                  {!selectedDish && <option value="">该档口暂无菜品</option>}
+                  {selectedStall?.dishes?.map((dish) => (
+                    <option key={dish.id} value={dish.id}>
+                      {dish.name}
+                      {dish.price > 0 ? ` · ¥${formatPrice(dish.price)}` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block mono-label text-steel tracking-mono">消费金额 (元)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    placeholder="15.0"
-                    value={priceYuan}
-                    onChange={(e) => setPriceYuan(e.target.value)}
-                    className={inputCls + ' font-mono text-zone-canteen tabular-nums'}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block mono-label text-steel tracking-mono">打分</label>
-                  <div className="flex gap-1 pt-1.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <button
-                        type="button"
-                        key={s}
-                        onClick={() => setRating(s)}
-                        className="hover:scale-110 transition-transform"
-                      >
-                        <Star className={`w-5 h-5 ${s <= rating ? 'fill-zone-canteen text-zone-canteen' : 'text-steel'}`} />
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-1">
+                <label className="block mono-label text-steel tracking-mono">打分</label>
+                <div className="flex gap-1 pt-1.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      onClick={() => setRating(s)}
+                      className="hover:scale-110 transition-transform"
+                    >
+                      <Star className={`w-5 h-5 ${s <= rating ? 'fill-zone-canteen text-zone-canteen' : 'text-steel'}`} />
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -339,7 +354,7 @@ const CanteenStall: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !selectedDishId}
                 className="w-full py-3 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
@@ -353,13 +368,13 @@ const CanteenStall: React.FC = () => {
         <div className="md:col-span-7 space-y-4">
           <h3 className="text-heading-3 text-ink flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-zone-canteen" />
-            学生食客评价 ({reviews.length})
+            学生食客评价{selectedDish ? ` · ${selectedDish.name}` : ''} ({reviews.length})
           </h3>
 
           <div className="space-y-3">
             {reviews.length === 0 ? (
               <div className="p-8 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
-                该档口暂无评价，快来抢先留下第一条美食点评吧！
+                {selectedDishId ? '该菜品暂无评价，快来抢先留下第一条美食点评吧！' : '该档口暂无可点评的菜品'}
               </div>
             ) : (
               reviews.map((rev) => (
@@ -372,18 +387,15 @@ const CanteenStall: React.FC = () => {
                       <div className="w-8 h-8 rounded-sm bg-panel flex items-center justify-center text-xs font-bold text-zone-canteen border border-hairline">
                         {rev.user_nickname?.charAt(0) || '食'}
                       </div>
-                      <div>
-                        <span className="font-bold text-ink text-body-1 block">{rev.user_nickname || '校友食客'}</span>
-                        <span className="text-caption text-steel font-mono">
-                          {rev.created_at ? new Date(rev.created_at).toLocaleDateString() : '近日'}
-                        </span>
-                      </div>
+                      <span className="font-bold text-ink text-body-1">{rev.user_nickname || '校友食客'}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-caption font-bold text-zone-canteen bg-zone-canteen/10 px-2 py-0.5 rounded-sm mono-label tracking-mono">
-                        {rev.dish_name}
-                      </span>
+                      {selectedDish && (
+                        <span className="text-caption font-bold text-zone-canteen bg-zone-canteen/10 px-2 py-0.5 rounded-sm mono-label tracking-mono">
+                          {selectedDish.name}
+                        </span>
+                      )}
                       <div className="flex items-center text-xs text-zone-canteen font-bold font-mono">
                         <Star className="w-3 h-3 fill-zone-canteen text-zone-canteen" />
                         <span>{rev.rating}分</span>
@@ -395,10 +407,10 @@ const CanteenStall: React.FC = () => {
 
                   <div className="flex justify-between items-center text-caption text-steel pt-1 border-t border-hairline font-mono">
                     <span>
-                      {rev.price_cents ? `消费：¥${formatPrice(rev.price_cents)}` : '实惠好味'}
+                      {selectedDish && selectedDish.price > 0 ? `菜品标价：¥${formatPrice(selectedDish.price)}` : ''}
                     </span>
                     <button
-                      onClick={() => openReport('comment', rev.id, `食堂评价: ${rev.dish_name}`)}
+                      onClick={() => openReport('comment', rev.id, `食堂评价: ${selectedDish?.name ?? rev.id}`)}
                       className="text-steel hover:text-error flex items-center gap-1 transition-colors"
                     >
                       <ShieldAlert className="w-3 h-3" />
