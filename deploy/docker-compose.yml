@@ -200,7 +200,9 @@ services:
     # Node 22 而非 20：jsdom / http-proxy-middleware / undici 等依赖的 engines
     # 字段要求 Node >= 22（npm ci 会刷 EBADENGINE 警告）。选择依据见 package.json。
     # 用 slim（glibc）而非 alpine：esbuild 等原生二进制在 musl 上有兼容风险。
-    image: node:22-slim
+    # 镜像可覆盖：国内直连 Docker Hub 常超时，在 deploy/.env 设 NODE_IMAGE 指向
+    # 可用加速镜像（如 dockerproxy.net/library/node:22-slim）；留空回退官方源。
+    image: ${NODE_IMAGE:-node:22-slim}
     working_dir: /app
     command: sh -c "npm ci && npm run build"
     volumes:
