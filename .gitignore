@@ -84,3 +84,6 @@ npm-cache-tmp/
 .claude/
 .codex/
 frontend/.impeccable/
+
+# 前端构建产物（docker compose --profile build 生成，不入库）
+deploy/frontend-dist/
