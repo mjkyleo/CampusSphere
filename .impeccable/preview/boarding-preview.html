@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusSphere · 设计小样预览（登机牌·航站屏）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0D10; --slate:#1C2127; --steel:#6B7178; --panel:#E6E8EB;
+    --surface:#FFFFFF; --ground:#F2F3F5; --hairline:#D8DADD; --alert:#FFD400;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --display:'Space Grotesk',system-ui,sans-serif;
+    --ui:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--ground);color:var(--ink);font-family:var(--ui);padding:40px;line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-family:var(--display);font-weight:700;font-size:1.6rem;margin-bottom:4px}
+  .sub{color:var(--steel);font-size:.85rem;margin-bottom:28px}
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:28px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  section{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:20px}
+  .sec-title{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);margin-bottom:14px}
+  .cols{display:grid;grid-template-columns:74px 1fr 84px 64px;gap:10px;padding:6px 10px;border-bottom:1px solid var(--hairline)}
+  .cols .c{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--steel)}
+  .row{display:grid;grid-template-columns:74px 1fr 84px 64px;gap:10px;align-items:center;padding:11px 10px;border-bottom:1px solid var(--hairline)}
+  .row:last-child{border-bottom:none}
+  .row .t{font-family:var(--mono);font-size:.72rem;font-variant-numeric:tabular-nums;color:var(--slate)}
+  .row .name{font-size:.875rem;font-weight:600}
+  .row .price{font-family:var(--mono);font-size:.9rem;font-variant-numeric:tabular-nums;font-weight:600}
+  .row .act{font-family:var(--mono);font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--slate);background:var(--panel);padding:5px 8px;border-radius:6px;text-align:center}
+  /* 变更行：原位重排后，警示色点亮并保持 */
+  .row.changed{background:var(--alert);color:var(--ink)}
+  .row.changed .price{color:var(--ink)}
+  .legend{font-size:.78rem;color:var(--steel);margin-top:12px;display:flex;gap:18px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.15)}
+  .note{font-size:.74rem;color:var(--steel);background:var(--ground);border-radius:8px;padding:10px 12px;margin-top:14px}
+  .note b{color:var(--slate)}
+  /* 登机牌凭证 */
+  .pass{border:1px solid var(--hairline);border-radius:10px;overflow:hidden;background:var(--surface)}
+  .pass .phead{background:var(--ink);color:#fff;padding:12px 16px;font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between}
+  .pass .segs{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .pass .seg{padding:14px 16px;border-bottom:1px solid var(--hairline)}
+  .pass .seg + .seg{border-left:1px solid var(--hairline)}
+  .pass .lab{font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--steel);margin-bottom:3px}
+  .pass .val{font-family:var(--display);font-weight:700;font-size:1.05rem}
+  .pass .val.mono{font-family:var(--mono);font-weight:600;font-size:.95rem;font-variant-numeric:tabular-nums}
+  .pass .scan{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--hairline)}
+  .scan .code{font-family:var(--mono);font-size:.8rem;letter-spacing:.22em;font-variant-numeric:tabular-nums}
+  .scan .block{width:74px;height:26px;background:repeating-linear-gradient(90deg,var(--ink) 0 3px,transparent 3px 5px);opacity:.9}
+  .btnrow{display:flex;gap:10px;margin-top:14px}
+  .btn{font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;padding:10px 14px;border-radius:8px;border:1px solid var(--ink)}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.ghost{background:transparent;color:var(--slate)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>登机牌 · 航站屏 — 设计小样</h1>
+  <p class="sub">仅用于确认「警示色用法」与「mono 标签风格」，非最终页面。</p>
+
+  <div class="grid">
+    <section>
+      <div class="sec-title">信息板 · 最新闲置（Board）</div>
+      <div class="cols"><span class="c">时间</span><span class="c">物品</span><span class="c">价格</span><span class="c">动作</span></div>
+      <div class="row"><span class="t">09:15</span><span class="name">九号电动车 55km 续航</span><span class="price">¥980</span><span class="act">联系</span></div>
+      <div class="row changed"><span class="t">09:10</span><span class="name">数据结构教材 · 张伟老师版</span><span class="price">¥25</span><span class="act">联系</span></div>
+      <div class="row"><span class="t">08:40</span><span class="name">考研英语真题 2024</span><span class="price">¥18</span><span class="act">联系</span></div>
+      <div class="row"><span class="t">08:12</span><span class="name">小台灯 · 三档调光</span><span class="price">¥32</span><span class="act">联系</span></div>
+      <div class="legend">
+        <span class="chip"><span class="swatch" style="background:var(--alert)"></span> alert 警示色：仅"变更/需注意"行</span>
+        <span class="chip"><span class="swatch" style="background:var(--panel)"></span> panel：普通行动作</span>
+      </div>
+      <p class="note"><b>警示色规则（拟）</b>：<code>#FFD400</code> 是品牌级<b>唯一</b>警示色，只在数据<b>变更</b>时点亮并保持到被注意（原位重排，不静默）。价格 / 时间 / 编号用 <b>mono + tabular</b>；列名用 <b>mono 大写</b>。</p>
+    </section>
+
+    <section>
+      <div class="sec-title">登机牌凭证 · 二手详情（Pass）</div>
+      <div class="pass">
+        <div class="phead"><span>闲置 · 二手市场</span><span>SEQ 042</span></div>
+        <div class="segs">
+          <div class="seg"><div class="lab">物品</div><div class="val">九号电动车</div></div>
+          <div class="seg"><div class="lab">价格</div><div class="val mono">¥980</div></div>
+          <div class="seg"><div class="lab">发布</div><div class="val mono">05-24 · 09:15</div></div>
+          <div class="seg"><div class="lab">动作 · 登机口</div><div class="val">联系卖家</div></div>
+        </div>
+        <div class="scan">
+          <div class="block"></div>
+          <span class="code">TRD-7B9K2</span>
+          <span style="color:var(--steel);font-size:.72rem;margin-left:auto">确认码 · 面交核验</span>
+        </div>
+      </div>
+      <div class="btnrow">
+        <span class="btn primary">联系卖家</span>
+        <span class="btn ghost">查看详情</span>
+      </div>
+      <p class="note"><b>mono 用法（拟）</b>：<b>mono 大写标签</b>（列名 / 字段名）、<b>mono tabular 数据</b>（价格 / 时间 / 编号）、<b>mono 扫描码 / 确认码块</b>（交易核验）；正文与标题用 Inter / Space Grotesk。</p>
+    </section>
+  </div>
+</div>
+</body>
+</html>

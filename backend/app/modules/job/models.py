@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import ApplicationStatus, JobStatus
@@ -28,9 +28,16 @@ class Job(Base, PKMixin, TimestampMixin):
 
 
 class JobApplication(Base, PKMixin, TimestampMixin):
-    """兼职申请。"""
+    """兼职申请。
+
+    P2-3：同一申请人对同一岗位仅允许一条申请，命名唯一索引兜底并发双插
+    （应用层 SELECT-then-INSERT 存在竞态窗口），service 层 IntegrityError → 409。
+    """
 
     __tablename__ = "job_applications"
+    __table_args__ = (
+        Index("uq_job_application", "job_id", "applicant_id", unique=True),
+    )
 
     job_id: Mapped[str] = mapped_column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     applicant_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)

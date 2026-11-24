@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import MemberStatus, TeamStatus
@@ -30,9 +30,16 @@ class Team(Base, PKMixin, TimestampMixin):
 
 
 class TeamMember(Base, PKMixin, TimestampMixin):
-    """团队成员。"""
+    """团队成员。
+
+    P2-4：同一用户在同一团队仅一条成员记录，唯一索引兜底并发双插
+    （应用层 SELECT-then-INSERT 存在竞态窗口），service 层 IntegrityError → 409。
+    """
 
     __tablename__ = "team_members"
+    __table_args__ = (
+        Index("uq_team_member", "team_id", "user_id", unique=True),
+    )
 
     team_id: Mapped[str] = mapped_column(String(36), ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)

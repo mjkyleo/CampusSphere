@@ -3,8 +3,31 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from contextlib import contextmanager
 
 from fastapi.testclient import TestClient
+
+
+def user_key(user_id: str, ext: str = ".bin") -> str:
+    """生成 P1-2 信任链要求的服务端命名空间对象键。
+
+    ``uploads/{user_id}/{32位hex}{ext}`` —— 与后端 ``gen_user_object_key``
+    同构，测试里构造的 key 必须能通过 ``ItemImageIn`` / ``ShareCreate``
+    的形态与归属校验。
+    """
+    return f"uploads/{user_id}/{uuid.uuid4().hex}{ext}"
+
+
+def key_from_token(token: str, ext: str = ".bin") -> str:
+    """从 access token 解出 user_id（不验签，仅测试用）并生成其命名空间键。"""
+    import base64
+    import json
+
+    seg = token.split(".")[1]
+    seg += "=" * (-len(seg) % 4)
+    sub = json.loads(base64.urlsafe_b64decode(seg))["sub"]
+    return user_key(sub, ext)
 
 
 def register_login(
@@ -26,6 +49,22 @@ def register_login(
 
 def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+@contextmanager
+def open_ws(ws_client: TestClient, token: str | None, qs: str = ""):
+    """建立 WebSocket 连接并完成首帧鉴权，yield 已鉴权的 socket。
+
+    协议：连接后立即发送 ``{"event": "auth", "token": <jwt>}``，
+    服务端校验通过回 ``auth:ok``（本助手负责排空该确认帧）。
+    ``token=None`` 时不发送 auth 帧，用于未授权拒绝用例。
+    """
+    with ws_client.websocket_connect(f"/ws{qs}") as ws:
+        if token is not None:
+            ws.send_json({"event": "auth", "token": token})
+            ok = ws.receive_json()
+            assert ok["event"] == "auth:ok", ok
+        yield ws
 
 
 def seed_admin(session_factory):

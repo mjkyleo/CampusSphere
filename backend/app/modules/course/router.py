@@ -76,3 +76,34 @@ async def review(
     course = await get_course(db, course_id)
     r = await add_review(db, course, user, data)
     return ApiResponse.ok(data=CourseReviewOut.model_validate(r))
+
+
+@router.post("/reviews/{review_id}/like", response_model=ApiResponse[dict])
+async def like_review(
+    review_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """评价"有用"点赞（P2-22：此前前端是 localStorage mock，永不落库）。
+
+    NOTE: 路径为两段静态前缀，不会与 /{course_id} 单段匹配冲突。
+    计数为单条原子 UPDATE，并发点赞不丢计数；不做单用户去重（轻量
+    社交信号，防刷由全局限流兜底）。
+    """
+    from sqlalchemy import func, select, update
+
+    from app.core.exceptions import BizError, ErrorCode
+    from app.modules.course.models import CourseReview
+
+    result = await db.execute(
+        update(CourseReview)
+        .where(CourseReview.id == review_id)
+        .values(helpful_count=CourseReview.helpful_count + 1)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.NOT_FOUND, "评价不存在")
+    await db.commit()
+    helpful = await db.scalar(
+        select(func.coalesce(CourseReview.helpful_count, 0)).where(CourseReview.id == review_id)
+    )
+    return ApiResponse.ok(data={"helpful_count": int(helpful or 0)})

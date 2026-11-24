@@ -10,7 +10,7 @@ from __future__ import annotations
 import io
 
 import pytest
-from helpers import auth_header, register_login
+from helpers import auth_header, register_login, user_key
 from PIL import Image
 
 # 文件上传涉及真实磁盘 IO 与 10MB 体积校验，相对较慢；
@@ -59,19 +59,44 @@ def _upload(client, token: str, key: str, filename: str = "photo.png", content_t
 # 正常链路
 # ---------------------------------------------------------------------------
 def test_upload_image_returns_object_key(client):
-    """上传图片成功，返回对象 key 与访问 URL。"""
+    """上传图片成功，返回对象 key 与访问 URL。key 为上传者命名空间键。"""
     tokens = register_login(client, "fs_uploader")
-    r = _upload(client, tokens["access_token"], "items/test-upload.png")
+    key = user_key(tokens["user_id"])
+    r = _upload(client, tokens["access_token"], key)
     assert r.status_code == 200 and r.json()["code"] == 0, r.text
     data = r.json()["data"]
-    assert data["object_key"] == "items/test-upload.png"
+    assert data["object_key"] == key
     assert data["url"]
+
+
+def test_upload_rejects_foreign_namespace_key(client):
+    """使用**他人**命名空间的 key 上传 → 400（P1-2：禁止覆盖他人对象）。"""
+    alice = register_login(client, "fs_alice")
+    bob = register_login(client, "fs_bob")
+    foreign_key = user_key(alice["user_id"])
+    r = _upload(client, bob["access_token"], foreign_key)
+    assert r.status_code == 400, r.text
+    assert r.json()["code"] != 0
+
+
+def test_presign_issues_user_namespace_key(client):
+    """presign 签发的 key 必须落在调用者自己的命名空间内（P1-2）。"""
+    tokens = register_login(client, "fs_presign")
+    r = client.post(
+        "/api/files/presign",
+        data={"prefix": "whatever", "filename": "photo.png"},
+        headers=auth_header(tokens["access_token"]),
+    )
+    assert r.status_code == 200 and r.json()["code"] == 0, r.text
+    data = r.json()["data"]
+    assert data["object_key"].startswith(f"uploads/{tokens['user_id']}/"), data
+    assert data["direct"] is False  # 本地降级模式
 
 
 def test_uploaded_file_can_be_read_back(client):
     """上传后可通过 raw 接口回读，字节一致（旅程：图片能正常展示）。"""
     tokens = register_login(client, "fs_reader")
-    key = "items/roundtrip.png"
+    key = user_key(tokens["user_id"], ".png")
     payload = _png_bytes(color=(10, 120, 200))
     client.post(
         "/api/files/upload",
@@ -106,7 +131,7 @@ def test_upload_rejects_non_image_content_type(client):
     tokens = register_login(client, "fs_bad_type")
     r = client.post(
         "/api/files/upload",
-        data={"key": "items/bad.txt"},
+        data={"key": user_key(tokens["user_id"], ".txt")},
         files={"file": ("bad.txt", b"hello", "text/plain")},
         headers=auth_header(tokens["access_token"]),
     )
@@ -118,7 +143,7 @@ def test_upload_rejects_extension_mismatch(client):
     tokens = register_login(client, "fs_ext_mismatch")
     r = client.post(
         "/api/files/upload",
-        data={"key": "items/fake.jpg"},
+        data={"key": user_key(tokens["user_id"], ".jpg")},
         files={"file": ("fake.jpg", _png_bytes(), "image/jpeg")},
         headers=auth_header(tokens["access_token"]),
     )

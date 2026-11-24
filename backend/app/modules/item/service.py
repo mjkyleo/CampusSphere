@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,15 +13,23 @@ from sqlalchemy.orm import selectinload
 import app.tasks.notify as notify_tasks
 import app.tasks.search_sync as search_sync_tasks
 from app.common.enums import ItemStatus, TradeStatus
-from app.core.cache import NULL_SENTINEL, cache_get_json, cache_set_json, invalidate_namespace
+from app.common.utils import escape_like
+from app.core.cache import (
+    NULL_SENTINEL,
+    cache_get_json_with_version,
+    cache_set_json,
+    invalidate_namespace,
+)
 from app.core.config import settings
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
+from app.core.storage import ensure_user_object_key
 from app.modules.admin.models import AppConfig
 from app.modules.auth.models import User
 from app.modules.item.models import Item, ItemImage, TradeSession
 from app.modules.item.schemas import ItemCreate, ItemUpdate
 from app.modules.item.statemachine import validate_transition
+from app.search import sync as search_sync
 
 _logger = get_logger("item.service")
 
@@ -52,13 +62,13 @@ def item_search_doc(item: Item) -> dict:
 
 
 def sync_item_search(item: Item | None) -> None:
-    """将物品状态同步到 Meilisearch 索引。
+    """将物品状态同步到 Meilisearch 索引（Celery 任务路径）。
 
     只有「在售且未软删除」的物品才进入索引；其他状态（下架/已售/待审核/删除）
-    从索引中移除，避免搜索结果泄露未审核或已下架的物品。
+    从索引中移除。同步任务投递失败时不阻塞主流程，仅记 warning 日志。
 
-    同步任务投递失败（如本地未起 Redis/Celery broker 不可达）时不阻塞主流程，
-    仅记 warning 日志，由后续重建脚本或任务重试补偿。
+    保留此路径供 admin.service 与 test_search_sync 使用；前台物品 CRUD 另经
+    ``app.search.sync`` 同步（两条路径互不冲突，均为尽力而为）。
     """
     if item is None:
         return
@@ -93,6 +103,12 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
         status=status,
     )
     for img in data.images:
+        # P1-2：schema 已把关键形态，此处校验**归属**——图片键必须签发给
+        # 物品 owner 本人，防止把他人上传的对象挂到自己的物品上展示。
+        try:
+            ensure_user_object_key(img.object_key, str(owner.id))
+        except ValueError as exc:
+            raise BizError(ErrorCode.VALIDATION, "图片不属于当前用户，请重新上传") from exc
         item.images.append(
             ItemImage(object_key=img.object_key, sort_order=img.sort_order)
         )
@@ -101,6 +117,8 @@ async def create_item(db: AsyncSession, owner: User, data: ItemCreate) -> Item:
     await db.refresh(item)
     # 写操作：整体失效「物品列表」缓存，避免新发布不立即可见
     await invalidate_namespace("items")
+    # 同步搜索索引（待审核物品不会进索引，见 search/sync.py 可见性策略）
+    search_sync.index_item(item)
     sync_item_search(item)
     _logger.info("item_created", item_id=str(item.id), owner=str(owner.id))
     return item
@@ -149,7 +167,7 @@ async def list_items(
     page_size: int = 20,
 ) -> dict:
     # 热点列表：先查缓存（防穿透/雪崩策略见 app/core/cache.py）
-    cached = await cache_get_json(
+    cache_version, cached = await cache_get_json_with_version(
         "items",
         keyword=keyword,
         category=category,
@@ -165,7 +183,9 @@ async def list_items(
 
     stmt = select(Item).where(Item.deleted_at.is_(None))
     if keyword:
-        stmt = stmt.where(Item.title.ilike(f"%{keyword}%"))
+        # P3：转义 LIKE 通配符，防止 "%" / "_" 被当作模式匹配
+        like = f"%{escape_like(keyword)}%"
+        stmt = stmt.where(Item.title.ilike(like, escape="\\"))
     if category:
         stmt = stmt.where(Item.category == category)
     if status is not None:
@@ -203,9 +223,12 @@ async def list_items(
         for i in rows
     ]
     result = {"items": items, "total": total or 0, "page": page, "page_size": page_size}
+    # version 传读取时捕获的版本号：回源期间缓存被失效的话，写进旧版本键
+    # 的数据天然不可见（TOCTOU，见 app/core/cache.py）
     await cache_set_json(
         "items",
         result,
+        version=cache_version,
         keyword=keyword,
         category=category,
         status=status,
@@ -249,16 +272,23 @@ async def update_item(db: AsyncSession, item: Item, data: ItemUpdate) -> Item:
     await db.refresh(item)
     # 写操作：失效物品列表缓存（状态/标题变更会影响广场展示）
     await invalidate_namespace("items")
+    # 状态改回待审核时 index_item 内部会转为从索引移除
+    search_sync.index_item(item)
     sync_item_search(item)
     return item
 
 
 async def delete_item(db: AsyncSession, item: Item) -> None:
+    # P2-6：owner 删除改为**软删除**，与管理员删除语义对齐——硬删除会级联
+    # 销毁进行中的交易会话（FK CASCADE），抹掉双方交易凭据。软删除后
+    # get_item/list_items 过滤 deleted_at，历史会话数据保留。
     item_id = str(item.id)
-    await db.delete(item)
+    item.deleted_at = datetime.now(UTC)
     await db.commit()
     # 写操作：失效物品列表缓存
     await invalidate_namespace("items")
+    search_sync.remove_item(item)
+    # Celery 路径的兜底移除（admin.service / test_search_sync 依赖此路径）
     try:
         search_sync_tasks.delete_doc.delay(_ITEM_INDEX_NAME, item_id)
     except Exception as exc:
@@ -332,3 +362,90 @@ async def create_trade_session(
     )
     _logger.info("trade_session_created", trade_id=str(ts.id), conv=str(conv.id))
     return ts
+
+
+# ---------------------------------------------------------------------------
+# 交易会话生命周期（P2-1）
+#
+# 此前 TradeSession 创建后 status 永不变更、无任何端点：卖家把 RESERVED
+# 物品重新上架后，部分唯一索引让所有新抢占 409，物品与旧会话互相锁死。
+# complete / cancel 提供唯一的出口——cancel 同时把物品释放回 ON_SALE。
+# ---------------------------------------------------------------------------
+async def get_trade(db: AsyncSession, trade_id: str) -> TradeSession:
+    trade = await db.get(TradeSession, trade_id)
+    if not trade:
+        raise BizError(ErrorCode.NOT_FOUND, "交易会话不存在")
+    return trade
+
+
+def _ensure_trade_participant(trade: TradeSession, user: User) -> None:
+    if str(user.id) not in (str(trade.buyer_id), str(trade.seller_id)):
+        raise BizError(ErrorCode.FORBIDDEN, "仅交易双方可操作该交易")
+
+
+async def complete_trade(db: AsyncSession, trade: TradeSession, user: User) -> TradeSession:
+    """确认完成：会话 PENDING/IN_PROGRESS → COMPLETED，物品 RESERVED → SOLD。
+
+    两个 CAS 在同一事务：物品不在 RESERVED（如被卖家重新上架）时整体失败，
+    需先取消交易——避免"交易完成但物品在别人手里"的错位。
+    """
+    _ensure_trade_participant(trade, user)
+    result = await db.execute(
+        update(TradeSession)
+        .where(
+            TradeSession.id == str(trade.id),
+            TradeSession.status.in_(
+                [TradeStatus.PENDING.value, TradeStatus.IN_PROGRESS.value]
+            ),
+        )
+        .values(status=TradeStatus.COMPLETED.value)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.CONFLICT, "该交易已完成或已取消")
+    await cas_item_status(
+        db,
+        str(trade.item_id),
+        ItemStatus.RESERVED.value,
+        ItemStatus.SOLD.value,
+        message="物品已不在交易保留状态（可能已被重新上架），请先取消交易",
+    )
+    await db.commit()
+    await db.refresh(trade)
+    await invalidate_namespace("items")
+    _logger.info("trade_completed", trade_id=str(trade.id), actor=str(user.id))
+    return trade
+
+
+async def cancel_trade(db: AsyncSession, trade: TradeSession, user: User) -> TradeSession:
+    """取消交易：会话 → CANCELLED，物品释放回 ON_SALE（解锁卡死状态）。
+
+    物品释放是尽力而为：若物品已被改到其他状态（卖家手动下架等），
+    跳过释放但取消本身仍然生效。
+    """
+    _ensure_trade_participant(trade, user)
+    result = await db.execute(
+        update(TradeSession)
+        .where(
+            TradeSession.id == str(trade.id),
+            TradeSession.status.in_(
+                [TradeStatus.PENDING.value, TradeStatus.IN_PROGRESS.value]
+            ),
+        )
+        .values(status=TradeStatus.CANCELLED.value)
+    )
+    if result.rowcount != 1:
+        raise BizError(ErrorCode.CONFLICT, "该交易已完成或已取消")
+    try:
+        await cas_item_status(
+            db, str(trade.item_id), ItemStatus.RESERVED.value, ItemStatus.ON_SALE.value
+        )
+    except BizError:
+        _logger.info(
+            "trade_cancel_item_not_reserved",
+            trade_id=str(trade.id), item_id=str(trade.item_id),
+        )
+    await db.commit()
+    await db.refresh(trade)
+    await invalidate_namespace("items")
+    _logger.info("trade_cancelled", trade_id=str(trade.id), actor=str(user.id))
+    return trade

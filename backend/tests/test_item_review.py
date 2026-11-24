@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, register_login
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
@@ -58,7 +58,7 @@ def _create_item(client, token, title="审核测试物品"):
             "description": "九成新",
             "price": 9900,
             "category": "bike",
-            "images": [{"object_key": "misc/rv1.bin", "sort_order": 0}],
+            "images": [{"object_key": key_from_token(token), "sort_order": 0}],
         },
         headers=auth_header(token),
     )
@@ -135,3 +135,48 @@ def test_review_reject_flow(client, test_engine):
     _set_review(client, False)
     item2 = _create_item(client, owner["access_token"], title="关闭后发布")
     assert item2["status"] == 0
+
+
+def test_owner_cannot_self_approve_pending_item(client, test_engine):
+    """发布者不能绕过审核自行上架（P1-1）。
+
+    状态机允许 PENDING → ON_SALE，若 PATCH 不区分管理员，发布者可直接
+    自审上架并与管理员审核竞争。发布者改标题等编辑能力不受影响。
+    """
+    _seed_admin(test_engine)
+    _set_review(client, True)
+
+    owner = register_login(client, "rvselfup")
+    item = _create_item(client, owner["access_token"])
+    assert item["status"] == 4
+
+    # 发布者尝试把 PENDING 物品直接改成 ON_SALE → 应被拒绝
+    r = client.patch(
+        f"/api/items/{item['id']}",
+        json={"status": 0},
+        headers=auth_header(owner["access_token"]),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["code"] != 0, "发布者不应能自审上架待审核物品"
+
+    # 物品仍处于 PENDING
+    r2 = client.get(f"/api/items/{item['id']}", headers=auth_header(owner["access_token"]))
+    assert r2.json()["data"]["status"] == 4
+
+    # 编辑类字段不受闸门影响（title 可改）
+    r3 = client.patch(
+        f"/api/items/{item['id']}",
+        json={"title": "审核中改个标题"},
+        headers=auth_header(owner["access_token"]),
+    )
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["code"] == 0
+    assert r3.json()["data"]["title"] == "审核中改个标题"
+
+    # 管理员审核通过的正常路径不受影响
+    admin_token = _admin_token(client)
+    ra = client.post(
+        f"/api/admin/items/{item['id']}/approve", headers=auth_header(admin_token)
+    )
+    assert ra.status_code == 200, ra.text
+    assert ra.json()["data"]["status"] == 0

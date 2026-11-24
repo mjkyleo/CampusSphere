@@ -60,8 +60,10 @@ async def ensure_seed(db: AsyncSession) -> None:
     """初始化默认角色与管理员（每次启动调用，幂等）。
 
     账号与密码读取自配置（school.yaml 的 ``admin.bootstrap.*`` 或由 ``.env`` 覆盖），
-    不再硬编码于源码。仅当配置未提供密码时，回退到开发/测试用弱口令 ``admin123`` 并告警——
-    生产环境必须在配置中指定强密码（由 ``validate_admin_security`` 在启动期拦截弱配置）。
+    不再硬编码于源码。仅当**且仅在 debug 模式**下配置未提供密码时，回退到开发
+    弱口令 ``admin123``；非 debug 未配置则拒绝创建引导管理员并 CRITICAL 告警
+    （P2-24：生产校验层已在启动期 SystemExit 拦截，此处是纵深防御——
+    网关联调被放宽的极端配置下也不会凭空造出一个弱口令管理员）。
 
     为什么要**每次启动都同步权限**（而非"管理员已存在就直接返回"）
     -------------------------------------------------------------
@@ -77,7 +79,19 @@ async def ensure_seed(db: AsyncSession) -> None:
         _logger.info("admin_seed_disabled")
         return
     username = settings.admin_bootstrap_username or "siteadmin"
-    password = settings.admin_bootstrap_password or "admin123"
+    password = settings.admin_bootstrap_password
+    if not password:
+        if settings.debug:
+            password = "admin123"
+            _logger.warning("admin_seed_weak_fallback_debug_only", username=username)
+        else:
+            # P2-24：非 debug 且未配置强密码——宁可不建管理员，也不落弱口令
+            _logger.critical(
+                "admin_seed_skipped_no_password",
+                username=username,
+                detail="Set admin.bootstrap.password (>= min_length) to enable bootstrap admin creation",
+            )
+            return
 
     # --- 角色与权限：每次启动同步（只增不减，避免回收已授予的能力）---
     role = await _sync_roles(db)
@@ -186,6 +200,7 @@ async def promote_user_to_admin(
     await db.commit()
     await db.refresh(user)
     _logger.warning("admin_promote_user", operator=operator.username, target=user.username)
+    await _audit_admin_action("admin.promote_user", operator, target=str(user.username))
     return user
 
 
@@ -195,25 +210,73 @@ async def list_users(db: AsyncSession, page: int = 1, page_size: int = 20) -> di
     return await user_list(db, page=page, page_size=page_size)
 
 
-async def ban_user(db: AsyncSession, user_id: str, reason: str = "") -> User:
+async def _audit_admin_action(
+    action: str,
+    operator: AdminUser | None,
+    target: str = "",
+    detail: dict | None = None,
+) -> None:
+    """管理员关键动作统一写审计（P3：此前 ADMIN_* 动作零调用，审计页
+    答不了"谁把谁提了权/封了人"）。record_audit_log 自身保证不外抛。"""
+    from app.modules.audit.actions import ActorType, AuditResult
+    from app.modules.audit.service import record_audit_log
+
+    await record_audit_log(
+        action=action,
+        actor_type=ActorType.ADMIN,
+        actor_id=str(operator.id) if operator else None,
+        actor_label=operator.username if operator else "",
+        result=AuditResult.SUCCESS,
+        detail={"target": target, **(detail or {})},
+    )
+
+
+async def ban_user(db: AsyncSession, user_id: str, reason: str = "", operator: AdminUser | None = None) -> User:
     user = await db.get(User, user_id)
     if not user:
         raise BizError(ErrorCode.NOT_FOUND, "用户不存在")
     user.status = UserStatus.BANNED.value
     await db.commit()
-    _logger.warning("admin_ban_user", user_id=user_id, reason=reason)
+    _logger.warning("admin_ban_user", user_id=user_id, reason=reason, operator=getattr(operator, "username", ""))
+    await _audit_admin_action("admin.ban_user", operator, target=str(user.username), detail={"reason": reason})
     return user
 
 
-async def unban_user(db: AsyncSession, user_id: str) -> User:
+async def unban_user(db: AsyncSession, user_id: str, operator: AdminUser | None = None) -> User:
     user = await db.get(User, user_id)
     if not user:
         raise BizError(ErrorCode.NOT_FOUND, "用户不存在")
     user.status = UserStatus.NORMAL.value
     await db.commit()
+    await _audit_admin_action("admin.unban_user", operator, target=str(user.username))
     return user
 
 _EMAIL_REGISTER_KEY = "auth.email_register"
+
+
+async def get_app_config(db: AsyncSession, key: str, default: dict) -> dict:
+    """读取 AppConfig 并按 default 的键做合并（DB 值优先，缺失字段回退默认）。
+
+    统一「后台可动态配置」读写链路的原语：此前每个配置项各自手写一遍
+    「查 key → 无则默认 → 有则逐键合并」的 8 行样板（email_register /
+    item_review / item_categories / course_departments / ai.feature 等
+    共 9 处），样板一多就出现微妙的语义分叉。需要"整值替换 + 空值回退"
+    语义的配置（如分类列表）在调用方自行处理。
+    """
+    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
+    if not cfg:
+        return default
+    return {**default, **{k: cfg.value.get(k, v) for k, v in default.items()}}
+
+
+async def upsert_app_config(db: AsyncSession, key: str, payload: dict) -> None:
+    """写入/更新 AppConfig（存在则覆盖，不存在则新建），提交并实时生效。"""
+    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
+    if cfg:
+        cfg.value = payload
+    else:
+        db.add(AppConfig(key=key, value=payload))
+    await db.commit()
 
 
 async def get_email_register_config(db: AsyncSession) -> dict:
@@ -224,31 +287,28 @@ async def get_email_register_config(db: AsyncSession) -> dict:
         "domains": [str(d) for d in (default.get("domains") or [])],
         "pattern": str(default.get("pattern") or ""),
     }
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _EMAIL_REGISTER_KEY)
-    )
-    if not cfg:
-        return default
-    merged = dict(default)
-    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
-    return merged
+    return await get_app_config(db, _EMAIL_REGISTER_KEY, default)
 
 
 async def update_email_register_config(db: AsyncSession, data: dict) -> dict:
-    """后台更新邮箱注册规则（写 DB，实时生效）。"""
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _EMAIL_REGISTER_KEY)
-    )
+    """后台更新邮箱注册规则（写 DB，实时生效）。
+
+    P3：pattern 在保存入口校验可编译——非法/病态正则（ReDoS 源）在此被拒，
+    而不是等到注册请求触发 fail-closed 拒绝或拖垮公共端点。
+    """
+    import re as _re
+
     payload = {
         "enabled": bool(data.get("enabled", True)),
         "domains": [str(d) for d in (data.get("domains") or [])],
         "pattern": str(data.get("pattern") or ""),
     }
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_EMAIL_REGISTER_KEY, value=payload))
-    await db.commit()
+    if payload["pattern"]:
+        try:
+            _re.compile(payload["pattern"])
+        except _re.error as exc:
+            raise BizError(ErrorCode.VALIDATION, f"邮箱规则正则非法：{exc}") from exc
+    await upsert_app_config(db, _EMAIL_REGISTER_KEY, payload)
     _logger.info("admin_update_email_register", config=payload)
     return payload
 
@@ -258,28 +318,13 @@ _ITEM_REVIEW_KEY = "item.review"
 async def get_item_review_config(db: AsyncSession) -> dict:
     """读取物品发布审核开关：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = (settings.items or {}).get("review", {}) or {}
-    default = {"enabled": bool(default.get("enabled", False))}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_REVIEW_KEY)
-    )
-    if not cfg:
-        return default
-    merged = dict(default)
-    merged.update({k: cfg.value.get(k, v) for k, v in default.items()})
-    return merged
+    return await get_app_config(db, _ITEM_REVIEW_KEY, {"enabled": bool(default.get("enabled", False))})
 
 
 async def update_item_review_config(db: AsyncSession, data: dict) -> dict:
     """后台更新发布审核开关（写 DB，实时生效）。"""
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_REVIEW_KEY)
-    )
     payload = {"enabled": bool(data.get("enabled", False))}
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_ITEM_REVIEW_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _ITEM_REVIEW_KEY, payload)
     _logger.info("admin_update_item_review", config=payload)
     return payload
 
@@ -331,12 +376,9 @@ _DEFAULT_ITEM_CATEGORIES = ["电子产品", "书籍资料", "日用百货", "交
 async def get_item_categories(db: AsyncSession) -> list[str]:
     """读取二手交易分类：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = [str(c) for c in ((settings.items or {}).get("categories") or _DEFAULT_ITEM_CATEGORIES)]
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
-    )
-    if not cfg:
-        return default
-    return [str(c) for c in (cfg.value.get("categories") or [])] or default
+    merged = await get_app_config(db, _ITEM_CATEGORIES_KEY, {"categories": default})
+    # 分类是"整值替换"语义：DB 存了空列表视为未配置，回退默认
+    return [str(c) for c in merged["categories"]] or default
 
 _CONFIG_TAG_MAX_LEN = 20
 _CONFIG_TAG_MAX_COUNT = 30
@@ -364,15 +406,7 @@ def _clean_config_tags(tags: list[str], name: str, max_len: int) -> list[str]:
 async def update_item_categories(db: AsyncSession, categories: list[str]) -> list[str]:
     """后台更新二手交易分类（写 DB，实时生效）。"""
     cleaned = _clean_config_tags(categories, "分类", _CONFIG_TAG_MAX_LEN)
-    payload = {"categories": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _ITEM_CATEGORIES_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_ITEM_CATEGORIES_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _ITEM_CATEGORIES_KEY, {"categories": cleaned})
     _logger.info("admin_update_item_categories", categories=cleaned)
     return cleaned
 
@@ -387,26 +421,14 @@ _DEFAULT_COURSE_DEPARTMENTS = [
 async def get_course_departments(db: AsyncSession) -> list[str]:
     """读取课程院系列表：DB（后台配置）优先，缺省回退 school.yaml。"""
     default = [str(d) for d in ((settings.courses or {}).get("departments") or _DEFAULT_COURSE_DEPARTMENTS)]
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
-    )
-    if not cfg:
-        return default
-    return [str(d) for d in (cfg.value.get("departments") or [])] or default
+    merged = await get_app_config(db, _COURSE_DEPARTMENTS_KEY, {"departments": default})
+    return [str(d) for d in merged["departments"]] or default
 
 
 async def update_course_departments(db: AsyncSession, departments: list[str]) -> list[str]:
     """后台更新课程院系列表（写 DB，实时生效）。"""
     cleaned = _clean_config_tags(departments, "院系", 30)
-    payload = {"departments": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENTS_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_COURSE_DEPARTMENTS_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _COURSE_DEPARTMENTS_KEY, {"departments": cleaned})
     _logger.info("admin_update_course_departments", departments=cleaned)
     return cleaned
 
@@ -446,23 +468,15 @@ async def _get_config_categories(db: AsyncSession, scope: str) -> list[str]:
     """读取某个业务域的分类列表：DB（后台配置）优先，缺省回退 school.yaml。"""
     key, section, field, fallback, _name, _maxlen = _CATEGORY_SPECS[scope]
     default = [str(c) for c in ((getattr(settings, section, None) or {}).get(field) or fallback)]
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
-    if not cfg:
-        return default
-    return [str(c) for c in (cfg.value.get(field) or [])] or default
+    merged = await get_app_config(db, key, {field: default})
+    return [str(c) for c in merged[field]] or default
 
 
 async def _update_config_categories(db: AsyncSession, scope: str, values: list[str]) -> list[str]:
     """后台更新某个业务域的分类列表（写 DB，实时生效）。"""
     key, _section, field, _fallback, name, maxlen = _CATEGORY_SPECS[scope]
     cleaned = _clean_config_tags(values, name, maxlen)
-    payload = {field: cleaned}
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == key))
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=key, value=payload))
-    await db.commit()
+    await upsert_app_config(db, key, {field: cleaned})
     _logger.info(f"admin_update_{scope}_categories", categories=cleaned)
     return cleaned
 
@@ -583,15 +597,7 @@ async def get_course_department_groups(db: AsyncSession) -> list[dict]:
 async def update_course_department_groups(db: AsyncSession, groups: list[dict]) -> list[dict]:
     """后台更新课程院系分组（写 DB，实时生效）。"""
     cleaned = _clean_department_groups(groups)
-    payload = {"groups": cleaned}
-    cfg = await db.scalar(
-        select(AppConfig).where(AppConfig.key == _COURSE_DEPARTMENT_GROUPS_KEY)
-    )
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_COURSE_DEPARTMENT_GROUPS_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _COURSE_DEPARTMENT_GROUPS_KEY, {"groups": cleaned})
     _logger.info("admin_update_course_department_groups", groups=len(cleaned))
     return cleaned
 
@@ -698,12 +704,7 @@ async def get_canteen_config(db: AsyncSession) -> dict:
 async def update_canteen_config(db: AsyncSession, data: dict) -> dict:
     """后台更新食堂维度配置（写 DB，实时生效）。"""
     payload = _clean_canteen_config(data)
-    cfg = await db.scalar(select(AppConfig).where(AppConfig.key == _CANTEEN_CONFIG_KEY))
-    if cfg:
-        cfg.value = payload
-    else:
-        db.add(AppConfig(key=_CANTEEN_CONFIG_KEY, value=payload))
-    await db.commit()
+    await upsert_app_config(db, _CANTEEN_CONFIG_KEY, payload)
     _logger.info("admin_update_canteen_config", campuses=len(payload["campuses"]))
     return payload
 
@@ -731,7 +732,7 @@ async def _collect_image_refs(db: AsyncSession) -> list[str]:
 
 async def list_orphan_files(db: AsyncSession) -> dict:
     """扫描存储中未被任何业务记录引用的孤儿文件（只列出，不删除）。"""
-    keys = storage_client.list_keys()
+    keys = await storage_client.list_keys()
     if not keys:
         return {"files": [], "total": 0}
     refs = await _collect_image_refs(db)
@@ -750,7 +751,7 @@ async def cleanup_orphan_files(db: AsyncSession) -> dict:
     removed = 0
     for f in data["files"]:
         try:
-            storage_client.remove_key(f["key"])
+            await storage_client.remove_key(f["key"])
             removed += 1
         except Exception as exc:
             _logger.warning("orphan_remove_failed", key=f["key"], error=str(exc))

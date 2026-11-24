@@ -19,63 +19,73 @@ const FALLBACK_CONFIG: CanteenConfig = {
 };
 
 const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
-  <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all flex flex-col justify-between">
+  <div className="group bg-surface rounded-md overflow-hidden border border-hairline hover:border-zone-canteen transition-colors flex flex-col justify-between">
     <div className="p-6 sm:p-7 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 text-xs font-bold rounded-md">
-              {canteen.opening_hours || '06:30 - 22:00'}
-            </span>
+            {canteen.opening_hours && (
+              <span className="px-2 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
+                {canteen.opening_hours}
+              </span>
+            )}
             {canteen.canteen_type && (
-              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md">
+              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-sm tracking-mono">
                 {canteen.canteen_type}
               </span>
             )}
             {canteen.floor && (
-              <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md">
+              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-sm tracking-mono">
                 {canteen.floor}
               </span>
             )}
           </div>
-          <h3 className="text-2xl font-black text-slate-900 mt-2 group-hover:text-indigo-600 transition-colors">
+          <h3 className="text-heading-2 text-ink mt-2 group-hover:text-zone-canteen transition-colors">
             {canteen.name}
           </h3>
           {(canteen.zone || canteen.campus) && (
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="mt-1 flex items-center gap-1.5 text-caption text-steel">
               {canteen.campus && <Building2 className="w-3.5 h-3.5" />}
               <span>{[canteen.campus, canteen.zone].filter(Boolean).join(' · ')}</span>
             </div>
           )}
         </div>
-        <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200/60 flex items-center gap-1.5 text-amber-700 text-sm font-black shrink-0">
-          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-          <span>{canteen.rating ? Number(canteen.rating).toFixed(1) : '4.7'}</span>
-        </div>
+        {canteen.rating ? (
+          <div className="p-3 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-1.5 text-zone-canteen text-sm font-black shrink-0">
+            <Star className="w-4 h-4 fill-zone-canteen text-zone-canteen" />
+            <span className="font-display tabular-nums">{Number(canteen.rating).toFixed(1)}</span>
+          </div>
+        ) : (
+          <div className="px-3 py-2 bg-panel rounded-sm border border-hairline text-steel text-[11px] font-mono font-bold shrink-0 tracking-mono">
+            暂无评分
+          </div>
+        )}
       </div>
 
       {canteen.features && canteen.features.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {canteen.features.map((f) => (
-            <span key={f} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md">
+            <span key={f} className="px-2 py-0.5 bg-success/10 text-success text-[11px] font-mono font-bold rounded-sm tracking-mono">
               {f}
             </span>
           ))}
         </div>
       )}
 
-      <div className="space-y-2 text-xs text-slate-600">
+      <div className="space-y-2 text-body-2 text-steel">
+        {canteen.location && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-steel shrink-0" />
+            <span>{canteen.location}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-          <span>{canteen.location || '主校区核心餐饮区'}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Coffee className="w-4 h-4 text-slate-400 shrink-0" />
+          <Coffee className="w-4 h-4 text-steel shrink-0" />
           <span>收录档口：{canteen.stalls?.length || 0} 个风味窗口</span>
         </div>
         {canteen.popular_dishes && canteen.popular_dishes.length > 0 && (
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+            <Clock className="w-4 h-4 text-steel shrink-0" />
             <span className="truncate">招牌：{canteen.popular_dishes.join('、')}</span>
           </div>
         )}
@@ -85,7 +95,7 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
     <div className="p-6 pt-0">
       <Link
         to={`/canteens/${canteen.id}`}
-        className="w-full py-3.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+        className="w-full py-3 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5"
       >
         进入食堂浏览档口与点评 <ChevronRight className="w-4 h-4" />
       </Link>
@@ -188,8 +198,9 @@ const CanteenList: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight">校园食堂与美食档口</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+        <div className="mono-label text-zone-canteen tracking-mono mb-1">CANTEEN · 食堂航站屏</div>
+        <h1 className="text-heading-1 text-ink tracking-tight">校园食堂与美食档口</h1>
+        <p className="text-body-2 text-steel mt-0.5">
           按学部 · 餐饮区 · 类型多维度筛选，探索招牌热销菜品、口味评分与卫生评价
         </p>
       </div>
@@ -203,9 +214,9 @@ const CanteenList: React.FC = () => {
       </div>
 
       {/* 类型 chips + 学期 + 搜索 */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+      <div className="bg-surface p-4 rounded-md border border-hairline shadow-surface space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 mr-1">类型</span>
+          <span className="mono-label text-steel tracking-mono mr-1">类型</span>
           <FilterChip label="全部" active={selectedType === ''} onClick={() => setSelectedType('')} />
           {config.types.map((t) => (
             <FilterChip key={t} label={t} active={selectedType === t} onClick={() => setSelectedType(t)} />
@@ -213,11 +224,11 @@ const CanteenList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-steel w-4 h-4" />
             <input
               type="text"
               placeholder="搜索食堂名称、校区位置或热门美食..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -226,7 +237,7 @@ const CanteenList: React.FC = () => {
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              className="px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+              className="px-3 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink outline-none"
             >
               <option value="">全部学期</option>
               {config.semesters.map((s) => (
@@ -239,48 +250,48 @@ const CanteenList: React.FC = () => {
 
       {/* Content */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((n) => (
-            <div key={n} className="bg-white rounded-3xl p-6 border border-slate-200 animate-pulse space-y-4">
-              <div className="h-6 bg-slate-200 rounded w-1/2"></div>
-              <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+              <div className="h-6 bg-panel rounded w-1/2"></div>
+              <div className="h-4 bg-panel rounded w-3/4"></div>
             </div>
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
+        <div className="text-center py-20 text-steel">
           <LayoutGrid className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>该筛选条件下暂无食堂</p>
+          <p className="mono-label tracking-mono">该筛选条件下暂无食堂</p>
         </div>
       ) : (
         <div className="space-y-8">
           {selectedCampus
             ? zoneGroups.groups.map(([zone, list]) => (
                 <section key={zone}>
-                  <h2 className="text-lg font-black text-slate-800 mb-3 flex items-center gap-2">
-                    <Coffee className="w-5 h-5 text-indigo-500" /> {zone}
-                    <span className="text-xs font-normal text-slate-400">{list.length} 个食堂</span>
+                  <h2 className="text-heading-2 text-ink mb-3 flex items-center gap-2">
+                    <Coffee className="w-5 h-5 text-zone-canteen" /> {zone}
+                    <span className="mono-label text-steel font-normal">{list.length} 个食堂</span>
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {list.map((c) => <CanteenCard key={c.id} canteen={c} />)}
                   </div>
                 </section>
               ))
             : campusGroups.map(([campus, list]) => (
                 <section key={campus}>
-                  <h2 className="text-lg font-black text-slate-800 mb-3 flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-indigo-500" /> {campus}
-                    <span className="text-xs font-normal text-slate-400">{list.length} 个食堂</span>
+                  <h2 className="text-heading-2 text-ink mb-3 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-zone-canteen" /> {campus}
+                    <span className="mono-label text-steel font-normal">{list.length} 个食堂</span>
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {list.map((c) => <CanteenCard key={c.id} canteen={c} />)}
                   </div>
                 </section>
               ))}
           {selectedCampus && zoneGroups.ungrouped.length > 0 && (
             <section>
-              <h2 className="text-lg font-black text-slate-800 mb-3">其他</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <h2 className="text-heading-2 text-ink mb-3">其他</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {zoneGroups.ungrouped.map((c) => <CanteenCard key={c.id} canteen={c} />)}
               </div>
             </section>
@@ -294,8 +305,8 @@ const CanteenList: React.FC = () => {
 const CampusTab: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
-      active ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'
+    className={`px-4 py-2 rounded-sm mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
+      active ? 'bg-zone-canteen text-surface' : 'bg-surface border border-hairline text-steel hover:border-zone-canteen'
     }`}
   >
     {label}
@@ -305,8 +316,8 @@ const CampusTab: React.FC<{ label: string; active: boolean; onClick: () => void 
 const FilterChip: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-      active ? 'bg-indigo-600 text-white' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:border-indigo-300'
+    className={`px-3 py-1.5 rounded-sm mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
+      active ? 'bg-zone-canteen text-surface' : 'bg-panel border border-transparent text-steel hover:text-ink'
     }`}
   >
     {label}

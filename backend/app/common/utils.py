@@ -99,3 +99,18 @@ def safe_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def escape_like(keyword: str) -> str:
+    """转义 LIKE/ILIKE 通配符（P3）。
+
+    ``%kw%`` 直接拼接时，用户输入的 ``%``/``_`` 会被当作通配符——
+    非注入，但 ``%`` 可让过滤退化为全表匹配（语义/性能）。调用方需配
+    ``.ilike(pattern, escape="\\\\")`` 使用。
+    """
+    return (
+        (keyword or "")
+        .replace("\\", "\\\\")
+        .replace("%", r"\%")
+        .replace("_", r"\_")
+    )

@@ -166,6 +166,67 @@ def test_weak_config_fail_fast():
         settings.admin_bootstrap_min_length = old["min"]
 
 
+def test_placeholder_variants_fail_fast():
+    """仓库模板的占位凭据变体（-16plus 后缀 / <GENERATE_...>）必须被拦截。"""
+    cases = [
+        # (admin_gateway_key, admin_bootstrap_password) —— 其余配置均为强值
+        ("change-me-admin-gateway-key-16plus", "a-strong-bootstrap-pass-123"),
+        ("<GENERATE_RANDOM_16+>", "a-strong-bootstrap-pass-123"),
+        ("a-strong-gateway-key-1234567890", "change-me-deploy-with-strong-pw-16plus"),
+        ("a-strong-gateway-key-1234567890", "<GENERATE_RANDOM>"),
+    ]
+    old = {
+        "debug": settings.debug,
+        "enforce": settings.admin_gateway_enforce,
+        "key": settings.admin_gateway_key,
+        "passwd": settings.admin_bootstrap_password,
+        "secret": settings.secret_key,
+        "smtp_host": settings.smtp_host,
+    }
+    try:
+        settings.debug = False
+        settings.admin_gateway_enforce = True
+        settings.secret_key = "a-strong-secret-key-0123456789abcdef"
+        settings.smtp_host = "smtp.example.edu.cn"
+        for gw_key, bootstrap_pw in cases:
+            settings.admin_gateway_key = gw_key
+            settings.admin_bootstrap_password = bootstrap_pw
+            with pytest.raises(SystemExit):
+                validate_admin_security()
+    finally:
+        settings.debug = old["debug"]
+        settings.admin_gateway_enforce = old["enforce"]
+        settings.admin_gateway_key = old["key"]
+        settings.admin_bootstrap_password = old["passwd"]
+        settings.secret_key = old["secret"]
+        settings.smtp_host = old["smtp_host"]
+
+
+def test_default_secret_key_fails_fast_even_without_gateway_enforce():
+    """JWT 签名密钥带公开默认值时，即使管理网关放宽也必须拒绝启动（P0-1）。"""
+    old = {
+        "debug": settings.debug,
+        "enforce": settings.admin_gateway_enforce,
+        "secret": settings.secret_key,
+    }
+    try:
+        settings.debug = False
+        settings.admin_gateway_enforce = False  # 网关联调放宽不豁免 secret_key
+        for weak in (
+            "change-me-to-a-long-random-string-in-prod",  # 仓库默认值
+            "",  # 未配置
+            "short",  # 长度不足 32
+            "<GENERATE_A_LONG_RANDOM_SECRET>",  # deploy/.env.example 占位形式
+        ):
+            settings.secret_key = weak
+            with pytest.raises(SystemExit):
+                validate_admin_security()
+    finally:
+        settings.debug = old["debug"]
+        settings.admin_gateway_enforce = old["enforce"]
+        settings.secret_key = old["secret"]
+
+
 def test_strong_config_passes_validation():
     """强配置（网关密钥 + bootstrap 密码 + 非默认基础设施密钥）应通过校验。"""
     old = {
@@ -178,10 +239,12 @@ def test_strong_config_passes_validation():
         "minio_access": settings.minio_access_key,
         "minio_secret": settings.minio_secret_key,
         "smtp_host": settings.smtp_host,
+        "secret": settings.secret_key,
     }
     try:
         settings.debug = False
         settings.admin_gateway_enforce = True
+        settings.secret_key = "a-strong-secret-key-0123456789abcdef"
         settings.admin_gateway_key = "a-strong-gateway-key-1234567890"
         settings.admin_bootstrap_password = "a-strong-bootstrap-pass-123"
         settings.admin_bootstrap_min_length = 16
@@ -204,3 +267,4 @@ def test_strong_config_passes_validation():
         settings.minio_access_key = old["minio_access"]
         settings.minio_secret_key = old["minio_secret"]
         settings.smtp_host = old["smtp_host"]
+        settings.secret_key = old["secret"]

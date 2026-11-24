@@ -8,7 +8,7 @@ import {
   JobOut, JobCreate, JobApplicationOut, ApplicationStatus, JobStatus,
   ShareOut, ShareCreate, ShareCommentOut,
   TeamOut, TeamCreate, TeamMemberOut, TeamStatus, MemberStatus,
-  ReportOut, ReportTargetType, ReportStatus,
+  ReportOut, ReportTargetType, ReportStatus, ReportAction, AdminReportOut,
   EmailRegisterConfig, ItemReviewConfig, AdminOut,
   AiFeatureConfig, AiStatusOut, AiConfig, AiConfigUpdate, AiGreeting,
   SendCodeOut, SliderCaptcha, SliderVerifyResult, CaptchaConfig, GeetestValidate
@@ -825,6 +825,17 @@ export async function request<T>(
 
 // Full Mock Route Handling Engine for offline/prototype mode
 function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiResponse<T> {
+  // P1-5：生产构建禁止 mock 回退。此前后端不可达时，发物品/兼职/资源/评价/
+  // 组队等全部写路径会落回 localStorage mock 并返回 code 0"发布成功"——
+  // 数据只存在于浏览器（静默丢失 + 展示不一致）。生产一律返回网络错误；
+  // 仅 DEV 保留离线原型能力（import.meta.env.DEV 由 Vite 构建期静态替换）。
+  if (!import.meta.env.DEV) {
+    return {
+      code: -1,
+      message: '网络连接失败，请稍后重试',
+      data: null as any,
+    };
+  }
   const db = getMockDB();
   const method = (options.method || 'GET').toUpperCase();
   const [path, queryString] = endpoint.split('?');
@@ -843,6 +854,7 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     '/api/auth/phone-login',
     '/api/auth/send-code',
     '/api/auth/refresh',
+    '/api/auth/password',
     '/api/admin/login',
     '/api/admin/me',
     '/api/users/me',
@@ -1008,6 +1020,13 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     return { code: 0, message: 'ok', data: db.canteens as any };
   }
 
+  // Canteens: Dish detail（该菜品的全部评价；须排在 /canteens/{id} 之前）
+  if (path.startsWith('/api/canteens/dishes/') && method === 'GET') {
+    const dishId = path.split('/')[4];
+    const reviews = db.canteenReviews.filter((r: any) => r.dish_id === dishId);
+    return { code: 0, message: 'ok', data: { dish: null, reviews } as any };
+  }
+
   // Canteens: Get
   if (path.startsWith('/api/canteens/') && !path.includes('/reviews') && method === 'GET') {
     const id = path.split('/')[3];
@@ -1015,28 +1034,15 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
     return { code: 0, message: 'ok', data: c as any };
   }
 
-  // Canteens: Reviews
-  if (path.includes('/canteens/') && path.includes('/reviews') && method === 'GET') {
-    const canteenId = path.split('/')[3];
-    const stallId = params.get('stall_id');
-    let reviews = db.canteenReviews.filter((r: any) => r.canteen_id === canteenId);
-    if (stallId) {
-      reviews = reviews.filter((r: any) => r.stall_id === stallId);
-    }
-    return { code: 0, message: 'ok', data: { total: reviews.length, items: reviews } as any };
-  }
-
-  // Canteens: Add Review
-  if (path.includes('/canteens') && path.includes('/reviews') && method === 'POST') {
+  // Canteens: Add Review（菜品维度，字段与后端 CanteenReviewCreate 对齐）
+  if (path.startsWith('/api/canteens/dishes/') && path.endsWith('/reviews') && method === 'POST') {
+    const dishId = path.split('/')[4];
     const newRev: CanteenReviewOut = {
       id: 'cant-rev-' + Date.now(),
-      canteen_id: body.canteen_id || 'cant-1',
-      stall_id: body.stall_id || 'stl-1-1',
-      dish_name: body.dish_name || '美味佳肴',
+      dish_id: dishId,
       user_id: db.currentUser.id,
       user_nickname: db.currentUser.nickname,
-      rating: body.rating || 5,
-      price_cents: body.price_cents,
+      rating: body.rating ?? 5,
       content: body.content || '',
       created_at: new Date().toISOString()
     };
@@ -1202,7 +1208,8 @@ export const api = {
     register: (params: { username: string; password: string; email?: string; phone?: string; nickname?: string }) =>
       request<UserOut>('/api/auth/register', { method: 'POST', body: JSON.stringify(params) }),
 
-    sendCode: (target: string, purpose: 'login' | 'register' | 'email' | 'bind_email' | 'bind_phone', captchaTicket?: string) =>
+    // purpose 与后端 Literal 枚举对齐（login/register/bind_email/bind_phone）
+    sendCode: (target: string, purpose: 'login' | 'register' | 'bind_email' | 'bind_phone', captchaTicket?: string) =>
       request<SendCodeOut>('/api/auth/send-code', { method: 'POST', body: JSON.stringify({ target, purpose, captcha_ticket: captchaTicket }) }),
 
     // 滑块验证：开启后必须先通过滑块拿到票据，才能请求发送验证码
@@ -1240,6 +1247,9 @@ export const api = {
     
     bindOAuth: (provider: 'wechat' | 'qq', code: string, state?: string) =>
       request<null>('/api/auth/bind/oauth', { method: 'POST', body: JSON.stringify({ provider, code, state }) }),
+    // OAuth state（防 CSRF）：绑定前先取，绑定请求必须回传（P2-13 后端已强制）
+    oauthState: (provider: 'wechat' | 'qq') =>
+      request<string>(`/api/auth/${provider}/state`),
     
     unbindEmail: () => request<null>('/api/auth/unbind/email', { method: 'DELETE' }),
     unbindPhone: () => request<null>('/api/auth/unbind/phone', { method: 'DELETE' }),
@@ -1253,18 +1263,23 @@ export const api = {
     updateMe: (data: Partial<UserProfileOut>) => request<UserProfileOut>('/api/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
     list: (page = 1, page_size = 20) => request<{ total: number; items: UserOut[] }>(`/api/users?page=${page}&page_size=${page_size}`),
     search: (q: string) => request<UserOut[]>(`/api/users/search?q=${encodeURIComponent(q)}`),
+    // P2-22：接真实端点（此前读 localStorage mock，永不落库）
     getItems: (userId?: string) => {
-      const db = getMockDB();
-      const items = db.items.filter((i: any) => !userId || i.owner_id === userId);
-      return Promise.resolve({ code: 0, message: 'ok', data: { total: items.length, items } });
+      const q = new URLSearchParams({ page: '1', page_size: '50' });
+      if (userId) q.set('owner_id', userId);
+      return request<{ total: number; items: ItemOut[] }>(`/api/items?${q.toString()}`);
     },
-    getFavorites: (userId?: string) => {
-      const db = getMockDB();
-      return Promise.resolve({ code: 0, message: 'ok', data: { total: db.items.length, items: db.items.slice(0, 2) } });
-    },
-    changePassword: (oldPass: string, newPass: string) => {
-      return Promise.resolve({ code: 0, message: '密码修改成功', data: null });
-    }
+    getFavorites: (userId?: string) =>
+      request<ItemOut[]>('/api/users/me/favorites'),
+    addFavorite: (itemId: string) =>
+      request<null>(`/api/users/me/favorites?item_id=${encodeURIComponent(itemId)}`, { method: 'POST' }),
+    removeFavorite: (itemId: string) =>
+      request<null>(`/api/users/me/favorites/${encodeURIComponent(itemId)}`, { method: 'DELETE' }),
+    changePassword: (oldPass: string, newPass: string) =>
+      request<null>('/api/auth/password', {
+        method: 'POST',
+        body: JSON.stringify({ old_password: oldPass, new_password: newPass }),
+      })
   },
 
   // Items (二手交易)
@@ -1367,15 +1382,9 @@ export const api = {
     },
     addReview: (data: { course_id: string; rating: number; content: string; teacher_rating?: number; workload?: string; grading_policy?: string }) =>
       request<CourseReviewOut>(`/api/courses/${data.course_id}/reviews`, { method: 'POST', body: JSON.stringify(data) }),
-    likeReview: (courseId: string, reviewId: string) => {
-      const db = getMockDB();
-      const rev = db.courseReviews.find((r: any) => r.id === reviewId);
-      if (rev) {
-        rev.helpful_count = (rev.helpful_count || 0) + 1;
-        saveMockDB(db);
-      }
-      return Promise.resolve({ code: 0, message: '点赞成功', data: null });
-    },
+    // P2-22：接真实端点（此前改 localStorage mock）
+    likeReview: (courseId: string, reviewId: string) =>
+      request<{ helpful_count: number }>(`/api/courses/reviews/${reviewId}/like`, { method: 'POST' }),
     review: (courseId: string, rating: number, content: string) =>
       request<CourseReviewOut>(`/api/courses/${courseId}/reviews`, { method: 'POST', body: JSON.stringify({ rating, content }) })
   },
@@ -1393,11 +1402,10 @@ export const api = {
     },
     configs: () => request<CanteenConfig>('/api/canteens/configs'),
     get: (id: string) => request<CanteenOut>(`/api/canteens/${id}`),
-    getDish: (dishId: string) => request<DishOut>(`/api/canteens/dishes/${dishId}`),
-    getReviews: (canteenId: string, stallId?: string) =>
-      request<{ total: number; items: CanteenReviewOut[] }>(`/api/canteens/${canteenId}/reviews${stallId ? `?stall_id=${stallId}` : ''}`),
-    addReview: (data: { canteen_id: string; stall_id: string; dish_name: string; rating: number; content: string; price_cents?: number }) =>
-      request<CanteenReviewOut>(`/api/canteens/${data.canteen_id}/reviews`, { method: 'POST', body: JSON.stringify(data) }),
+    // 后端评价是「菜品」维度：读用 /canteens/dishes/{id}（返回 { dish, reviews }），
+    // 写用 /canteens/dishes/{id}/reviews（只接受 rating + content，需登录）。
+    dishReviews: (dishId: string) =>
+      request<{ dish: DishOut; reviews: CanteenReviewOut[] }>(`/api/canteens/dishes/${dishId}`),
     reviewDish: (dishId: string, rating: number, content: string) =>
       request<CanteenReviewOut>(`/api/canteens/dishes/${dishId}/reviews`, { method: 'POST', body: JSON.stringify({ rating, content }) })
   },
@@ -1433,15 +1441,9 @@ export const api = {
       }
       return res as unknown as ApiResponse<{ download_url: string }>;
     },
-    like: (id: string) => {
-      const db = getMockDB();
-      const s = db.shares.find((shr: any) => shr.id === id);
-      if (s) {
-        s.likes = (s.likes || 0) + 1;
-        saveMockDB(db);
-      }
-      return Promise.resolve({ code: 0, message: '点赞成功', data: null });
-    },
+    // P2-22：接真实端点（此前改 localStorage mock）
+    like: (id: string) =>
+      request<{ likes: number }>(`/api/shares/${id}/like`, { method: 'POST' }),
     getComments: (id: string) =>
       request<{ total: number; items: ShareCommentOut[] }>(`/api/shares/${id}/comments`),
     addComment: (id: string, content: string) =>
@@ -1472,18 +1474,11 @@ export const api = {
     },
     create: (data: TeamCreate) => request<TeamOut>('/api/teams', { method: 'POST', body: JSON.stringify(data) }),
     join: (teamId: string, role?: string) => request<TeamMemberOut>(`/api/teams/${teamId}/join`, { method: 'POST', body: JSON.stringify({ role }) }),
-    apply: (teamId: string, note: string) => {
-      return Promise.resolve({ code: 0, message: '申请成功', data: null });
-    },
-    close: (teamId: string) => {
-      const db = getMockDB();
-      const t = db.teams.find((tm: any) => tm.id === teamId);
-      if (t) {
-        t.status = TeamStatus.Closed;
-        saveMockDB(db);
-      }
-      return Promise.resolve({ code: 0, message: '已关闭招募', data: null });
-    },
+    // P2-22：申请/关闭接真实端点（此前为假成功 stub / localStorage mock）
+    apply: (teamId: string, note: string) =>
+      request<TeamMemberOut>(`/api/teams/${teamId}/join`, { method: 'POST', body: JSON.stringify({ role: note }) }),
+    close: (teamId: string) =>
+      request<TeamOut>(`/api/teams/${teamId}/close`, { method: 'POST' }),
     categories: () => request<{ categories: string[] }>('/api/teams/categories')
   },
 
@@ -1547,8 +1542,19 @@ export const api = {
     getAuditActions: () =>
       request<{ value: string; label: string }[]>('/api/admin/audit-logs/actions'),
     getUsers: (page = 1, page_size = 20) => api.admin.users(page, page_size),
-    handleReport: (reportId: string, data: { status: number; action: any; feedback: string }) =>
-      api.reports.handle(reportId, data.action, data.feedback),
+    handleReport: (reportId: string, data: { status: number; action: any; feedback: string }) => {
+      // P2-22：此前把 UI 的 reportAction（ReportAction 枚举：user_ban/warning…）
+      // 原样透传给后端，且丢弃 status——后端只认 resolve/reject/ban，
+      // 传 'user_ban' 会让所有分支都不命中，工单状态永远不变。
+      // 现按 UI 意图映射：status=Rejected → reject；Resolved → ban(当选择封禁) / resolve。
+      const backendAction: 'resolve' | 'reject' | 'ban' =
+        data.status === ReportStatus.Rejected
+          ? 'reject'
+          : data.action === ReportAction.UserBan
+            ? 'ban'
+            : 'resolve';
+      return api.reports.handle(reportId, backendAction, data.feedback);
+    },
     updateUserStatus: (userId: string, status: number) =>
       status === 1 ? api.admin.banUser(userId) : api.admin.unbanUser(userId),
     users: (page = 1, page_size = 20) => request<{ total: number; items: any[] }>(`/api/admin/users?page=${page}&page_size=${page_size}`),
@@ -1556,7 +1562,7 @@ export const api = {
     unbanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/unban`, { method: 'POST' }),
     getEmailConfig: () => request<EmailRegisterConfig>('/api/admin/auth/email-config'),
     updateEmailConfig: (config: EmailRegisterConfig) => request<EmailRegisterConfig>('/api/admin/auth/email-config', { method: 'PUT', body: JSON.stringify(config) }),
-    reports: (status?: number, page = 1, page_size = 20) => request<{ total: number; items: ReportOut[] }>(`/api/admin/reports?status=${status || ''}&page=${page}&page_size=${page_size}`),
+    reports: (status?: number, page = 1, page_size = 20) => request<{ total: number; items: AdminReportOut[] }>(`/api/admin/reports?status=${status || ''}&page=${page}&page_size=${page_size}`),
     // Admin item management (bypasses owner checks)
     adminItems: (status?: number, page = 1, page_size = 20) =>
       request<{ total: number; items: any[] }>(`/api/admin/items?status=${status ?? ''}&page=${page}&page_size=${page_size}`),
@@ -1629,7 +1635,7 @@ export const api = {
   // Files
   files: {
     presign: async (prefix = 'misc', filename = 'file.bin') => {
-      return request<{ object_key: string; upload_url: string; direct: boolean }>('/api/files/presign', {
+      return request<{ object_key: string; upload_url: string; direct: boolean; fields?: Record<string, string> }>('/api/files/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ prefix, filename }).toString()
@@ -1648,8 +1654,9 @@ export const api = {
     /**
      * High-level upload helper: presign + upload.
      *
-     * - If `direct` is true (MinIO enabled): PUT the file directly to the
-     *   presigned MinIO URL.
+     * - If `direct` is true (MinIO enabled): POST the file directly to MinIO
+     *   with the signed POST policy fields (key/size/type are bound into the
+     *   signature — the server rejects any tampered request).
      * - If `direct` is false (local fallback): POST multipart form data to
      *   `/api/files/upload`.
      *
@@ -1660,16 +1667,17 @@ export const api = {
       if (presignRes.code !== 0 || !presignRes.data) {
         throw new Error(presignRes.message || 'Presign failed');
       }
-      const { object_key, upload_url, direct } = presignRes.data;
+      const { object_key, upload_url, direct, fields } = presignRes.data;
       if (direct) {
-        // MinIO mode: PUT directly to the presigned URL (no auth header needed)
-        const putRes = await fetch(upload_url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type || 'application/octet-stream' }
-        });
-        if (!putRes.ok) {
-          throw new Error(`Direct upload failed: ${putRes.status}`);
+        // MinIO mode: POST form-data with the policy fields (file MUST be last)
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(fields || {})) {
+          fd.append(k, v);
+        }
+        fd.append('file', file, file.name);
+        const postRes = await fetch(upload_url, { method: 'POST', body: fd });
+        if (!postRes.ok) {
+          throw new Error(`Direct upload failed: ${postRes.status}`);
         }
       } else {
         // Local fallback: POST multipart to /api/files/upload

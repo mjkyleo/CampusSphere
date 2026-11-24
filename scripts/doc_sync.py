@@ -403,7 +403,7 @@ def detect_drift(state: dict, docs: dict[str, str]) -> list[dict]:
     for f in state["config_fields"]:
         if f["name"] in backend_env:
             continue
-        if "Dict" in f["type"]:                 # 嵌套配置走 school.yaml，不应作为扁平 env 键
+        if "dict" in f["type"].lower():         # 嵌套配置走 school.yaml，不应作为扁平 env 键
             continue
         if any(k in f["name"] for k in DEPLOY_RELEVANT):
             missing.append(f["name"])

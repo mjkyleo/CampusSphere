@@ -30,11 +30,15 @@ _UA_MAX = 512
 
 
 def _client_ip(request: Request) -> str:
-    """取客户端 IP：优先 X-Forwarded-For（nginx 反代场景），回退直连地址。"""
+    """取客户端 IP：优先 X-Forwarded-For（nginx 反代场景），回退直连地址。
+
+    P3：取 XFF 的**最后一段**。nginx ``$proxy_add_x_forwarded_for`` 是
+    **追加**语义——客户端可伪造任意前缀（"fake, "），真实来源由可信代理
+    追加在末尾；取第一段等于信任攻击者提供的值。
+    """
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
-        # 反代链路上形如 "client, proxy1, proxy2"，第一个才是真实来源
-        return forwarded.split(",")[0].strip()
+        return forwarded.split(",")[-1].strip()
     return request.client.host if request.client else ""
 
 

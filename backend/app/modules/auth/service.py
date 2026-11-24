@@ -8,7 +8,8 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 以**模块形式**导入，使调用点在运行时通过属性查找解析 send_email，
@@ -32,9 +33,16 @@ from app.modules.auth.models import OAuthAccount, RefreshToken, User
 
 _logger = get_logger("auth.service")
 
-_CODE_TTL = settings.code_ttl_seconds  # 验证码有效期（可配置）
 _RATE_LIMIT_PREFIX = "vcode:limit:"
 _TRIES_PREFIX = "vcode:tries:"  # 验证码校验尝试次数（防暴力枚举）
+# purpose 合法取值：purpose 会拼进 vcode/限流/尝试计数三类 Redis 键，
+# 自由串可把验证码写进限流计数键（如 "limit:login"）制造持续 429，
+# 或作废他人待验证码。schema 层已用 Literal 收敛，此处对服务层直调
+# （测试/内部调用）兜底，两处取值集合必须保持一致。
+_CODE_PURPOSES = frozenset({"login", "register", "bind_email", "bind_phone"})
+# 验证码 TTL 一律在调用点读取 settings.code_ttl_seconds：
+# 配置热更新会原地刷新 settings，模块级快照常量不会跟随（曾导致热更新后
+# 新验证码仍用旧 TTL），故不再提供 _CODE_TTL 常量。
 
 # 验证码用途 → 邮件文案（缺了会把主题写成"【武汉大学】bind_email验证码"）
 _PURPOSE_LABELS = {
@@ -93,7 +101,7 @@ async def _dispatch_code_email(target: str, code: str, purpose: str) -> None:
     subject = f"【{settings.school_name}】{label}验证码"
     body = (
         f"您的{label}验证码是：{code}\n\n"
-        f"有效期 {_CODE_TTL // 60} 分钟，请勿告知他人。\n"
+        f"有效期 {settings.code_ttl_seconds // 60} 分钟，请勿告知他人。\n"
         f"若非本人操作，请忽略此邮件。\n"
     )
     def _dispatch() -> str:
@@ -199,7 +207,13 @@ async def register(db: AsyncSession, data) -> User:
     user.status = UserStatus.NORMAL.value
     user.set_password(data.password)
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # check-then-insert 竞态兜底：上面的唯一性查询与插入之间存在时间窗，
+        # 并发注册同名账号由唯一约束拦截，转 409 而非透出 500
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "用户名或邮箱已被注册") from exc
     await db.refresh(user)
     _logger.info("user_registered", user_id=str(user.id))
     return user
@@ -269,15 +283,40 @@ async def refresh_token(db: AsyncSession, refresh_token: str) -> dict:
     if payload.get("type") != "refresh":
         raise BizError(ErrorCode.UNAUTHORIZED, "令牌类型错误")
     jti = payload.get("jti")
-    rt = await db.scalar(select(RefreshToken).where(RefreshToken.jti == jti))
-    if not rt or rt.revoked:
-        raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 已失效")
-    user = await db.get(User, payload["sub"])
-    if not user:
-        raise BizError(ErrorCode.UNAUTHORIZED, "用户不存在")
-    # 吊销旧 refresh，签发新 token
-    rt.revoked = True
+    user_id = payload.get("sub")
+    # CAS 式一次性消费：条件 UPDATE 保证同一 refresh token 在并发下也只有
+    # 一个请求能完成轮换（此前先读后写存在竞态——两个并发刷新同时读到
+    # revoked=False，各自签发一套新 token，等于刷新令牌被克隆）。
+    result = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.jti == jti, RefreshToken.revoked.is_(False))
+        .values(revoked=True)
+    )
     await db.commit()
+    if result.rowcount != 1:
+        rt = await db.scalar(select(RefreshToken).where(RefreshToken.jti == jti))
+        if not rt:
+            raise BizError(ErrorCode.UNAUTHORIZED, "refresh token 无效")
+        # 重用检测（RFC 6819）：已轮换的 refresh token 被再次提交，是令牌
+        # 泄露的强信号。此时无法区分"攻击者重放"与"客户端重复提交"，
+        # 保守处理——吊销该用户全部 refresh token 强制重新登录，把泄露
+        # 面收敛到最多一个 access token 的存活期（15 分钟）。
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == rt.user_id)
+            .values(revoked=True)
+        )
+        await db.commit()
+        _logger.warning(
+            "refresh_token_reuse_detected",
+            user_id=str(rt.user_id),
+            jti=jti,
+            token_user_id=str(user_id),
+        )
+        raise BizError(ErrorCode.UNAUTHORIZED, "检测到令牌重用，为保护账号请重新登录")
+    user = await db.get(User, user_id)
+    if not user or user.deleted_at is not None:
+        raise BizError(ErrorCode.UNAUTHORIZED, "用户不存在")
     return await issue_tokens(db, user)
 
 
@@ -293,8 +332,25 @@ async def logout(db: AsyncSession, access_token: str, refresh_token: str) -> Non
     _logger.info("user_logged_out")
 
 
+async def change_password(db: AsyncSession, user: User, old_password: str, new_password: str) -> None:
+    """修改密码：验证原密码后更新（P1-4：此前前端为假成功 stub）。
+
+    "认为账号被盗来改密码"的用户必须先证明持有原账号 —— 原密码错误时
+    明确报错而非假成功，否则用户获得虚假的安全感。
+    """
+    if not user.check_password(old_password or ""):
+        raise BizError(ErrorCode.VALIDATION, "原密码不正确")
+    if old_password == new_password:
+        raise BizError(ErrorCode.VALIDATION, "新密码不能与原密码相同")
+    user.set_password(new_password)
+    await db.commit()
+    _logger.info("password_changed", user_id=str(user.id))
+
+
 async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str:
     """生成并存储验证码；对同一 target 做发送频率限制（默认每分钟 1 次）。"""
+    if purpose not in _CODE_PURPOSES:
+        raise BizError(ErrorCode.VALIDATION, "purpose 不合法")
     target = (target or "").strip()
     # 邮箱统一小写：注册/绑定时会以 lower(email) 读取验证码，
     # 若此处不规范化，用户输入含大写字母就会取不到刚收到的验证码。
@@ -310,7 +366,7 @@ async def send_code(target: str, purpose: str, limit_per_minute: int = 1) -> str
         raise BizError(ErrorCode.TOO_MANY_REQUESTS, "发送过于频繁，请稍后再试")
     code = generate_code(6)
     # 验证码存 Redis（带 TTL）；无 Redis 时降级为内存（仅开发）
-    await redis_set(f"vcode:{purpose}:{target}", code, ttl=_CODE_TTL)
+    await redis_set(f"vcode:{purpose}:{target}", code, ttl=settings.code_ttl_seconds)
     # 新验证码下发即清零尝试次数，避免上一轮的重试记录连坐新验证码
     await redis_delete(f"{_TRIES_PREFIX}{purpose}:{target}")
     # 入库存好之后再派发邮件：即使发信失败，重试也不会重复生成新码
@@ -336,6 +392,8 @@ async def verify_code(target: str, code: str, purpose: str) -> bool:
     因此累计错误次数达到上限就作废该验证码，迫使用户重新获取。
     比较使用恒定时间算法，避免通过响应耗时逐位试探。
     """
+    if purpose not in _CODE_PURPOSES:
+        return False
     target = (target or "").strip()
     # 与 send_code 保持同一套规范化规则，避免大小写导致取不到验证码
     if is_valid_email(target):
@@ -347,7 +405,7 @@ async def verify_code(target: str, code: str, purpose: str) -> bool:
     if not stored:
         return False
 
-    tries = await redis_incr(tries_key, ttl=_CODE_TTL)
+    tries = await redis_incr(tries_key, ttl=settings.code_ttl_seconds)
     if tries > settings.code_max_attempts:
         await redis_set(key, "", ttl=1)
         await redis_delete(tries_key)
@@ -379,7 +437,12 @@ async def phone_login(db: AsyncSession, target: str, code: str) -> dict:
             user.email = target
         user.set_password(uuid.uuid4().hex)  # 随机密码，后续引导设置
         db.add(user)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError as exc:
+            # 同一账号两端的并发首次登录会推导出相同用户名，唯一约束拦截后转 409
+            await db.rollback()
+            raise BizError(ErrorCode.CONFLICT, "登录初始化冲突，请稍后重试") from exc
         await db.refresh(user)
     return await issue_tokens(db, user)
 
@@ -444,7 +507,11 @@ def validate_email_rule(email: str, rule: dict) -> None:
         try:
             ok = re.fullmatch(pattern, email) is not None
         except re.error:
-            ok = True  # 后台配置了非法正则时放行，避免阻断正常流程
+            # P3：非法正则此前静默放行（fail-open），等于规则被绕过。
+            # 改为 fail-closed：配置坏了宁可拒绝注册（管理员能在后台修正），
+            # 也不能让"任意邮箱注册"静默生效。正则在后台保存时已校验可编译。
+            _logger.error("email_rule_pattern_invalid", pattern=pattern)
+            raise BizError(ErrorCode.VALIDATION, "注册规则配置异常，请联系管理员") from None
         if not ok:
             raise BizError(ErrorCode.VALIDATION, "邮箱不符合注册规则")
 

@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
@@ -117,7 +119,12 @@ def test_update_without_price_does_not_trigger_rule() -> None:
 # 跨字段规则：电子产品图片数（默认关闭，可开启）
 # ---------------------------------------------------------------------------
 def _images(n: int) -> list[dict]:
-    return [{"object_key": f"misc/{i}.bin", "sort_order": i} for i in range(n)]
+    # P1-2 后 object_key 有形态校验：用合法的命名空间键（用户段为全零占位 UUID）
+    owner_seg = "0" * 8 + "-" + "0" * 4 + "-" + "0" * 4 + "-" + "0" * 4 + "-" + "0" * 12
+    return [
+        {"object_key": f"uploads/{owner_seg}/{uuid.uuid4().hex}.bin", "sort_order": i}
+        for i in range(n)
+    ]
 
 
 def test_electronics_rule_is_off_by_default() -> None:

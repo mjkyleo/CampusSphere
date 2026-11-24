@@ -22,6 +22,14 @@ from app.core.logging import get_logger
 
 _logger = get_logger("core.config")
 
+# school.yaml 中允许注入的标量键与嵌套 dict 段（模块级常量，避免被
+# pydantic 误读为 Settings 字段）
+_SCHOOL_SCALAR_KEYS = ("school_name", "school_domain")
+_SCHOOL_DICT_SECTIONS = (
+    "oauth", "minio", "meilisearch", "report_policy", "auth", "items",
+    "courses", "ai", "admin", "job", "share", "teammate", "canteen",
+)
+
 
 class Settings(BaseSettings):
     """全局配置。"""
@@ -186,7 +194,12 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
 
     def load_school_config(self) -> None:
-        """读取 school.yaml，合并到当前配置（幂等，可被重复调用）。"""
+        """读取 school.yaml，合并到当前配置（幂等，可被重复调用）。
+
+        原为单个 cc=31 的长函数，现拆为三段各自独立的合并步骤
+        （标量/段注入 → admin 引导凭证 → MinIO/Meili 端点），每段
+        可单独阅读与测试。
+        """
         path = os.environ.get("SCHOOL_CONFIG_PATH", self.school_config_path)
         if not path or not os.path.isfile(path):
             _logger.warning("school_config_not_found", path=path)
@@ -198,24 +211,31 @@ class Settings(BaseSettings):
             _logger.error("school_config_parse_failed", error=str(exc))
             return
 
-        for key in ("school_name", "school_domain"):
+        self._apply_school_top_level(data)
+        self._merge_admin_bootstrap()
+        self._merge_infra_endpoints()
+
+        _logger.info("school_config_loaded", school=self.school_name)
+
+    def _apply_school_top_level(self, data: dict) -> None:
+        """注入 school.yaml 的标量键与嵌套 dict 段（yaml 值非空才生效）。"""
+        for key in _SCHOOL_SCALAR_KEYS:
             if data.get(key):
                 setattr(self, key, data[key])
-        for key in (
-            "oauth", "minio", "meilisearch", "report_policy", "auth", "items",
-            "courses", "ai", "admin", "job", "share", "teammate", "canteen",
-        ):
+        for key in _SCHOOL_DICT_SECTIONS:
             if isinstance(data.get(key), dict):
                 setattr(self, key, data[key])
 
-        # admin：school.yaml 提供**默认值**，.env 可覆盖。
-        #
-        # 为何必须以 .env 优先：school.yaml 是**签入版本库**的学校配置模板，
-        # 而 .env 存放各环境密钥（不入库）。若让 school.yaml 无条件覆盖，
-        # 则 .env 里配置的强密码/网关密钥会被仓库里的占位值（如
-        # "change-me-deploy-with-strong-pw-16plus"）悄悄顶掉——
-        # 即"改了 .env 却不生效"，且生产会带着占位密码启动。
-        # 判定方式：.env 有值（非空）即保留 .env，为空才回落到 school.yaml。
+    def _merge_admin_bootstrap(self) -> None:
+        """admin 段：school.yaml 提供**默认值**，.env 可覆盖。
+
+        为何必须以 .env 优先：school.yaml 是**签入版本库**的学校配置模板，
+        而 .env 存放各环境密钥（不入库）。若让 school.yaml 无条件覆盖，
+        则 .env 里配置的强密码/网关密钥会被仓库里的占位值（如
+        "change-me-deploy-with-strong-pw-16plus"）悄悄顶掉——
+        即"改了 .env 却不生效"，且生产会带着占位密码启动。
+        判定方式：.env 有值（非空）即保留 .env，为空才回落到 school.yaml。
+        """
         ad = self.admin or {}
         bs = ad.get("bootstrap") or {}
         if isinstance(bs, dict):
@@ -233,7 +253,8 @@ class Settings(BaseSettings):
             if isinstance(gw.get("rotate_seconds"), int):
                 self.admin_gateway_rotate_seconds = gw["rotate_seconds"]
 
-        # MinIO / Meili 取最具体来源（.env 优先于 school.yaml）
+    def _merge_infra_endpoints(self) -> None:
+        """MinIO / Meili 取最具体来源（.env 优先于 school.yaml）。"""
         mc = self.minio or {}
         self.minio_endpoint = self.minio_endpoint or mc.get("endpoint")
         self.minio_access_key = self.minio_access_key or mc.get("access_key")
@@ -245,8 +266,6 @@ class Settings(BaseSettings):
         ms = self.meilisearch or {}
         self.meili_host = self.meili_host or ms.get("host", self.meili_host)
         self.meili_api_key = self.meili_api_key or ms.get("api_key", self.meili_api_key)
-
-        _logger.info("school_config_loaded", school=self.school_name)
 
 
 @lru_cache
@@ -268,9 +287,11 @@ def validate_admin_security(strict: bool | None = None) -> None:
     """管理员安全配置校验：非 debug 模式下失败即抛 SystemExit。
 
     校验项：
-    1. ADMIN_GATEWAY_KEY 已设置且非默认占位
-    2. bootstrap password 长度 ≥ 配置的 ``admin_bootstrap_min_length``
-    3. gateway key 长度 ≥ 16
+    1. SECRET_KEY 非占位值且长度 ≥ 32（独立于管理网关开关，见下）
+    2. ADMIN_GATEWAY_KEY 已设置且非默认占位
+    3. bootstrap password 长度 ≥ 配置的 ``admin_bootstrap_min_length`` 且非占位值
+    4. gateway key 长度 ≥ 16
+    5. Meili / MinIO 密钥非已知默认值
 
     邮件通道校验（SMTP_HOST）**独立于**网关开关：它决定验证码能否送达，
     与管理员网关是否强制无关，故放在下面的 early-return 之前执行。
@@ -278,7 +299,7 @@ def validate_admin_security(strict: bool | None = None) -> None:
     测试环境通过 strict=False 跳过（conftest 不希望启动失败）。
     """
     s = settings
-    is_strict = (not s.debug) if strict is None else strict
+    is_prod = (not s.debug) if strict is None else strict
 
     # 邮件通道校验：**只告警，不终止启动**。
     #
@@ -293,36 +314,91 @@ def validate_admin_security(strict: bool | None = None) -> None:
             "SMTP_HOST is not set — email verification codes cannot be delivered. "
             "Registration/password-reset will fail. Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS."
         )
-        if is_strict:
+        if is_prod:
             _logger.critical("smtp_unconfigured", detail=_msg)
         else:
             _logger.warning("smtp_unconfigured", detail=_msg)
 
+    # SECRET_KEY 校验：只取决于"是否生产"（debug 开关），**不随 admin_gateway_enforce
+    # 放宽**——签名密钥带着公开默认值上线时，任何人可伪造任意用户的 access token
+    # 实现全站账号接管，危害远超管理面，不能因管理网关联调开关被豁免。
+    if is_prod:
+        _weak_secrets = {"", "change-me", "change-me-to-a-long-random-string-in-prod"}
+        sk = s.secret_key
+        if (
+            not sk
+            or sk in _weak_secrets
+            or sk.lower().startswith("change-me")
+            or sk.startswith("<")  # deploy/.env.example 的 <GENERATE_...> 占位形式
+            or len(sk) < 32
+        ):
+            raise SystemExit(
+                "[SECURITY] SECRET_KEY is missing, a known placeholder, or shorter than 32 chars.\n"
+                "         Generate a long random value (>=32 chars) in backend/.env.\n"
+                "         For dev only: DEBUG=true bypasses this check."
+            )
+        # P2-24：bootstrap 密码未配置时此前会回退 "admin123"（见 admin.service.ensure_seed），
+        # 而长度校验对空密码直接跳过——生产可带着 siteadmin/admin123 "无病"上线。
+        # 与 SECRET_KEY 同级独立于网关开关：引导账号是全站权限的起点。
+        if s.admin_bootstrap_enabled and not s.admin_bootstrap_password:
+            raise SystemExit(
+                "[SECURITY] admin.bootstrap.password is not configured.\n"
+                "         Set a strong password (>= admin_bootstrap_min_length chars) in config/school.yaml or backend/.env.\n"
+                "         For dev only: DEBUG=true keeps the local weak fallback."
+            )
+
     # 本地开发放宽（admin_gateway_enforce=false）时不强制，避免带病启动阻断联调
+    is_strict = is_prod
     if not s.admin_gateway_enforce:
         if not s.debug:
             _logger.warning("admin_security_relaxed", reason="admin_gateway_enforce=false in non-debug mode")
         is_strict = False
     if not is_strict:
+        # P3：非生产不阻断启动，但已知默认基础设施密钥（MinIO minioadmin /
+        # Meili masterKey）仍要告警——它们与 school.yaml 模板同值，容易被
+        # 原样带上生产；告警让运维在联调期就看到。
+        _probe = {
+            "MEILI_API_KEY": s.meili_api_key,
+            "MINIO_ACCESS_KEY": s.minio_access_key,
+            "MINIO_SECRET_KEY": s.minio_secret_key,
+        }
+        for _name, _val in _probe.items():
+            if _val and _val.lower() in {"masterkey", "minioadmin", "change-me", "change-me-to-a-long-random-string-in-prod"}:
+                _logger.warning("infra_default_key_in_use", key=_name, hint="set a strong value before production")
         return
 
-    placeholder_keys = {"", "change-me", "change-me-admin-gateway-key", "change-me-deploy-with-strong-pw"}
+    # 占位凭据识别：精确 blocklist（含 school.yaml 模板的 "-16plus" 变体）
+    # + 前缀模式（change-me* 任意后缀、<GENERATE_...> 尖括号占位）。
+    # 模式校验保证模板后续再加变体也拦得住，不依赖逐个收录。
+    def _is_placeholder(value: str) -> bool:
+        return value.lower().startswith("change-me") or value.startswith("<")
+
+    placeholder_keys = {
+        "",
+        "change-me",
+        "change-me-admin-gateway-key",
+        "change-me-admin-gateway-key-16plus",
+        "change-me-deploy-with-strong-pw",
+        "change-me-deploy-with-strong-pw-16plus",
+    }
     bad_key = (
         not s.admin_gateway_key
         or s.admin_gateway_key.lower() in placeholder_keys
+        or _is_placeholder(s.admin_gateway_key)
         or len(s.admin_gateway_key) < 16
     )
     if bad_key:
         raise SystemExit(
-            "[SECURITY] ADMIN_GATEWAY_KEY is missing or too short.\n"
+            "[SECURITY] ADMIN_GATEWAY_KEY is missing, a known placeholder, or too short.\n"
             "         Set it in backend/.env (>=16 random chars) or pass ADMIN_GATEWAY_KEY env var.\n"
             "         For dev only: DEBUG=true bypasses this check."
         )
 
     if s.admin_bootstrap_enabled and s.admin_bootstrap_password:
-        if len(s.admin_bootstrap_password) < s.admin_bootstrap_min_length:
+        pw = s.admin_bootstrap_password
+        if _is_placeholder(pw) or len(pw) < s.admin_bootstrap_min_length:
             raise SystemExit(
-                f"[SECURITY] admin.bootstrap.password must be >= {s.admin_bootstrap_min_length} chars in production.\n"
+                f"[SECURITY] admin.bootstrap.password is a placeholder or must be >= {s.admin_bootstrap_min_length} chars in production.\n"
                 "         Update config/school.yaml admin.bootstrap.password, or set DEBUG=true for dev."
             )
 
@@ -333,9 +409,9 @@ def validate_admin_security(strict: bool | None = None) -> None:
         "MINIO_ACCESS_KEY": s.minio_access_key,
         "MINIO_SECRET_KEY": s.minio_secret_key,
     }
-    _known_weak = {"", "masterKey", "minioadmin", "change-me", "change-me-to-a-long-random-string-in-prod"}
+    _known_weak = {"", "masterkey", "minioadmin", "change-me", "change-me-to-a-long-random-string-in-prod"}
     for _name, _val in _infra_defaults.items():
-        if _val in _known_weak:
+        if _val is not None and (_val.lower() in _known_weak or _is_placeholder(_val)):
             raise SystemExit(
                 f"[SECURITY] {_name} is a known default/placeholder value.\n"
                 f"         Set a strong value in backend/.env before production startup."

@@ -105,10 +105,17 @@ def test_expired_token_raises():
 
 
 def test_tampered_token_raises():
-    """签名被篡改 → InvalidSignatureError（验签生效）。"""
+    """签名被篡改 → InvalidSignatureError（验签生效）。
+
+    篡改必须保持 base64url **合法性**：JWT 的签名段不带 padding，若像旧版
+    本那样把末 4 字符替换为 "abcd"，末字符的低填充位非零会先触发
+    DecodeError（Invalid padding），永远走不到验签分支，测试测了个寂寞。
+    改为首字符替换为另一个合法 base64url 字符，必然得到合法但错误的签名。
+    """
     token = create_access_token(_USER_ID)
     header, payload, signature = token.split(".")
-    tampered = f"{header}.{payload}.{signature[:-4]}abcd"
+    swapped = "A" if signature[0] != "A" else "B"
+    tampered = f"{header}.{payload}.{swapped}{signature[1:]}"
     with pytest.raises(jwt.InvalidSignatureError):
         decode_token(tampered)
 

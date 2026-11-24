@@ -63,27 +63,37 @@ def make_list_key(namespace: str, version: int, **kwargs: Any) -> str:
     return f"{_PREFIX}{namespace}:v{version}:{_kwargs_hash(**kwargs)}"
 
 
-async def cache_get_json(namespace: str, **kwargs: Any) -> Any | None:
-    """读取缓存。
+async def cache_get_json_with_version(namespace: str, **kwargs: Any) -> tuple[int, Any | None]:
+    """读取缓存并返回 ``(版本号, 值)``。
 
-    - 未命中返回 ``None``。
-    - 命中空哨兵返回 ``NULL_SENTINEL``（调用方据此直接返回空结果，无需回源）。
-    - 命中正常数据返回反序列化后的 Python 对象。
+    - 未命中返回 ``(当前版本, None)``。
+    - 命中空哨兵返回 ``(当前版本, NULL_SENTINEL)``（调用方据此直接返回空结果）。
+    - 命中正常数据返回 ``(当前版本, 反序列化后的 Python 对象)``。
+
+    版本号供 ``cache_set_json(version=...)`` 回传：回源期间若发生
+    ``invalidate_namespace``，旧版本号写回的缓存**天然不可见**（新请求
+    已用新版本号拼 key），避免旧数据落到新版本键下存活整个 TTL。
     """
     if not settings.cache_enabled:
-        return None
+        return 0, None
     version = await _namespace_version(namespace)
     key = make_list_key(namespace, version, **kwargs)
     raw = await redis_get(key)
     if raw is None:
-        return None
+        return version, None
     if raw == NULL_SENTINEL:
-        return NULL_SENTINEL
+        return version, NULL_SENTINEL
     try:
-        return json.loads(raw)
+        return version, json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         # 数据损坏：视为未命中，回源重建
-        return None
+        return version, None
+
+
+async def cache_get_json(namespace: str, **kwargs: Any) -> Any | None:
+    """读取缓存（只关心值的便捷封装；需要防 TOCTOU 见 with_version 版本）。"""
+    _, value = await cache_get_json_with_version(namespace, **kwargs)
+    return value
 
 
 async def cache_set_json(
@@ -93,18 +103,24 @@ async def cache_set_json(
     ttl: int | None = None,
     jitter: int = 15,
     null_ttl: int = 10,
+    version: int | None = None,
     **kwargs: Any,
 ) -> None:
     """写入缓存。
 
     - ``value`` 为 ``None``/空时写入空哨兵（短 TTL，防穿透）。
     - 否则序列化后写入，TTL = (传入 ttl 或 settings.cache_ttl_seconds) + 随机抖动（防雪崩）。
+    - ``version`` 传入读取时（``cache_get_json_with_version``）捕获的版本号，
+      消除「读后写前被失效」的 TOCTOU：写进旧版本键的数据天然不可见且随
+      TTL 过期，而重新读版本号会把旧数据落到**新版本**键下存活整个 TTL。
+      省略时保持旧行为（写前重读当前版本）。
     """
     if not settings.cache_enabled:
         return
     if ttl is None:
         ttl = settings.cache_ttl_seconds
-    version = await _namespace_version(namespace)
+    if version is None:
+        version = await _namespace_version(namespace)
     key = make_list_key(namespace, version, **kwargs)
     if value is None:
         await redis_set(key, NULL_SENTINEL, ttl=null_ttl)

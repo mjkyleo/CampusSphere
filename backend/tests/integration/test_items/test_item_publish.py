@@ -12,7 +12,7 @@ import uuid
 
 import pytest  # type: ignore[reportMissingImports]
 from factories import ItemFactory
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, register_login
 
 from app.common.enums import ItemStatus
 
@@ -26,7 +26,7 @@ def _publish(client, token: str, **overrides):
         "description": overrides.get("description", "九成新，校内面交"),
         "price": overrides.get("price", 12000),
         "category": overrides.get("category", "电子产品"),
-        "images": overrides.get("images", [{"object_key": "misc/bike.bin", "sort_order": 0}]),
+        "images": overrides.get("images", [{"object_key": key_from_token(token), "sort_order": 0}]),
     }
     return client.post("/api/items", json=payload, headers=auth_header(token))
 

@@ -67,6 +67,14 @@ async def lifespan(app: FastAPI):
             pass
         # 启动配置热更新监听（Redis 不可用时内部优雅降级，不影响启动）
         await start_config_reloader()
+        # 预热对象存储连接（未配置 MinIO 时为空操作）：避免首个上传/签名请求
+        # 在事件循环上付出同步建连（bucket_exists）的阻塞
+        from app.core.storage import storage_client
+
+        try:
+            await storage_client.warmup()
+        except Exception as exc:
+            _logger.warning("storage_warmup_failed", error=str(exc))
         yield
     finally:
         # 关闭期资源释放顺序：后台任务 → 外部连接 → 数据库连接池。
@@ -99,6 +107,21 @@ def create_app() -> FastAPI:
     # 统一异常处理
     register_exception_handlers(app)
 
+    # 中间件顺序（P2-7）：Starlette 后添加者在**外侧**。
+    # 此前 CORS 在内、网关在外——预检 OPTIONS 与网关 401/429 响应都到不了
+    # CORS 层，丢失 CORS 头，跨端写请求全部失败（同源部署掩盖了问题）。
+    # 现为：网关（最内）→ 安全响应头 → CORS（最外），保证网关错误响应
+    # 也携带 CORS 头与安全头。
+    app.add_middleware(
+        GatewayMiddleware,
+        rate_limit_per_minute=settings.rate_limit_per_minute,
+        auth_rate_limit_per_minute=settings.auth_rate_limit_per_minute,
+    )
+
+    from app.core.middleware import SecurityHeadersMiddleware
+
+    app.add_middleware(SecurityHeadersMiddleware)
+
     # CORS：生产应显式白名单，避免 credentials=True 时放行任意源/方法/头。
     app.add_middleware(
         CORSMiddleware,
@@ -106,13 +129,6 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Admin-Gateway"],
-    )
-
-    # 网关中间件（鉴权/限流/请求ID）
-    app.add_middleware(
-        GatewayMiddleware,
-        rate_limit_per_minute=settings.rate_limit_per_minute,
-        auth_rate_limit_per_minute=settings.auth_rate_limit_per_minute,
     )
 
     # 业务路由

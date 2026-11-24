@@ -10,7 +10,8 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0.9",
     # 数据层
-    "sqlalchemy>=2.0.30",
+    # asyncio 扩展依赖 greenlet（Windows/干净容器上不会随主包装上，缺了直接 ImportError）
+    "sqlalchemy[asyncio]>=2.0.30",
     "asyncpg>=0.29",
     "psycopg2-binary>=2.9",
     "alembic>=1.13",
@@ -123,6 +124,7 @@ select = [
     "RUF100", # 无用 noqa 指令（清理历史遗留）
 ]
 ignore = [
+    "UP042",  # StrEnum 迁移：Scope/枚举类 str() 行为有差异，改动面大且非缺陷，单独排期
     "UP046",  # PEP 695 泛型类语法：改动面大且非缺陷，单独排期
     "UP047",  # PEP 695 泛型函数语法：同上
 ]
@@ -150,4 +152,6 @@ extend-immutable-calls = [
     "fastapi.params.Form",
     "fastapi.params.File",
     "fastapi.params.Security",
+    # 项目自有的 DI 工厂：返回 FastAPI 依赖（同 Depends 惯例），见 app/core/deps.py
+    "app.core.deps.require_scope",
 ]

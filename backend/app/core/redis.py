@@ -12,6 +12,7 @@ Redis 同时承担：热点缓存、限流计数、JWT 黑名单、WS 广播 Pub
 
 from __future__ import annotations
 
+import asyncio
 from time import monotonic
 
 import redis.asyncio as aioredis
@@ -31,6 +32,8 @@ _memory_expiry: dict = {}
 # 否则 Redis 掉线时，单个请求内的多次 Redis 调用会串行各付一次 0.5s 连接超时。
 _REDIS_RETRY_COOLDOWN = 5.0
 _redis_retry_after: float = 0.0
+# 并发冷启动建池的串行化锁（Python 3.12 的 Lock 不绑定事件循环，模块级创建安全）
+_redis_connect_lock = asyncio.Lock()
 
 # 原子「自增 + 首次设置过期」。不能用「INCR 后无条件 EXPIRE」：被限流拒绝的
 # 请求也会把 TTL 续满，固定窗口退化成滑动窗口 —— 用户只要重试间隔小于窗口，
@@ -59,39 +62,49 @@ async def get_redis() -> aioredis.Redis | None:
 
     连接失败进入静默期（``_REDIS_RETRY_COOLDOWN`` 秒），期间调用方直接拿到
     None 走内存兜底，避免每个请求都重复付出连接超时；静默期过后自动重试。
+
+    并发冷启动由 ``_redis_connect_lock`` 串行化：否则无池时的并发首连会让
+    多个协程各自建池，后写者胜出，败者的连接池失去引用也无法关闭，
+    底层 socket 泄漏。
     """
     global _redis_pool, _redis_retry_after
     if _redis_pool is not None:
         return _redis_pool
     if monotonic() < _redis_retry_after:
         return None
-    pool: aioredis.Redis | None = None
-    try:
-        pool = aioredis.from_url(
-            settings.redis_url,
-            encoding="utf-8",
-            decode_responses=True,
-            socket_connect_timeout=0.5,
-        )
-        await pool.ping()
-        _redis_pool = pool
-        _redis_retry_after = 0.0
-        _logger.info("redis_connected", url=settings.redis_url)
-        return _redis_pool
-    except Exception as exc:
-        # 失败的半成品连接池要显式关闭，否则底层 socket 泄漏
-        if pool is not None:
-            try:
-                aclose = getattr(pool, "aclose", None)
-                if aclose is not None:
-                    await aclose()
-                else:  # pragma: no cover - redis<5 兼容分支
-                    await pool.close()
-            except Exception:
-                pass
-        _redis_retry_after = monotonic() + _REDIS_RETRY_COOLDOWN
-        _logger.warning("redis_unavailable_fallback_memory", error=str(exc))
-        return None
+    async with _redis_connect_lock:
+        # 双重检查：排队等锁期间可能已有协程完成建池/进入静默期
+        if _redis_pool is not None:
+            return _redis_pool
+        if monotonic() < _redis_retry_after:
+            return None
+        pool: aioredis.Redis | None = None
+        try:
+            pool = aioredis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=0.5,
+            )
+            await pool.ping()
+            _redis_pool = pool
+            _redis_retry_after = 0.0
+            _logger.info("redis_connected", url=settings.redis_url)
+            return _redis_pool
+        except Exception as exc:
+            # 失败的半成品连接池要显式关闭，否则底层 socket 泄漏
+            if pool is not None:
+                try:
+                    aclose = getattr(pool, "aclose", None)
+                    if aclose is not None:
+                        await aclose()
+                    else:  # pragma: no cover - redis<5 兼容分支
+                        await pool.close()
+                except Exception:
+                    pass
+            _redis_retry_after = monotonic() + _REDIS_RETRY_COOLDOWN
+            _logger.warning("redis_unavailable_fallback_memory", error=str(exc))
+            return None
 
 
 async def close_redis() -> None:
@@ -151,6 +164,29 @@ async def redis_delete(key: str) -> None:
         _memory_expiry.pop(key, None)
 
 
+async def redis_getdel(key: str) -> str | None:
+    """原子「读取并删除」（P2-14：一次性票据消费防 TOCTOU 重放）。
+
+    Redis ≥6.2 原生 GETDEL；旧版本/内存兜底退化为 get+delete（非原子，
+    与历史行为一致——降级环境本就只在开发场景出现）。
+    """
+    client = await get_redis()
+    if client is not None:
+        try:
+            return await client.getdel(key)
+        except Exception:
+            # 旧版 Redis 不支持 GETDEL：退化为两步（保持可用，放弃原子性）
+            raw = await client.get(key)
+            if raw is not None:
+                await client.delete(key)
+            return raw
+    if key not in _memory_fallback or _mem_expired(key):
+        return None
+    raw = _memory_fallback.pop(key)
+    _memory_expiry.pop(key, None)
+    return raw
+
+
 async def redis_publish(channel: str, message: str) -> int:
     """发布消息到频道，返回接收者数量。"""
     client = await get_redis()
@@ -160,12 +196,32 @@ async def redis_publish(channel: str, message: str) -> int:
 
 
 async def redis_subscribe(channel: str):
-    """订阅频道，返回 pubsub 对象（无 Redis 时返回 None）。"""
+    """订阅频道，返回 pubsub 对象（无 Redis 时返回 None）。
+
+    注意：本函数只匹配**字面量**频道名。传入 ``"conv:*"`` 这类通配串
+    订阅的是一个恰好叫 ``conv:*`` 的具体频道，永远不会命中
+    ``conv:<id>`` 的发布 —— 通配匹配必须用 :func:`redis_psubscribe`。
+    """
     client = await get_redis()
     if client is None:
         return None
     pubsub = client.pubsub()
     await pubsub.subscribe(channel)
+    return pubsub
+
+
+async def redis_psubscribe(pattern: str):
+    """ glob 模式订阅频道（``psubscribe``），无 Redis 时返回 None。
+
+    与 :func:`redis_subscribe` 配对使用：精确频道走 subscribe，
+    ``"conv:*"`` 这类模式走本函数。模式订阅收到的消息类型是
+    ``pmessage``（而非 ``message``），消费方过滤时必须一并放行。
+    """
+    client = await get_redis()
+    if client is None:
+        return None
+    pubsub = client.pubsub()
+    await pubsub.psubscribe(pattern)
     return pubsub
 
 

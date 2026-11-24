@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import pytest
-from helpers import auth_header, register_login
+from helpers import auth_header, open_ws, register_login
 
 pytestmark = pytest.mark.integration
 
@@ -42,7 +42,7 @@ def test_ws_send_message_persists(ws_client):
     conv_id = trade["conversation_id"]
     content = "你好，这本书还在吗？"
 
-    with ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws:
+    with open_ws(ws_client, buyer["access_token"]) as ws:
         ws.send_json(
             {"event": "message:send", "conversation_id": conv_id, "content": content}
         )
@@ -68,7 +68,7 @@ def test_ws_send_message_persists(ws_client):
 def test_ws_send_requires_conversation_id(ws_client):
     """缺少 conversation_id → 返回 42200 错误事件（不是断开连接）。"""
     buyer = register_login(ws_client, "msg_b3")
-    with ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws:
+    with open_ws(ws_client, buyer["access_token"]) as ws:
         ws.send_json({"event": "message:send", "content": "没有会话号"})
         msg = ws.receive_json()
         assert msg["event"] == "error"
@@ -80,7 +80,7 @@ def test_ws_send_by_non_member_rejected(ws_client):
     seller, buyer, trade = _trade_context(ws_client, "msg_s4", "msg_b4")
     outsider = register_login(ws_client, "msg_out4")
 
-    with ws_client.websocket_connect(f"/ws?token={outsider['access_token']}") as ws:
+    with open_ws(ws_client, outsider["access_token"]) as ws:
         ws.send_json(
             {
                 "event": "message:send",
@@ -97,7 +97,7 @@ def test_ws_send_by_non_member_rejected(ws_client):
 def test_ws_invalid_json_returns_error(ws_client):
     """发送非 JSON → 42200 错误事件，连接保持。"""
     buyer = register_login(ws_client, "msg_b5")
-    with ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws:
+    with open_ws(ws_client, buyer["access_token"]) as ws:
         ws.send_text("not-json-at-all")
         assert ws.receive_json()["data"]["code"] == 42200
         # 连接仍可用

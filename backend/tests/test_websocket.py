@@ -1,8 +1,12 @@
-"""WebSocket 实时通信测试：鉴权、心跳、消息发送与广播、成员权限。"""
+"""WebSocket 实时通信测试：首帧鉴权、心跳、消息发送与广播、成员权限。
+
+鉴权协议：连接建立后客户端须立即发送 ``{"event": "auth", "token": <jwt>}``，
+服务端校验通过回 ``auth:ok``；token 不再走 URL 查询串（避免被反代访问日志记录）。
+"""
 
 from __future__ import annotations
 
-from helpers import auth_header, register_login
+from helpers import auth_header, key_from_token, open_ws, register_login
 
 
 def _create_trade_context(client):
@@ -16,7 +20,7 @@ def _create_trade_context(client):
             "description": "九成新",
             "price": 1000,
             "category": "book",
-            "images": [{"object_key": "misc/ws1.bin", "sort_order": 0}],
+            "images": [{"object_key": key_from_token(seller["access_token"]), "sort_order": 0}],
         },
         headers=auth_header(seller["access_token"]),
     )
@@ -31,17 +35,27 @@ def _create_trade_context(client):
 
 
 def test_ws_unauthorized_rejected(ws_client):
-    """无 token（或无效 token）连接应收到 error 并断开。"""
+    """首帧不是 auth（或 token 无效）应收到 error 并断开。"""
     with ws_client.websocket_connect("/ws") as ws:
+        ws.send_json({"event": "ping"})  # 非鉴权帧抢占首帧位置
+        msg = ws.receive_json()
+        assert msg["event"] == "error"
+        assert msg["data"]["code"] == 40100
+
+
+def test_ws_invalid_token_rejected(ws_client):
+    """auth 帧携带伪造 token 同样拒绝。"""
+    with ws_client.websocket_connect("/ws") as ws:
+        ws.send_json({"event": "auth", "token": "not.a.jwt"})
         msg = ws.receive_json()
         assert msg["event"] == "error"
         assert msg["data"]["code"] == 40100
 
 
 def test_ws_ping_pong(ws_client):
-    """带合法 token 连接后，ping 应得到 pong。"""
+    """鉴权通过后，ping 应得到 pong。"""
     user = register_login(ws_client, "wsping")
-    with ws_client.websocket_connect(f"/ws?token={user['access_token']}") as ws:
+    with open_ws(ws_client, user["access_token"]) as ws:
         ws.send_json({"event": "ping"})
         msg = ws.receive_json()
         assert msg["event"] == "pong"
@@ -55,8 +69,8 @@ def test_ws_message_send_persists_and_broadcasts(ws_client):
     content = "你好，这本书还在吗？"
 
     with (
-        ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws_buyer,
-        ws_client.websocket_connect(f"/ws?token={seller['access_token']}") as ws_seller,
+        open_ws(ws_client, buyer["access_token"]) as ws_buyer,
+        open_ws(ws_client, seller["access_token"]) as ws_seller,
     ):
         ws_buyer.send_json(
             {"event": "message:send", "conversation_id": conv_id, "content": content}
@@ -90,7 +104,7 @@ def test_ws_message_send_rejects_non_member(ws_client):
     outsider = register_login(ws_client, "wsoutsider")
     conv_id = trade["conversation_id"]
 
-    with ws_client.websocket_connect(f"/ws?token={outsider['access_token']}") as ws:
+    with open_ws(ws_client, outsider["access_token"]) as ws:
         ws.send_json(
             {"event": "message:send", "conversation_id": conv_id, "content": "闯入"}
         )
@@ -124,7 +138,7 @@ def test_ws_reconnect_compensates_missed_messages_via_seq(ws_client):
     # 每条发送后都要 draining 回包：TestClient 是单线程 portal，若发送侧
     # 不读回声，服务端 publish 回推会在 send_json 上积压并引发死锁，
     # 这与业务代码无关，是测试客户端的用法约定。
-    with ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws:
+    with open_ws(ws_client, buyer["access_token"]) as ws:
         for content in ("第一条", "第二条", "第三条"):
             ws.send_json(
                 {"event": "message:send", "conversation_id": conv_id, "content": content}
@@ -132,9 +146,7 @@ def test_ws_reconnect_compensates_missed_messages_via_seq(ws_client):
             ws.receive_json()  # 丢弃自身回声，仅用于排空
 
     # 卖家带着 seq=2 重连：应**只**补发第 3 条
-    with ws_client.websocket_connect(
-        f"/ws?token={seller['access_token']}&conv={conv_id}&last_seq=2"
-    ) as ws:
+    with open_ws(ws_client, seller["access_token"], f"?conv={conv_id}&last_seq=2") as ws:
         compensated = ws.receive_json()
 
     assert compensated["event"] == "message:new", compensated
@@ -149,20 +161,50 @@ def test_ws_reconnect_with_up_to_date_seq_compensates_nothing(ws_client):
     conv_id = trade["conversation_id"]
 
     # 卖家发 1 条（排空回声后断开），该消息拿到 seq=1
-    with ws_client.websocket_connect(f"/ws?token={seller['access_token']}") as ws:
+    with open_ws(ws_client, seller["access_token"]) as ws:
         ws.send_json(
             {"event": "message:send", "conversation_id": conv_id, "content": "唯一一条"}
         )
         ws.receive_json()
 
     # 用最新 seq 重连，随后发一条 ping 探活：若误补发，第一条收到的会是消息而非 pong
-    with ws_client.websocket_connect(
-        f"/ws?token={buyer['access_token']}&conv={conv_id}&last_seq=1"
-    ) as ws:
+    with open_ws(ws_client, buyer["access_token"], f"?conv={conv_id}&last_seq=1") as ws:
         ws.send_json({"event": "ping"})
         got = ws.receive_json()
 
     assert got["event"] == "pong", f"不应补发已收到的消息，但收到了 {got}"
+
+
+def test_ws_compensate_rejects_non_participant(ws_client):
+    """非会话成员带 conv/last_seq 连接不得补发他人私聊历史（P0-2）。
+
+    会话 ID 会经合法渠道泄露（如 TradeSessionOut.conversation_id 返回给买家），
+    补发前必须校验连接者是会话参与者，否则任意登录用户都能拉取私聊内容。
+    """
+    seller, buyer, trade = _create_trade_context(ws_client)
+    conv_id = trade["conversation_id"]
+
+    # 买家先发 2 条离线消息进会话
+    with open_ws(ws_client, buyer["access_token"]) as ws:
+        for content in ("私信一", "私信二"):
+            ws.send_json(
+                {"event": "message:send", "conversation_id": conv_id, "content": content}
+            )
+            ws.receive_json()
+
+    # 无关第三者拿到 conv_id 后试图按 seq 补发 → 应收到 40300 错误且收不到任何消息
+    outsider = register_login(ws_client, "wsconvthief")
+    with open_ws(ws_client, outsider["access_token"], f"?conv={conv_id}&last_seq=0") as ws:
+        got = ws.receive_json()
+
+    assert got["event"] == "error", f"非参与者不应收到补发消息，但收到了 {got}"
+    assert got["data"]["code"] == 40300
+
+    # 参与者不受影响：同样的请求由卖家发起应正常补发
+    with open_ws(ws_client, seller["access_token"], f"?conv={conv_id}&last_seq=0") as ws:
+        first = ws.receive_json()
+    assert first["event"] == "message:new"
+    assert first["data"]["content"] in ("私信一", "私信二")
 
 
 def test_ws_online_push_carries_seq(ws_client):
@@ -171,8 +213,8 @@ def test_ws_online_push_carries_seq(ws_client):
     conv_id = trade["conversation_id"]
 
     with (
-        ws_client.websocket_connect(f"/ws?token={buyer['access_token']}") as ws_buyer,
-        ws_client.websocket_connect(f"/ws?token={seller['access_token']}") as ws_seller,
+        open_ws(ws_client, buyer["access_token"]) as ws_buyer,
+        open_ws(ws_client, seller["access_token"]) as ws_seller,
     ):
         ws_seller.send_json(
             {"event": "message:send", "conversation_id": conv_id, "content": "带序号"}
@@ -184,4 +226,3 @@ def test_ws_online_push_carries_seq(ws_client):
 
     assert got["event"] == "message:new", got
     assert got["seq"] == 1
-

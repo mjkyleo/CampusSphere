@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,7 +34,9 @@ async def list_canteens(
     semester: str = "",
     keyword: str = "",
 ) -> list:
-    # N+1 修复：CanteenOut 嵌套 stalls->dishes，一次性 selectinload 加载，避免逐层再查
+    # N+1 修复：CanteenOut 嵌套 stalls->dishes，一次性 selectinload 加载，避免逐层再查。
+    # P2-17：评价不再随载——Dish.reviews 已从模型级 selectin 改回默认惰性，
+    # 列表响应不序列化评价，无需也无法触发其加载（评价只经 list_reviews 按需查）。
     stmt = select(Canteen).options(selectinload(Canteen.stalls).selectinload(Stall.dishes))
     if campus:
         stmt = stmt.where(Canteen.campus == campus)
@@ -59,7 +62,7 @@ async def create_canteen(db: AsyncSession, data: CanteenCreate) -> Canteen:
 
 
 async def get_canteen(db: AsyncSession, canteen_id: str) -> Canteen:
-    # N+1 修复：详情序列化含 stalls->dishes，预加载避免逐层查询
+    # N+1 修复：详情序列化含 stalls->dishes，预加载避免逐层查询（评价不随载，见 list_canteens）
     stmt = (
         select(Canteen)
         .where(Canteen.id == canteen_id)
@@ -152,12 +155,26 @@ async def get_dish(db: AsyncSession, dish_id: str) -> Dish:
 
 
 async def add_review(db: AsyncSession, dish: Dish, user: User, data: CanteenReviewCreate) -> CanteenReview:
+    # 同一用户对同一菜品仅允许一条评价：接口可被脚本反复调用，无限制时
+    # 一条菜品的评价列表会被单用户刷屏（重复提交转 409）
+    dup = await db.scalar(
+        select(CanteenReview).where(
+            CanteenReview.dish_id == str(dish.id), CanteenReview.user_id == str(user.id)
+        )
+    )
+    if dup:
+        raise BizError(ErrorCode.CONFLICT, "您已评价过该菜品")
     r = CanteenReview(
         dish_id=str(dish.id), user_id=str(user.id),
         rating=data.rating, content=data.content,
     )
     db.add(r)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # P1-7：并发双插由 uq_canteen_review_user 唯一索引兜底，转 409。
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "您已评价过该菜品") from exc
     await db.refresh(r)
     return r
 

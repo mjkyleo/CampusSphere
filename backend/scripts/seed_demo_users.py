@@ -23,7 +23,6 @@ from app.common.enums import (
     ItemStatus,
     JobStatus,
     MemberStatus,
-    MessageType,
     ReportStatus,
     ReportTargetType,
     TeamStatus,

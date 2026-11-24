@@ -53,8 +53,18 @@ def verify_gateway_token(token: str | None) -> bool:
     if not token or not settings.admin_gateway_key:
         return False
     slot = _current_slot(settings.admin_gateway_rotate_seconds)
+    # P2-15：compare_digest 对含非 ASCII 的 str 抛 TypeError，未认证请求
+    # 会变 500 而非 404 影子。统一编码为 bytes 比较，保持恒定时间语义；
+    # 含代理字符（surrogate）无法编码时直接判 False。
+    try:
+        token_bytes = token.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
     # 允许当前槽与前一槽，覆盖轮换瞬间的时间偏差
-    return hmac.compare_digest(token, _sign(slot)) or hmac.compare_digest(token, _sign(slot - 1))
+    return (
+        hmac.compare_digest(token_bytes, _sign(slot).encode("utf-8"))
+        or hmac.compare_digest(token_bytes, _sign(slot - 1).encode("utf-8"))
+    )
 
 
 async def require_admin_gateway(

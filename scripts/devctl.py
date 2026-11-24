@@ -142,6 +142,38 @@ def _pids_on_port(port: int) -> set[int]:
     return pids
 
 
+def _load_dotenv_overrides() -> dict[str, str]:
+    """构造后端子进程环境：以当前环境为底，再用 ``backend/.env`` 覆盖同名键。
+
+    为什么要覆盖：pydantic-settings 的优先级是「系统环境变量 > .env 文件」，
+    开发者机器上若存在同名系统变量（实测有工具注入 ``DEBUG=release``），
+    项目自己的 .env 会被悄悄顶掉，启动即 ``ValidationError``。
+    让 .env 的显式配置胜出，才符合"项目配置优先"的直觉。
+    """
+    env = dict(os.environ)
+    dotenv = BACKEND_DIR / ".env"
+    if not dotenv.is_file():
+        return env
+    try:
+        for raw in dotenv.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                # 引号包裹的值原样保留（密码里可能含 # 等字符，如 SMTP_PASS="a#b"）
+                value = value[1:-1]
+            else:
+                value = value.split("#", 1)[0].strip()
+            if key:
+                env[key] = value
+    except OSError as exc:  # noqa: BLE001 - 读不到就退回继承环境，不阻断启动
+        _warn(f"读取 {dotenv} 失败，回退继承当前环境：{exc}")
+    return env
+
+
 def _pid_alive(pid: int) -> bool:
     """跨平台判断进程是否仍在运行。
 
@@ -208,6 +240,18 @@ def _python_executable() -> str:
     path_py = shutil.which("python") or shutil.which("python3")
     if path_py:
         candidates.append(path_py)
+
+    if IS_WINDOWS:
+        # PATH 里的 python 常是 Microsoft Store 的桩程序（无项目依赖），
+        # 补扫用户级安装目录，避免每次都要手敲完整路径。
+        local_appdata = os.environ.get("LOCALAPPDATA", "")
+        if local_appdata:
+            python_home = Path(local_appdata) / "Programs" / "Python"
+            candidates += [
+                str(p / "python.exe")
+                for p in sorted(python_home.glob("Python3*"), reverse=True)
+                if (p / "python.exe").is_file()
+            ]
 
     for cand in candidates:
         if not cand or not Path(cand).is_file():
@@ -331,6 +375,9 @@ def _spawn(service: Service) -> int | None:
         "stdout": handle,
         "stderr": subprocess.STDOUT,
     }
+    if service.name == "backend":
+        # 让 backend/.env 的配置优先于系统环境变量（详见 _load_dotenv_overrides）
+        popen_kwargs["env"] = _load_dotenv_overrides()
     if IS_WINDOWS:
         popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
@@ -616,6 +663,54 @@ def cmd_restart(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------
 # Docker compose 模式
 # --------------------------------------------------------------------------
+def _ensure_compose_env() -> Path:
+    """选择/生成 compose 的 ``--env-file``（P2-23）。
+
+    此前恒用 ``deploy/.env.example``：模板里的占位值（``<GENERATE_...>``）
+    会被 compose 直接插值——MinIO 容器拿到占位 root 凭据、Postgres 落到
+    弱默认密码，与 app 容器读的真值 ``.env`` 错位。现在：
+
+    - 存在 ``deploy/.env``（部署者配置的真值）则优先使用；
+    - 否则从模板生成一份：密钥类占位替换为随机强值，可读项给默认值，
+      一次性写入 ``deploy/.env`` 供部署者按需修改。
+    """
+    env_path = ROOT / "deploy" / ".env"
+    if env_path.is_file():
+        return env_path
+
+    import re
+    import secrets
+    import string
+
+    template_path = ROOT / "deploy" / ".env.example"
+    text = template_path.read_text(encoding="utf-8")
+
+    def _rand(n: int = 32) -> str:
+        alphabet = string.ascii_letters + string.digits
+        return "".join(secrets.choice(alphabet) for _ in range(n))
+
+    # 非机密的占位给可读默认值；其余（含所有 KEY/SECRET/PASSWORD）一律随机
+    _READABLE_DEFAULTS = {
+        "DB_USER": "campus",
+        "DB_NAME": "campus",
+        "YOUR_DOMAIN": "localhost",
+    }
+    _EMPTY_OK = {"SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD"}
+
+    def _sub(match: "re.Match[str]") -> str:
+        name = match.group(1).upper()
+        if name in _EMPTY_OK:
+            return ""
+        if name in _READABLE_DEFAULTS:
+            return _READABLE_DEFAULTS[name]
+        return _rand(32)
+
+    generated = re.sub(r"<([^<>]+)>", _sub, text)
+    env_path.write_text(generated, encoding="utf-8")
+    _log(f"已从模板生成 {env_path}（密钥为随机强值）；上线前请按需复核修改")
+    return env_path
+
+
 def _compose_base() -> list[str]:
     return [
         "docker",
@@ -623,7 +718,7 @@ def _compose_base() -> list[str]:
         "-f",
         str(ROOT / "deploy" / "docker-compose.yml"),
         "--env-file",
-        str(ROOT / "deploy" / ".env.example"),
+        str(_ensure_compose_env()),
     ]
 
 

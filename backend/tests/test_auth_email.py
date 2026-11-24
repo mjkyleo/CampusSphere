@@ -169,29 +169,50 @@ def test_bind_conflict_rejected(client):
 
 
 def test_bind_oauth(monkeypatch, client):
-    """已登录用户可绑定微信；openid 已被他人占用 → 拒绝。"""
+    """已登录用户可绑定微信；openid 已被他人占用 → 拒绝。
+
+    P2-13 后 state 必传（防 CSRF），每次绑定先经 /api/auth/wechat/state
+    领取一次性 state——缺省/无效 state 的请求会被 403 拒绝。
+    """
     async def _fake_exchange_wechat(code: str) -> str:
         return "wx_openid_001"
 
     monkeypatch.setattr(oauth_mod, "_exchange_wechat_openid", _fake_exchange_wechat)
 
+    def _bind(user, code: str):
+        # 领取一次性 state 后提交绑定（与前端新流程一致）
+        st = _ok(client.get("/api/auth/wechat/state", headers=auth_header(user["access_token"])))
+        return client.post(
+            "/api/auth/bind/oauth",
+            json={"provider": "wechat", "code": code, "state": st["state"] if isinstance(st, dict) else st},
+            headers=auth_header(user["access_token"]),
+        )
+
+    def _bind_no_state(user, code: str):
+        return client.post(
+            "/api/auth/bind/oauth",
+            json={"provider": "wechat", "code": code},
+            headers=auth_header(user["access_token"]),
+        )
+
     user_a = register_login(client, "oaba")
-    _ok(client.post("/api/auth/bind/oauth", json={"provider": "wechat", "code": "auth-code-a"}, headers=auth_header(user_a["access_token"])))
+
+    # P2-13：缺 state 的绑定请求直接拒绝
+    code, _ = _err(_bind_no_state(user_a, "auth-code-a"))
+    assert code == 40300
+
+    _ok(_bind(user_a, "auth-code-a"))
     data = _ok(client.get("/api/auth/bindings", headers=auth_header(user_a["access_token"])))
     assert "wechat" in data["oauth"]
 
     # 用户 B 绑定同一 openid → 冲突
     user_b = register_login(client, "oabb")
-    code, message = _err(
-        client.post("/api/auth/bind/oauth", json={"provider": "wechat", "code": "auth-code-a"}, headers=auth_header(user_b["access_token"]))
-    )
+    code, message = _err(_bind(user_b, "auth-code-a"))
     assert code == 40900
     assert "已绑定其他账号" in message
 
     # 重复绑定自身 → 明确提示已绑定
-    code, _ = _err(
-        client.post("/api/auth/bind/oauth", json={"provider": "wechat", "code": "auth-code-a"}, headers=auth_header(user_a["access_token"]))
-    )
+    code, _ = _err(_bind(user_a, "auth-code-a"))
     assert code == 40900
 
 

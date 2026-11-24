@@ -1,7 +1,7 @@
 <!-- 本文件由 scripts/doc_sync.py 自动生成，请勿手工编辑 -->
 # 项目状态快照（自动生成）
 
-> 生成时间：2026-09-05 09:56 UTC  ｜  来源：`scripts/doc_sync.py`
+> 生成时间：2026-10-01 13:58 UTC  ｜  来源：`scripts/doc_sync.py`
 > 本文件由代码实时抽取，反映当前仓库真实状态；如需修改内容，请改代码后重跑工具。
 
 ## 目录结构（节选）
@@ -61,12 +61,19 @@ CampusSphere/
       search/
         __init__.py
         client.py
+        sync.py
       tasks/
         __init__.py
         celery_app.py
         email.py
         notify.py
         search_sync.py
+    campus_life_platform.egg-info/
+      dependency_links.txt
+      PKG-INFO
+      requires.txt
+      SOURCES.txt
+      top_level.txt
     Dockerfile
     pyproject.toml
     README.md
@@ -75,8 +82,8 @@ CampusSphere/
       gen_api_docs.py
       kill_celery.ps1
       list_python.ps1
+      reindex_search.py
       seed_canteens.py
-      seed_demo_users.py
     tests/
       conftest.py
       factories.py
@@ -106,6 +113,7 @@ CampusSphere/
       test_lifecycle.py
       test_message.py
       test_p1.py
+      test_search_sync.py
       test_shutdown_resources.py
       test_smoke.py
       test_user.py
@@ -121,9 +129,12 @@ CampusSphere/
         test_redis_fallback_unit.py
         test_scope_deps_unit.py
         test_security_unit.py
+        test_sqlite_migrations_unit.py
         test_trace_id_unit.py
         test_utils_unit.py
+        test_ws_broadcast_unit.py
         test_ws_seq_unit.py
+    uv.lock
   config/
     logging.yaml
     school.yaml
@@ -143,6 +154,7 @@ CampusSphere/
       alerts.yml
       prometheus.yml
     start_dev.bat
+  DESIGN.md
   docs/
     _generated/
       DOC_DRIFT_REPORT.md
@@ -156,10 +168,14 @@ CampusSphere/
       05-optimization-progress.md
     DEPLOYMENT.md
     development.md
+    frontend-critique-fix-plan.md
+    frontend-redesign-plan.md
     images/
       campusphere-architecture.svg
     openapi.json
     REFACTOR_DELIVERABLE.md
+    review-2026-09-28-fixlog.md
+    review-2026-09-28.md
     TESTING.md
     usage.md
     后续开发计划.md
@@ -201,7 +217,6 @@ CampusSphere/
       email_verification_flask_example.py
   frontend/
     D:\Phase3\Projects\CampusSphere\frontend\App.tsx/
-    D:\Phase3\Projects\CampusSphere\frontend\bun.lock/
     D:\Phase3\Projects\CampusSphere\frontend\components/
     D:\Phase3\Projects\CampusSphere\frontend\context/
     D:\Phase3\Projects\CampusSphere\frontend\dev_err.txt/
@@ -214,8 +229,9 @@ CampusSphere/
     D:\Phase3\Projects\CampusSphere\frontend\package-lock.json/
     D:\Phase3\Projects\CampusSphere\frontend\package.json/
     D:\Phase3\Projects\CampusSphere\frontend\pages/
-    … (+11 项)
-  rag-projects-analysis.html
+    D:\Phase3\Projects\CampusSphere\frontend\postcss.config.js/
+    … (+10 项)
+  PRODUCT.md
   README.md
   scripts/
     check_css_classes.js
@@ -233,18 +249,18 @@ CampusSphere/
 | `admin` | 47 | ✅ | ✅ | ✅ | 管理后台 |
 | `ai` | 5 | ✅ | ✅ | ✅ | AI |
 | `audit` | 2 | ✅ | ✅ | ✅ | — |
-| `auth` | 24 | ✅ | ✅ | ✅ | 认证 |
+| `auth` | 25 | ✅ | ✅ | ✅ | 认证 |
 | `canteen` | 5 | ✅ | ✅ | ✅ | 食堂 |
-| `course` | 5 | ✅ | ✅ | ✅ | 课程 |
-| `item` | 8 | ✅ | ✅ | ✅ | 二手 |
+| `course` | 6 | ✅ | ✅ | ✅ | 课程 |
+| `item` | 10 | ✅ | ✅ | ✅ | 二手 |
 | `job` | 5 | ✅ | ✅ | ✅ | 兼职 |
 | `launcher` | 3 | ✅ | — | — | 启动器 |
 | `message` | 4 | ✅ | ✅ | ✅ | 消息 |
 | `report` | 3 | ✅ | ✅ | ✅ | 举报 |
-| `share` | 4 | ✅ | ✅ | ✅ | 分享 |
+| `share` | 5 | ✅ | ✅ | ✅ | 分享 |
 | `storage` | 3 | ✅ | — | — | 对象存储 |
-| `teammate` | 5 | ✅ | ✅ | ✅ | 组队 |
-| `user` | 4 | ✅ | ✅ | ✅ | 用户 |
+| `teammate` | 6 | ✅ | ✅ | ✅ | 组队 |
+| `user` | 7 | ✅ | ✅ | ✅ | 用户 |
 
 共 15 个业务模块。
 
@@ -255,12 +271,12 @@ CampusSphere/
 ## 依赖
 
 - Python 运行时要求：`>=3.12`
-- 后端依赖（27 项）：`fastapi>=0.111`、`uvicorn[standard]>=0.30`、`python-multipart>=0.0.9`、`sqlalchemy>=2.0.30`、`asyncpg>=0.29`、`psycopg2-binary>=2.9`、`alembic>=1.13`、`aiosqlite>=0.20`、`pydantic>=2.7`、`pydantic-settings>=2.3`、`email-validator>=2.0`、`redis>=5.0` 等
-- 前端依赖：8 项（React / Vite / Express 等，详见 frontend/package.json）
+- 后端依赖（27 项）：`fastapi>=0.111`、`uvicorn[standard]>=0.30`、`python-multipart>=0.0.9`、`sqlalchemy[asyncio]>=2.0.30`、`asyncpg>=0.29`、`psycopg2-binary>=2.9`、`alembic>=1.13`、`aiosqlite>=0.20`、`pydantic>=2.7`、`pydantic-settings>=2.3`、`email-validator>=2.0`、`redis>=5.0` 等
+- 前端依赖：7 项（React / Vite / Express 等，详见 frontend/package.json）
 
 ## 测试
 
-后端测试文件 19 个：`test_admin_gateway.py`、`test_arch_imports.py`、`test_auth.py`、`test_auth_email.py`、`test_auth_login.py`、`test_captcha.py`、`test_course_canteen.py`、`test_e2e_flow.py`、`test_idor.py`、`test_item.py`、`test_item_review.py`、`test_lifecycle.py`、`test_message.py`、`test_notify_dispatch.py`、`test_p1.py`、`test_shutdown_resources.py`、`test_smoke.py`、`test_user.py`、`test_websocket.py`
+后端测试文件 19 个：`test_admin_gateway.py`、`test_arch_imports.py`、`test_auth.py`、`test_auth_email.py`、`test_auth_login.py`、`test_captcha.py`、`test_course_canteen.py`、`test_e2e_flow.py`、`test_idor.py`、`test_item.py`、`test_item_review.py`、`test_lifecycle.py`、`test_message.py`、`test_p1.py`、`test_search_sync.py`、`test_shutdown_resources.py`、`test_smoke.py`、`test_user.py`、`test_websocket.py`
 
 ## 配置项清单（来自 config.py）
 

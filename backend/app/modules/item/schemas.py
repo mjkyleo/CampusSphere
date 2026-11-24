@@ -83,15 +83,28 @@ def _validate_cents(v: object, field: str = "价格") -> object:
 
 
 class ItemImageIn(BaseModel):
+    # object_key 只接受服务端签发的 uploads/{用户ID}/{32位hex}.{ext} 形态
+    # （P1-2）：自由串可把任意 key（含他人对象/URL/穿越路径）挂上物品，
+    # 且随匿名列表接口公开暴露。归属校验（键内用户段 == 物品 owner）在
+    # Service 层结合当前用户完成，schema 只做形态把关。
     object_key: str
     sort_order: int = 0
+
+    @field_validator("object_key")
+    @classmethod
+    def _key_must_be_server_issued(cls, v: str) -> str:
+        from app.core.storage import OBJECT_KEY_RE
+
+        if not OBJECT_KEY_RE.match(v):
+            raise ValueError("object_key 必须为服务端签发的 uploads/{用户}/{uuid} 形式，请先调用上传接口")
+        return v
 
 
 class ItemCreate(BaseModel):
     title: str = Field(min_length=1, max_length=128)
-    description: str = ""
+    description: str = Field(default="", max_length=2000)
     price: int = Field(default=0, ge=0, description="单位：分")
-    category: str = "other"
+    category: str = Field(default="other", max_length=64)
     images: list[ItemImageIn] = []
 
     @field_validator("price", mode="before")
@@ -121,11 +134,24 @@ class ItemCreate(BaseModel):
 
 
 class ItemUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=2000)
     price: int | None = None
-    category: str | None = None
+    category: str | None = Field(default=None, max_length=64)
+    # P2-5：status 必须是合法的 ItemStatus 取值——此前 PATCH status=99 会
+    # 在状态机 ItemStatus(99) 处抛未捕获 ValueError 变 500，这里提前转 422
     status: int | None = Field(default=None, description="状态流转目标值")
+
+    @field_validator("status")
+    @classmethod
+    def _status_must_be_known(cls, v: int | None) -> int | None:
+        if v is None:
+            return v
+        try:
+            ItemStatus(v)
+        except ValueError:
+            raise ValueError(f"非法的物品状态值：{v}") from None
+        return v
 
     @field_validator("price", mode="before")
     @classmethod

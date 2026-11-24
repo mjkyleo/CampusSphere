@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.tasks.notify as notify_tasks
 from app.common.enums import ApplicationStatus, JobStatus
+from app.common.utils import escape_like
 from app.core.exceptions import BizError, ErrorCode
 from app.core.logging import get_logger
 from app.modules.ai.service import check_content_safety
@@ -25,7 +27,9 @@ _logger = get_logger("job.service")
 async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = None, page: int = 1, page_size: int = 20) -> dict:
     stmt = select(Job)
     if keyword:
-        stmt = stmt.where(Job.title.ilike(f"%{keyword}%"))
+        # P3：转义 LIKE 通配符，防止 "%" / "_" 被当作模式匹配（ILIKE 通配符转义助手）
+        like = f"%{escape_like(keyword)}%"
+        stmt = stmt.where(Job.title.ilike(like, escape="\\"))
     if status is not None:
         stmt = stmt.where(Job.status == status)
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
@@ -82,7 +86,12 @@ async def apply_job(db: AsyncSession, job: Job, applicant: User, data: JobApplic
         status=ApplicationStatus.PENDING.value, note=data.note,
     )
     db.add(app)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # P2-3：并发双插由 uq_job_application 唯一索引兜底，转 409。
+        await db.rollback()
+        raise BizError(ErrorCode.CONFLICT, "已申请过该岗位") from exc
     await db.refresh(app)
     try:
         notify_tasks.send_notify.delay(

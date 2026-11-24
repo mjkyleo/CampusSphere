@@ -59,42 +59,46 @@ const CourseSearch: React.FC = () => {
     ? (groups.find((g) => g.group === selectedGroup)?.departments || [])
     : departments;
 
+  const pillActive = 'bg-zone-course text-surface';
+  const pillIdle = 'bg-panel text-steel hover:text-ink';
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">全校课程评价社区</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <div className="mono-label text-zone-course tracking-mono mb-1">COURSE · 课程评价社区</div>
+          <h1 className="text-heading-1 text-ink tracking-tight">全校课程评价社区</h1>
+          <p className="text-body-2 text-steel mt-0.5">
             客观真实的选课口碑，包含给分好坏、考核要求、作业量与名师推荐
           </p>
         </div>
 
         <Link
           to="/courses/review"
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95 shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           发布我的评课
         </Link>
       </div>
 
       {/* Search & Dept Filters */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-surface p-5 rounded-md border border-hairline shadow-surface space-y-4">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-steel w-4 h-4" />
             <input
               type="text"
               placeholder="搜索课程名称（如：数据结构、微积分）、授课教师或课程代码..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:border-indigo-600 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
           </div>
           <button
             type="submit"
-            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-sm font-bold transition-colors"
+            className="px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
           >
             搜索课程
           </button>
@@ -105,10 +109,8 @@ const CourseSearch: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
             <button
               onClick={() => { setSelectedGroup(''); setSelectedDept(''); }}
-              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                selectedGroup === ''
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+                selectedGroup === '' ? pillActive : pillIdle
               }`}
             >
               全部学部
@@ -117,10 +119,8 @@ const CourseSearch: React.FC = () => {
               <button
                 key={g.group}
                 onClick={() => { setSelectedGroup(g.group); setSelectedDept(''); }}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  selectedGroup === g.group
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+                className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+                  selectedGroup === g.group ? pillActive : pillIdle
                 }`}
               >
                 {g.group}
@@ -133,10 +133,8 @@ const CourseSearch: React.FC = () => {
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
           <button
             onClick={() => setSelectedDept('')}
-            className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              selectedDept === ''
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+            className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+              selectedDept === '' ? pillActive : pillIdle
             }`}
           >
             全部院系
@@ -145,10 +143,8 @@ const CourseSearch: React.FC = () => {
             <button
               key={dept}
               onClick={() => setSelectedDept(dept)}
-              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                selectedDept === dept
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+                selectedDept === dept ? pillActive : pillIdle
               }`}
             >
               {dept}
@@ -159,67 +155,67 @@ const CourseSearch: React.FC = () => {
 
       {/* Course List Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="bg-white rounded-3xl p-6 border border-slate-200 animate-pulse space-y-4">
-              <div className="h-5 bg-slate-200 rounded w-2/3"></div>
-              <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+              <div className="h-5 bg-panel rounded w-2/3"></div>
+              <div className="h-4 bg-panel rounded w-1/2"></div>
             </div>
           ))}
         </div>
       ) : courses.length === 0 ? (
-        <div className="bg-white rounded-3xl p-16 text-center border border-slate-200 space-y-4">
-          <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-700">未找到相关课程</h3>
-          <p className="text-xs text-slate-400">试着缩短关键词或切换院系标签</p>
+        <div className="bg-surface rounded-md p-16 text-center border border-hairline space-y-4">
+          <BookOpen className="w-12 h-12 text-steel mx-auto" />
+          <h3 className="text-heading-3 text-ink">未找到相关课程</h3>
+          <p className="text-body-2 text-steel">试着缩短关键词或切换院系标签</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {courses.map((course) => (
             <div
               key={course.id}
-              className="group bg-white rounded-3xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all flex flex-col justify-between"
+              className="group bg-surface rounded-md p-6 border border-hairline hover:border-zone-course transition-colors flex flex-col justify-between"
             >
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase">
+                    <span className="text-[11px] font-mono font-bold text-zone-course bg-zone-course/10 px-2 py-0.5 rounded-sm uppercase tracking-mono">
                       {course.code || 'CS101'}
                     </span>
-                    <h3 className="text-lg font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition-colors">
+                    <h3 className="text-heading-3 text-ink mt-1 group-hover:text-zone-course transition-colors">
                       {course.name}
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 rounded-xl border border-amber-200/60 text-amber-700 text-xs font-black shrink-0">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <div className="flex items-center gap-1 px-2 py-1 bg-zone-course/10 rounded-sm border border-zone-course/20 text-zone-course text-xs font-black shrink-0">
+                    <Star className="w-3.5 h-3.5 fill-zone-course text-zone-course" />
                     <span>{course.rating ? Number(course.rating).toFixed(1) : '4.8'}</span>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-slate-600">
+                <div className="space-y-1.5 text-body-2 text-steel">
                   <div className="flex items-center gap-2">
-                    <User className="w-3.5 h-3.5 text-slate-400" />
-                    <span>主讲教师: <strong className="text-slate-800">{course.instructor || '张伟 教授'}</strong></span>
+                    <User className="w-3.5 h-3.5 text-steel" />
+                    <span>主讲教师: <strong className="text-slate">{course.instructor || '张伟 教授'}</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                    <BookOpen className="w-3.5 h-3.5 text-steel" />
                     <span>开课院系: {course.department || '计算机学院'}</span>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed bg-slate-50 p-3 rounded-xl">
+                <p className="text-body-2 text-steel line-clamp-2 leading-relaxed bg-panel/40 p-3 rounded-sm">
                   {course.description || '涵盖核心理论与实践上机，注重思维训练与工程能力培养。'}
                 </p>
               </div>
 
-              <div className="pt-5 mt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-400 font-medium">
-                  {course.review_count || 18} 条选课评价
+              <div className="pt-5 mt-4 border-t border-hairline flex items-center justify-between">
+                <span className="text-caption text-steel font-mono">
+                  {course.reviews_count || 18} 条选课评价
                 </span>
                 <Link
                   to={`/courses/${course.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-xl transition-colors"
+                  className="inline-flex items-center gap-1 text-caption font-bold text-zone-course hover:text-ink bg-zone-course/10 hover:bg-zone-course px-3 py-1.5 rounded-sm mono-label uppercase tracking-mono transition-colors"
                 >
                   查看评价与分析 <ChevronRight className="w-3.5 h-3.5" />
                 </Link>

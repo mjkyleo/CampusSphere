@@ -37,6 +37,18 @@ os.environ.setdefault("CAPTCHA_ENABLED", "false")
 # 用 monkeypatch 单独覆盖，业务用例无需真实通道。
 os.environ["SMTP_HOST"] = ""
 
+# 测试进程统一提供强 SECRET_KEY：启动安全校验（validate_admin_security）在
+# 非 debug 下会拒绝占位/过短的 JWT 签名密钥，且该项不随管理网关放宽而豁免
+# （P0-1：签名密钥泄漏影响全站用户身份，不能因网关联调开关被跳过）。
+# 生命周期类测试会真实执行 lifespan 启动，沿用仓库默认占位密钥会整批 SystemExit。
+# 与 SMTP 同理用赋值：防止 backend/.env 或 CI 环境带出弱值导致启动校验误触发。
+os.environ["SECRET_KEY"] = "test-only-secret-key-0123456789abcdef"
+
+# P2-24：测试进程统一提供强 bootstrap 密码。生产校验拒绝"未配置 bootstrap
+# 密码"的启动（避免 siteadmin/admin123 带病上线），ensure_seed 的弱口令
+# 回退也收敛到仅 debug 生效——测试环境显式给强值，行为与生产一致。
+os.environ["ADMIN_BOOTSTRAP_PASSWORD"] = "test-bootstrap-pw-0123456789"
+
 # 允许从响应读取验证码（注册类用例需要拿到验证码才能走完链路）。
 #
 # **刻意不通过 DEBUG 开启**：DEBUG=true 会连带把管理员网关校验整个关掉
@@ -210,10 +222,10 @@ def lifecycle_env(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = _override_get_db
 
     # 无 Redis 时让 WS 广播监听安静退出，避免后台任务抛未被检索的异常干扰断言
-    async def _no_subscribe(_channel: str) -> None:  # 下划线参数：匹配签名但无需使用
+    async def _no_psubscribe(_pattern: str) -> None:  # 下划线参数：匹配签名但无需使用
         return None
 
-    monkeypatch.setattr("app.modules.message.ws.redis_subscribe", _no_subscribe)
+    monkeypatch.setattr("app.modules.message.ws.redis_psubscribe", _no_psubscribe)
 
     yield SimpleNamespace(app=app, engine=engine, factory=factory, dispose_spy=spy)
 

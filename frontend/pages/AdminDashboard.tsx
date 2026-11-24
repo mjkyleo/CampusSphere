@@ -86,13 +86,13 @@ const ImagePicker: React.FC<{
     return (
       <div className="flex items-center gap-1.5">
         {value ? (
-          <img src={imageSrc(value)} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
+          <img src={imageSrc(value)} alt="" className="w-10 h-10 rounded-lg object-cover border border-hairline" />
         ) : (
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             title="上传图片"
-            className="w-10 h-10 inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors disabled:opacity-50"
+            className="w-10 h-10 inline-flex items-center justify-center bg-panel hover:bg-panel text-steel rounded-lg transition-colors disabled:opacity-50"
           >
             {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
           </button>
@@ -113,12 +113,12 @@ const ImagePicker: React.FC<{
 
   return (
     <div>
-      <p className="text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wide">封面图（可选）</p>
+      <p className="text-[11px] font-bold text-steel mb-1.5 uppercase tracking-wide">封面图（可选）</p>
       <div className="flex items-center gap-3">
         {value ? (
-          <img src={imageSrc(value)} alt="封面预览" className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+          <img src={imageSrc(value)} alt="封面预览" className="w-14 h-14 rounded-sm object-cover border border-hairline" />
         ) : (
-          <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-300">
+          <div className="w-14 h-14 rounded-sm bg-panel/40 border border-hairline flex items-center justify-center text-steel">
             <ImagePlus className="w-5 h-5" />
           </div>
         )}
@@ -126,7 +126,7 @@ const ImagePicker: React.FC<{
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-panel hover:bg-panel text-slate rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
           >
             {uploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             {uploading ? '上传中...' : '上传图片'}
@@ -782,7 +782,7 @@ const AdminDashboard: React.FC = () => {
     try {
       const res = await api.admin.updateUserStatus(userId, nextStatus);
       if (res.code === 0) {
-        success(nextStatus === 1 ? '用户已解封恢复正常' : '已成功封禁该违规用户');
+        success(nextStatus === 1 ? '已成功封禁该违规用户' : '用户已解封恢复正常');
         fetchAdminData();
       }
     } catch {
@@ -808,20 +808,21 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="mono-label text-ink tracking-mono mb-1">ADMIN · 调度控制台</div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+            <span className="px-2.5 py-0.5 bg-ink text-surface mono-label tracking-mono rounded-sm flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" />
               校园后台综合治理控制台
             </span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-1">
+          <h1 className="text-heading-1 text-ink tracking-tight mt-1">
             运营与风控管理中枢
           </h1>
         </div>
 
         <button
           onClick={fetchAdminData}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition-colors self-start sm:self-center"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-hairline hover:bg-panel/40 text-slate rounded-sm mono-label uppercase tracking-mono transition-colors self-start sm:self-center"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           刷新数据看板
@@ -829,7 +830,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Navigation tabs */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl text-xs font-bold overflow-x-auto no-scrollbar">
+      <div className="flex gap-2 p-1 bg-surface border border-hairline rounded-md mono-label text-steel tracking-mono overflow-x-auto no-scrollbar shadow-surface">
         {[
           { id: 'overview', label: '指标大盘 & 数据分析', icon: BarChart3 },
           {
@@ -848,10 +849,10 @@ const AdminDashboard: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as AdminTab)}
-            className={`flex items-center gap-2 py-2.5 px-4 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 py-2.5 px-4 rounded-sm transition-colors whitespace-nowrap uppercase tracking-mono ${
               activeTab === tab.id
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-ink text-surface'
+                : 'text-steel hover:text-ink'
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -865,83 +866,83 @@ const AdminDashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Key Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">日活跃用户 (DAU)</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900">
+            <div className="bg-surface p-5 rounded-md border border-hairline space-y-2 shadow-surface">
+              <span className="text-xs font-bold text-steel uppercase">日活跃用户 (DAU)</span>
+              <div className="text-2xl sm:text-3xl font-black text-ink">
                 {metrics?.dau?.toLocaleString() || '2,420'}
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-success">
                 <TrendingUp className="w-3.5 h-3.5" />
                 <span>较昨日 +14.2%</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">累计注册学生</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900">
+            <div className="bg-surface p-5 rounded-md border border-hairline space-y-2 shadow-surface">
+              <span className="text-xs font-bold text-steel uppercase">累计注册学生</span>
+              <div className="text-2xl sm:text-3xl font-black text-ink">
                 {metrics?.total_users?.toLocaleString() || '18,500'}
               </div>
-              <div className="text-[11px] text-slate-400 font-medium">覆盖全校 92% 院系</div>
+              <div className="text-[11px] text-steel font-medium">覆盖全校 92% 院系</div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">市集发布物品总数</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900">
+            <div className="bg-surface p-5 rounded-md border border-hairline space-y-2 shadow-surface">
+              <span className="text-xs font-bold text-steel uppercase">市集发布物品总数</span>
+              <div className="text-2xl sm:text-3xl font-black text-ink">
                 {metrics?.total_items?.toLocaleString() || '3,840'}
               </div>
-              <div className="text-[11px] text-indigo-600 font-bold">成交率 68.4%</div>
+              <div className="text-[11px] text-ink font-bold">成交率 68.4%</div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">待审核违规举报</span>
-              <div className="text-2xl sm:text-3xl font-black text-rose-600">
+            <div className="bg-surface p-5 rounded-md border border-hairline space-y-2 shadow-surface">
+              <span className="text-xs font-bold text-steel uppercase">待审核违规举报</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-alert text-ink font-black text-2xl rounded-md">
                 {metrics?.pending_reports || reports.filter((r) => r.status === ReportStatus.Pending).length}
               </div>
-              <div className="text-[11px] text-slate-400">平均处理时长 &lt; 15分钟</div>
+              <div className="text-[11px] text-steel">平均处理时长 &lt; 15分钟</div>
             </div>
           </div>
 
           {/* Charts */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Chart 1: DAU Growth Curve */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4 shadow-xs">
+            <div className="bg-surface p-6 rounded-md border border-hairline space-y-4 shadow-surface">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-slate-900 text-sm">过去7天日活跃用户 (DAU) 走势</h3>
-                <span className="text-xs text-indigo-600 font-bold">单位: 人次</span>
+                <h3 className="font-bold text-ink text-sm">过去7天日活跃用户 (DAU) 走势</h3>
+                <span className="text-xs text-ink font-bold">单位: 人次</span>
               </div>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={growthData}>
                     <defs>
                       <linearGradient id="colorDau" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#0B0D10" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#0B0D10" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D8DADD" />
+                    <XAxis dataKey="day" stroke="#6B7178" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#6B7178" fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="dau" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorDau)" />
+                    <Area type="monotone" dataKey="dau" stroke="#0B0D10" strokeWidth={3} fillOpacity={1} fill="url(#colorDau)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Chart 2: Second-hand Trade Count */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4 shadow-xs">
+            <div className="bg-surface p-6 rounded-md border border-hairline space-y-4 shadow-surface">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-slate-900 text-sm">二手市集每日成交撮合笔数</h3>
-                <span className="text-xs text-emerald-600 font-bold">单位: 单</span>
+                <h3 className="font-bold text-ink text-sm">二手市集每日成交撮合笔数</h3>
+                <span className="text-xs text-success font-bold">单位: 单</span>
               </div>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={growthData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D8DADD" />
+                    <XAxis dataKey="day" stroke="#6B7178" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#6B7178" fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip />
-                    <Bar dataKey="trades" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="trades" fill="#1B6E3C" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -954,14 +955,14 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'reports' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">举报工单处理列表 ({reports.length})</h3>
-            <span className="text-xs text-slate-400">支持下架违规内容、封禁用户与驳回虚假举报</span>
+            <h3 className="text-lg font-bold text-ink">举报工单处理列表 ({reports.length})</h3>
+            <span className="text-xs text-steel">支持下架违规内容、封禁用户与驳回虚假举报</span>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline overflow-hidden shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
+                <thead className="bg-panel/40 border-b border-hairline text-steel uppercase font-bold">
                   <tr>
                     <th className="p-4">举报类型</th>
                     <th className="p-4">被举报目标</th>
@@ -971,36 +972,36 @@ const AdminDashboard: React.FC = () => {
                     <th className="p-4 text-right">审核操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-hairline">
                   {reports.map((report) => (
-                    <tr key={report.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-bold text-slate-700">
-                        <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-600">
+                    <tr key={report.id} className="hover:bg-panel/40/80 transition-colors">
+                      <td className="p-4 font-bold text-slate">
+                        <span className="px-2 py-0.5 bg-panel rounded text-slate">
                           {report.target_type}
                         </span>
                       </td>
-                      <td className="p-4 font-mono text-indigo-600 font-semibold truncate max-w-[120px]">
+                      <td className="p-4 font-mono text-ink font-semibold truncate max-w-[120px]">
                         {report.target_id}
                       </td>
-                      <td className="p-4 max-w-xs text-slate-700 font-medium line-clamp-2">
+                      <td className="p-4 max-w-xs text-slate font-medium line-clamp-2">
                         {report.reason}
                       </td>
-                      <td className="p-4 text-slate-400 whitespace-nowrap">
+                      <td className="p-4 text-steel whitespace-nowrap">
                         {new Date(report.created_at).toLocaleString()}
                       </td>
                       <td className="p-4 whitespace-nowrap">
                         {report.status === ReportStatus.Pending && (
-                          <span className="px-2.5 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg">
+                          <span className="px-2.5 py-1 bg-alert text-ink font-bold rounded-lg">
                             待审核
                           </span>
                         )}
                         {report.status === ReportStatus.Resolved && (
-                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-lg">
+                          <span className="px-2.5 py-1 bg-success/10 text-success font-bold rounded-lg">
                             已处理
                           </span>
                         )}
                         {report.status === ReportStatus.Rejected && (
-                          <span className="px-2.5 py-1 bg-slate-100 text-slate-500 font-bold rounded-lg">
+                          <span className="px-2.5 py-1 bg-panel text-steel font-bold rounded-lg">
                             已驳回
                           </span>
                         )}
@@ -1009,12 +1010,12 @@ const AdminDashboard: React.FC = () => {
                         {report.status === ReportStatus.Pending ? (
                           <button
                             onClick={() => setSelectedReport(report)}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                            className="px-3 py-1.5 bg-ink hover:bg-slate text-white rounded-sm text-xs font-bold transition-all shadow-surface"
                           >
                             介入审核
                           </button>
                         ) : (
-                          <span className="text-slate-400 text-[11px]">
+                          <span className="text-steel text-[11px]">
                             {report.action ? `[${report.action}]` : '处理完毕'}
                           </span>
                         )}
@@ -1032,12 +1033,12 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'users' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">注册学生用户治理 ({usersList.length})</h3>
+            <h3 className="text-lg font-bold text-ink">注册学生用户治理 ({usersList.length})</h3>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline overflow-hidden shadow-surface">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
+              <thead className="bg-panel/40 border-b border-hairline text-steel uppercase font-bold">
                 <tr>
                   <th className="p-4">用户</th>
                   <th className="p-4">账号</th>
@@ -1047,35 +1048,35 @@ const AdminDashboard: React.FC = () => {
                   <th className="p-4 text-right">账号管控</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-hairline">
                 {usersList.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={u.id} className="hover:bg-panel/40 transition-colors">
                     <td className="p-4 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-100">
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-panel">
                         <img src={u.avatar} alt="avatar" className="w-full h-full object-cover" />
                       </div>
-                      <span className="font-bold text-slate-900">{u.nickname}</span>
+                      <span className="font-bold text-ink">{u.nickname}</span>
                     </td>
-                    <td className="p-4 text-slate-500">@{u.username}</td>
-                    <td className="p-4 text-slate-600">{u.major || '计算机系'} ({u.campus || '主校区'})</td>
-                    <td className="p-4 font-bold text-emerald-600">信用良好 (5.0)</td>
+                    <td className="p-4 text-steel">@{u.username}</td>
+                    <td className="p-4 text-slate">{u.major || '计算机系'} ({u.campus || '主校区'})</td>
+                    <td className="p-4 font-bold text-success">信用良好 (5.0)</td>
                     <td className="p-4">
                       {u.status === 1 ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded font-bold">正常</span>
+                        <span className="px-2 py-0.5 bg-error/10 text-error rounded font-bold">已封禁</span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 rounded font-bold">已封禁</span>
+                        <span className="px-2 py-0.5 bg-success/10 text-success rounded font-bold">正常</span>
                       )}
                     </td>
                     <td className="p-4 text-right">
                       <button
                         onClick={() => handleToggleUserBan(u.id, u.status)}
-                        className={`px-3 py-1 rounded-xl font-bold text-xs transition-colors ${
+                        className={`px-3 py-1 rounded-sm font-bold text-xs transition-colors ${
                           u.status === 1
-                            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                            ? 'bg-success/10 text-success hover:bg-emerald-100'
+                            : 'bg-error/10 text-error hover:bg-error/20'
                         }`}
                       >
-                        {u.status === 1 ? '封禁账号' : '解除封禁'}
+                        {u.status === 1 ? '解除封禁' : '封禁账号'}
                       </button>
                     </td>
                   </tr>
@@ -1090,15 +1091,15 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'items' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">物品审核管理 ({itemsTotal})</h3>
-            <span className="text-xs text-slate-400">支持下架违规物品、删除不当内容与发布审核</span>
+            <h3 className="text-lg font-bold text-ink">物品审核管理 ({itemsTotal})</h3>
+            <span className="text-xs text-steel">支持下架违规物品、删除不当内容与发布审核</span>
           </div>
 
           {/* Item review switch (admin-controlled) */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-surface">
             <div>
-              <p className="text-sm font-bold text-slate-800">发布审核开关</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm font-bold text-slate">发布审核开关</p>
+              <p className="text-xs text-steel mt-0.5">
                 开启后新发布物品进入"待审核"，需在此处通过后方可上架；关闭后发布即上架（默认）
               </p>
             </div>
@@ -1106,17 +1107,17 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={() => setReviewEnabled(!reviewEnabled)}
                 className={`relative w-12 h-6 rounded-full transition-colors ${
-                  reviewEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                  reviewEnabled ? 'bg-ink' : 'bg-slate-300'
                 }`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow-surface transition-transform ${
                   reviewEnabled ? 'translate-x-6' : 'translate-x-0'
                 }`} />
               </button>
               <button
                 onClick={handleSaveReviewConfig}
                 disabled={reviewConfigLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-white rounded-sm text-xs font-bold transition-colors disabled:opacity-50"
               >
                 {reviewConfigLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 {reviewConfigLoading ? '保存中...' : '保存设置'}
@@ -1126,7 +1127,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* Status filter */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 mr-1">状态筛选：</span>
+            <span className="text-xs font-bold text-steel mr-1">状态筛选：</span>
             {[{ label: '全部', value: undefined }, { label: '待审核', value: ItemStatus.Pending }, { label: '上架中', value: ItemStatus.OnSale }, { label: '已下架', value: ItemStatus.OffSale }, { label: '已售出', value: ItemStatus.Sold }, { label: '已保留', value: ItemStatus.Reserved }].map((opt) => (
               <button
                 key={opt.label}
@@ -1134,10 +1135,10 @@ const AdminDashboard: React.FC = () => {
                   setItemsStatusFilter(opt.value);
                   fetchItems(1);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${
                   itemsStatusFilter === opt.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-ink text-white'
+                    : 'bg-surface border border-hairline text-slate hover:bg-panel/40'
                 }`}
               >
                 {opt.label}
@@ -1145,10 +1146,10 @@ const AdminDashboard: React.FC = () => {
             ))}
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline overflow-hidden shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
+                <thead className="bg-panel/40 border-b border-hairline text-steel uppercase font-bold">
                   <tr>
                     <th className="p-4">物品标题</th>
                     <th className="p-4">分类</th>
@@ -1158,49 +1159,49 @@ const AdminDashboard: React.FC = () => {
                     <th className="p-4 text-right">审核操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-hairline">
                   {itemsLoading ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 mx-auto animate-spin mb-2 text-slate-300" />
+                      <td colSpan={6} className="p-8 text-center text-steel">
+                        <RefreshCw className="w-6 h-6 mx-auto animate-spin mb-2 text-steel" />
                         正在加载物品列表...
                       </td>
                     </tr>
                   ) : itemsList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400">
-                        <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <td colSpan={6} className="p-8 text-center text-steel">
+                        <Package className="w-8 h-8 mx-auto mb-2 text-steel" />
                         暂无物品数据
                       </td>
                     </tr>
                   ) : (
                     itemsList.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-4 font-bold text-slate-800 max-w-[200px] truncate">
+                      <tr key={item.id} className="hover:bg-panel/40/80 transition-colors">
+                        <td className="p-4 font-bold text-slate max-w-[200px] truncate">
                           {item.title}
                         </td>
-                        <td className="p-4 text-slate-600 whitespace-nowrap">
+                        <td className="p-4 text-slate whitespace-nowrap">
                           {item.category || '未分类'}
                         </td>
-                        <td className="p-4 font-bold text-indigo-600 whitespace-nowrap">
+                        <td className="p-4 font-bold text-ink whitespace-nowrap">
                           ¥{formatPrice(item.price)}
                         </td>
                         <td className="p-4 whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded font-bold ${
                             item.status === ItemStatus.OnSale
-                              ? 'bg-emerald-50 text-emerald-700'
+                              ? 'bg-success/10 text-success'
                               : item.status === ItemStatus.OffSale
-                              ? 'bg-amber-50 text-amber-700'
+                              ? 'bg-alert text-ink'
                               : item.status === ItemStatus.Sold
-                              ? 'bg-slate-100 text-slate-600'
+                              ? 'bg-panel text-slate'
                               : item.status === ItemStatus.Pending
-                              ? 'bg-violet-50 text-violet-700'
+                              ? 'bg-panel text-slate'
                               : 'bg-blue-50 text-blue-700'
                           }`}>
                             {itemStatusMap[item.status] || '未知'}
                           </span>
                         </td>
-                        <td className="p-4 text-slate-400 whitespace-nowrap">
+                        <td className="p-4 text-steel whitespace-nowrap">
                           {item.created_at ? new Date(item.created_at).toLocaleString() : '—'}
                         </td>
                         <td className="p-4 text-right whitespace-nowrap">
@@ -1210,7 +1211,7 @@ const AdminDashboard: React.FC = () => {
                                 <button
                                   onClick={() => handleApproveItem(item.id)}
                                   disabled={itemActionLoading === item.id}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-success/10 text-success hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
                                 >
                                   <CheckCircle className="w-3 h-3" />
                                   通过
@@ -1218,7 +1219,7 @@ const AdminDashboard: React.FC = () => {
                                 <button
                                   onClick={() => handleRejectItem(item.id)}
                                   disabled={itemActionLoading === item.id}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-alert text-ink hover:bg-alert rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
                                 >
                                   <XCircle className="w-3 h-3" />
                                   拒绝
@@ -1228,7 +1229,7 @@ const AdminDashboard: React.FC = () => {
                               <button
                                 onClick={() => handleTakeDownItem(item.id)}
                                 disabled={itemActionLoading === item.id || item.status === ItemStatus.OffSale || item.status === ItemStatus.Sold}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-alert text-ink hover:bg-alert rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
                               >
                                 <ArrowDownCircle className="w-3 h-3" />
                                 下架
@@ -1237,7 +1238,7 @@ const AdminDashboard: React.FC = () => {
                             <button
                               onClick={() => handleDeleteItem(item.id)}
                               disabled={itemActionLoading === item.id}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-error/10 text-error hover:bg-error/20 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
                             >
                               <Trash2 className="w-3 h-3" />
                               删除
@@ -1253,24 +1254,24 @@ const AdminDashboard: React.FC = () => {
 
             {/* Pagination */}
             {itemsTotalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t border-slate-100">
-                <span className="text-xs text-slate-400">
+              <div className="flex items-center justify-between p-4 border-t border-hairline">
+                <span className="text-xs text-steel">
                   第 {itemsPage} / {itemsTotalPages} 页 · 共 {itemsTotal} 条
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => fetchItems(Math.max(1, itemsPage - 1))}
                     disabled={itemsPage <= 1 || itemsLoading}
-                    className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg disabled:opacity-40 transition-colors"
+                    className="p-1.5 bg-surface border border-hairline hover:bg-panel/40 rounded-lg disabled:opacity-40 transition-colors"
                   >
-                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                    <ChevronLeft className="w-4 h-4 text-slate" />
                   </button>
                   <button
                     onClick={() => fetchItems(Math.min(itemsTotalPages, itemsPage + 1))}
                     disabled={itemsPage >= itemsTotalPages || itemsLoading}
-                    className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg disabled:opacity-40 transition-colors"
+                    className="p-1.5 bg-surface border border-hairline hover:bg-panel/40 rounded-lg disabled:opacity-40 transition-colors"
                   >
-                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                    <ChevronRight className="w-4 h-4 text-slate" />
                   </button>
                 </div>
               </div>
@@ -1283,24 +1284,24 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'email' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">邮箱注册配置</h3>
-            <span className="text-xs text-slate-400">控制校园邮箱注册开关与允许域名</span>
+            <h3 className="text-lg font-bold text-ink">邮箱注册配置</h3>
+            <span className="text-xs text-steel">控制校园邮箱注册开关与允许域名</span>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-6 sm:p-8 space-y-6 shadow-surface">
             {/* Enabled toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-slate-800">启用邮箱注册</p>
-                <p className="text-xs text-slate-400 mt-0.5">关闭后，新用户将无法通过邮箱注册</p>
+                <p className="text-sm font-bold text-slate">启用邮箱注册</p>
+                <p className="text-xs text-steel mt-0.5">关闭后，新用户将无法通过邮箱注册</p>
               </div>
               <button
                 onClick={() => setEmailEnabled(!emailEnabled)}
                 className={`relative w-12 h-6 rounded-full transition-colors ${
-                  emailEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                  emailEnabled ? 'bg-ink' : 'bg-slate-300'
                 }`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow-surface transition-transform ${
                   emailEnabled ? 'translate-x-6' : 'translate-x-0'
                 }`} />
               </button>
@@ -1308,34 +1309,34 @@ const AdminDashboard: React.FC = () => {
 
             {/* Domains */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                允许的邮箱域名 <span className="text-slate-400 normal-case">(逗号分隔)</span>
+              <label className="block text-xs font-bold text-slate uppercase tracking-wider">
+                允许的邮箱域名 <span className="text-steel normal-case">(逗号分隔)</span>
               </label>
               <input
                 type="text"
                 placeholder="例如: edu.cn, campus.edu, university.edu.cn"
                 value={emailDomainsInput}
                 onChange={(e) => setEmailDomainsInput(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-600 outline-none transition-all"
+                className="w-full px-4 py-3 bg-panel/40 border border-hairline rounded-sm text-sm font-medium focus:bg-surface focus:border-ink outline-none transition-all"
               />
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-steel">
                 只有匹配这些域名的邮箱地址才能注册
               </p>
             </div>
 
             {/* Pattern */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                邮箱正则匹配模式 <span className="text-slate-400 normal-case">(可选)</span>
+              <label className="block text-xs font-bold text-slate uppercase tracking-wider">
+                邮箱正则匹配模式 <span className="text-steel normal-case">(可选)</span>
               </label>
               <input
                 type="text"
                 placeholder="例如: .*@.*\.edu(\.cn)?"
                 value={emailPatternInput}
                 onChange={(e) => setEmailPatternInput(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono focus:bg-white focus:border-indigo-600 outline-none transition-all"
+                className="w-full px-4 py-3 bg-panel/40 border border-hairline rounded-sm text-sm font-mono focus:bg-surface focus:border-ink outline-none transition-all"
               />
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-steel">
                 当域名列表不足以覆盖时，可使用正则表达式做更灵活的匹配
               </p>
             </div>
@@ -1345,7 +1346,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={handleSaveEmailConfig}
                 disabled={emailConfigLoading}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-ink hover:bg-slate text-white rounded-sm text-sm font-bold shadow-elevate  disabled:opacity-50 transition-all active:scale-95"
               >
                 {emailConfigLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1358,11 +1359,11 @@ const AdminDashboard: React.FC = () => {
 
             {/* Current config preview */}
             {emailConfig && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 text-xs">
-                <p className="font-bold text-slate-500 uppercase mb-2">当前生效配置</p>
-                <p><span className="text-slate-400">启用状态：</span><span className={`font-bold ${emailConfig.enabled ? 'text-emerald-600' : 'text-rose-600'}`}>{emailConfig.enabled ? '已启用' : '已关闭'}</span></p>
-                <p><span className="text-slate-400">允许域名：</span><span className="font-mono text-slate-700">{(emailConfig.domains || []).join(', ') || '无'}</span></p>
-                <p><span className="text-slate-400">匹配模式：</span><span className="font-mono text-slate-700">{emailConfig.pattern || '无'}</span></p>
+              <div className="p-4 bg-panel/40 rounded-sm border border-hairline space-y-1 text-xs">
+                <p className="font-bold text-steel uppercase mb-2">当前生效配置</p>
+                <p><span className="text-steel">启用状态：</span><span className={`font-bold ${emailConfig.enabled ? 'text-success' : 'text-error'}`}>{emailConfig.enabled ? '已启用' : '已关闭'}</span></p>
+                <p><span className="text-steel">允许域名：</span><span className="font-mono text-slate">{(emailConfig.domains || []).join(', ') || '无'}</span></p>
+                <p><span className="text-steel">匹配模式：</span><span className="font-mono text-slate">{emailConfig.pattern || '无'}</span></p>
               </div>
             )}
           </div>
@@ -1373,17 +1374,17 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'ai' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">AI 智能助手配置</h3>
-            <span className="text-xs text-slate-400">控制全站 AI 能力开关、模型与运行状态</span>
+            <h3 className="text-lg font-bold text-ink">AI 智能助手配置</h3>
+            <span className="text-xs text-steel">控制全站 AI 能力开关、模型与运行状态</span>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-6 sm:p-8 space-y-6 shadow-surface">
             {/* 运行状态 banner */}
             {aiConfig?.status && (
-              <div className={`flex items-start gap-3 p-4 rounded-2xl border text-xs font-medium ${
+              <div className={`flex items-start gap-3 p-4 rounded-sm border text-xs font-medium ${
                 aiConfig.status.available
-                  ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                  : 'bg-amber-50 border-amber-100 text-amber-700'
+                  ? 'bg-success/10 border-emerald-100 text-success'
+                  : 'bg-alert border-alert text-ink'
               }`}>
                 {aiConfig.status.available ? (
                   <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1400,16 +1401,16 @@ const AdminDashboard: React.FC = () => {
             {/* Enabled toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-slate-800">启用 AI 智能助手</p>
-                <p className="text-xs text-slate-400 mt-0.5">关闭后，首页灵感、物品润色、课程画像等全部 AI 入口隐藏</p>
+                <p className="text-sm font-bold text-slate">启用 AI 智能助手</p>
+                <p className="text-xs text-steel mt-0.5">关闭后，首页灵感、物品润色、课程画像等全部 AI 入口隐藏</p>
               </div>
               <button
                 onClick={() => setAiEnabled(!aiEnabled)}
                 className={`relative w-12 h-6 rounded-full transition-colors ${
-                  aiEnabled ? 'bg-indigo-600' : 'bg-slate-300'
+                  aiEnabled ? 'bg-ink' : 'bg-slate-300'
                 }`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow-surface transition-transform ${
                   aiEnabled ? 'translate-x-6' : 'translate-x-0'
                 }`} />
               </button>
@@ -1417,8 +1418,8 @@ const AdminDashboard: React.FC = () => {
 
             {/* Model selection (可自定义输入) */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Gemini 模型 <span className="text-slate-400 normal-case">(可自定义输入)</span>
+              <label className="block text-xs font-bold text-slate uppercase tracking-wider">
+                Gemini 模型 <span className="text-steel normal-case">(可自定义输入)</span>
               </label>
               <input
                 list="ai-model-options"
@@ -1426,7 +1427,7 @@ const AdminDashboard: React.FC = () => {
                 placeholder="gemini-2.0-flash"
                 value={aiModel}
                 onChange={(e) => setAiModel(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono focus:bg-white focus:border-indigo-600 outline-none transition-all"
+                className="w-full px-4 py-3 bg-panel/40 border border-hairline rounded-sm text-sm font-mono focus:bg-surface focus:border-ink outline-none transition-all"
               />
               <datalist id="ai-model-options">
                 <option value="gemini-2.0-flash" />
@@ -1434,7 +1435,7 @@ const AdminDashboard: React.FC = () => {
                 <option value="gemini-2.5-flash" />
                 <option value="gemini-2.5-pro" />
               </datalist>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-steel">
                 需为当前 GEMINI_API_KEY 有权访问的模型；温度等生成参数由服务端按场景预设
               </p>
             </div>
@@ -1444,7 +1445,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={handleSaveAiConfig}
                 disabled={aiConfigLoading}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-ink hover:bg-slate text-white rounded-sm text-sm font-bold shadow-elevate  disabled:opacity-50 transition-all active:scale-95"
               >
                 {aiConfigLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1457,10 +1458,10 @@ const AdminDashboard: React.FC = () => {
 
             {/* Current config preview */}
             {aiConfig && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 text-xs">
-                <p className="font-bold text-slate-500 uppercase mb-2">当前生效配置</p>
-                <p><span className="text-slate-400">启用状态：</span><span className={`font-bold ${aiConfig.enabled ? 'text-emerald-600' : 'text-rose-600'}`}>{aiConfig.enabled ? '已启用' : '已关闭'}</span></p>
-                <p><span className="text-slate-400">使用模型：</span><span className="font-mono text-slate-700">{aiConfig.model || 'gemini-2.0-flash'}</span></p>
+              <div className="p-4 bg-panel/40 rounded-sm border border-hairline space-y-1 text-xs">
+                <p className="font-bold text-steel uppercase mb-2">当前生效配置</p>
+                <p><span className="text-steel">启用状态：</span><span className={`font-bold ${aiConfig.enabled ? 'text-success' : 'text-error'}`}>{aiConfig.enabled ? '已启用' : '已关闭'}</span></p>
+                <p><span className="text-steel">使用模型：</span><span className="font-mono text-slate">{aiConfig.model || 'gemini-2.0-flash'}</span></p>
               </div>
             )}
           </div>
@@ -1472,12 +1473,12 @@ const AdminDashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">系统审计日志 ({auditTotal})</h3>
-              <span className="text-xs text-slate-400">用户的登录、注册、验证码发送及管理员操作都会在此留痕，便于追溯</span>
+              <h3 className="text-lg font-bold text-ink">系统审计日志 ({auditTotal})</h3>
+              <span className="text-xs text-steel">用户的登录、注册、验证码发送及管理员操作都会在此留痕，便于追溯</span>
             </div>
             <button
               onClick={() => fetchAuditLogs(0)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface border border-hairline hover:bg-panel/40 text-slate rounded-sm text-xs font-bold shadow-surface"
             >
               <RefreshCw className="w-3.5 h-3.5" /> 刷新
             </button>
@@ -1486,19 +1487,19 @@ const AdminDashboard: React.FC = () => {
           {/* 筛选栏 */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-steel" />
               <input
                 value={auditKeyword}
                 onChange={(e) => setAuditKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && fetchAuditLogs(0)}
                 placeholder="搜索账号 / IP / 动作"
-                className="pl-9 pr-3 py-2 w-56 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-300"
+                className="pl-9 pr-3 py-2 w-56 bg-surface border border-hairline rounded-sm text-xs outline-none focus:border-ink"
               />
             </div>
             <select
               value={auditActionFilter}
               onChange={(e) => { setAuditActionFilter(e.target.value); fetchAuditLogs(0); }}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none"
+              className="px-3 py-2 bg-surface border border-hairline rounded-sm text-xs outline-none"
             >
               <option value="">全部动作</option>
               {auditActions.map((a) => (
@@ -1508,7 +1509,7 @@ const AdminDashboard: React.FC = () => {
             <select
               value={auditResultFilter}
               onChange={(e) => { setAuditResultFilter(e.target.value); fetchAuditLogs(0); }}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none"
+              className="px-3 py-2 bg-surface border border-hairline rounded-sm text-xs outline-none"
             >
               <option value="">全部结果</option>
               <option value="success">成功</option>
@@ -1516,12 +1517,12 @@ const AdminDashboard: React.FC = () => {
             </select>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 divide-y divide-slate-100 shadow-xs overflow-hidden">
+          <div className="bg-surface rounded-md border border-hairline divide-y divide-hairline shadow-surface overflow-hidden">
             {auditLoading ? (
-              <div className="p-8 text-center text-slate-400 text-sm">加载中…</div>
+              <div className="p-8 text-center text-steel text-sm">加载中…</div>
             ) : auditLogs.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <div className="p-8 text-center text-steel">
+                <FileText className="w-8 h-8 mx-auto mb-2 text-steel" />
                 <p className="text-sm">暂无审计记录</p>
               </div>
             ) : (
@@ -1531,21 +1532,21 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`font-bold px-2 py-0.5 rounded ${
                         log.result === 'failure'
-                          ? 'text-rose-600 bg-rose-50'
-                          : 'text-emerald-600 bg-emerald-50'
+                          ? 'text-error bg-error/10'
+                          : 'text-success bg-success/10'
                       }`}>
                         {log.action_label || log.action}
                       </span>
-                      <span className="text-slate-400">{log.actor_type_label || log.actor_type}</span>
-                      {log.actor_label && <span className="text-slate-600 font-medium">{log.actor_label}</span>}
+                      <span className="text-steel">{log.actor_type_label || log.actor_type}</span>
+                      {log.actor_label && <span className="text-slate font-medium">{log.actor_label}</span>}
                       {log.result_label && (
-                        <span className="inline-flex items-center gap-0.5 text-slate-400">
+                        <span className="inline-flex items-center gap-0.5 text-steel">
                           {log.result === 'failure' ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
                           {log.result_label}
                         </span>
                       )}
                     </div>
-                    <div className="text-slate-400 truncate">
+                    <div className="text-steel truncate">
                       {log.target_type && `对象：${log.target_type}`}
                       {log.target_id && ` #${log.target_id}`}
                       {log.ip && ` · IP：${log.ip}`}
@@ -1554,7 +1555,7 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <span className="text-slate-400 whitespace-nowrap">
+                  <span className="text-steel whitespace-nowrap">
                     {log.created_at ? new Date(log.created_at).toLocaleString() : ''}
                   </span>
                 </div>
@@ -1568,17 +1569,17 @@ const AdminDashboard: React.FC = () => {
               <button
                 disabled={auditPage === 0}
                 onClick={() => fetchAuditLogs(auditPage - 1)}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:opacity-40"
+                className="inline-flex items-center gap-1 px-3 py-2 bg-surface border border-hairline rounded-sm text-xs font-bold disabled:opacity-40"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> 上一页
               </button>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-steel">
                 第 {auditPage + 1} / {Math.ceil(auditTotal / auditLimit)} 页
               </span>
               <button
                 disabled={(auditPage + 1) * auditLimit >= auditTotal}
                 onClick={() => fetchAuditLogs(auditPage + 1)}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:opacity-40"
+                className="inline-flex items-center gap-1 px-3 py-2 bg-surface border border-hairline rounded-sm text-xs font-bold disabled:opacity-40"
               >
                 下一页 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -1590,21 +1591,21 @@ const AdminDashboard: React.FC = () => {
       {/* Report Handling Modal */}
       {selectedReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-900">审核处置违规举报工单</h3>
+          <div className="bg-surface rounded-md max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-hairline">
+            <h3 className="text-xl font-bold text-ink">审核处置违规举报工单</h3>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs">
+            <div className="p-4 bg-panel/40 rounded-sm border border-hairline space-y-2 text-xs">
               <p><strong>举报类型：</strong>{selectedReport.target_type}</p>
               <p><strong>目标ID：</strong>{selectedReport.target_id}</p>
               <p><strong>举报原因：</strong>{selectedReport.reason}</p>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700">选择处罚措施</label>
+              <label className="block text-xs font-bold text-slate">选择处罚措施</label>
               <select
                 value={reportAction}
                 onChange={(e) => setReportAction(e.target.value as ReportAction)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none"
+                className="w-full p-3 bg-panel/40 border border-hairline rounded-sm text-sm font-medium outline-none"
               >
                 <option value={ReportAction.None}>无实质处罚 (仅口头警告)</option>
                 <option value={ReportAction.ItemOffSale}>下架违规二手物品</option>
@@ -1614,13 +1615,13 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">处理意见与留存反馈</label>
+              <label className="block text-xs font-bold text-slate">处理意见与留存反馈</label>
               <textarea
                 rows={3}
                 placeholder="填写处理意见，将同步抄送举报人与被举报人..."
                 value={reportFeedback}
                 onChange={(e) => setReportFeedback(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+                className="w-full p-3 bg-panel/40 border border-hairline rounded-sm text-sm outline-none"
               />
             </div>
 
@@ -1628,7 +1629,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}
-                className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold"
+                className="flex-1 py-3 border border-hairline text-slate rounded-sm text-xs font-semibold"
               >
                 取消
               </button>
@@ -1636,7 +1637,7 @@ const AdminDashboard: React.FC = () => {
                 type="button"
                 onClick={() => handleResolveReport(ReportStatus.Rejected)}
                 disabled={actionLoading}
-                className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold disabled:opacity-50"
+                className="flex-1 py-3 bg-panel hover:bg-slate text-slate rounded-sm text-xs font-bold disabled:opacity-50"
               >
                 驳回虚假举报
               </button>
@@ -1644,7 +1645,7 @@ const AdminDashboard: React.FC = () => {
                 type="button"
                 onClick={() => handleResolveReport(ReportStatus.Resolved)}
                 disabled={actionLoading}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-100 disabled:opacity-50"
+                className="flex-1 py-3 bg-error hover:opacity-90 text-white rounded-sm text-xs font-bold shadow-surface  disabled:opacity-50"
               >
                 {actionLoading ? '处理中...' : '确认执行处罚'}
               </button>
@@ -1657,23 +1658,23 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'config' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">内容配置</h3>
-            <span className="text-xs text-slate-400">配置实时生效，无需重启服务</span>
+            <h3 className="text-lg font-bold text-ink">内容配置</h3>
+            <span className="text-xs text-steel">配置实时生效，无需重启服务</span>
           </div>
 
           {/* Item categories config */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-5 shadow-surface">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <p className="text-sm font-bold text-slate-800">二手交易分类</p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-sm font-bold text-slate">二手交易分类</p>
+                <p className="text-xs text-steel mt-0.5">
                   分类在二手市集发布与筛选页实时生效；"全部"为前端筛选用，无需在此维护
                 </p>
               </div>
               <button
                 onClick={handleSaveCategories}
                 disabled={categoriesLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-white rounded-sm text-xs font-bold transition-colors disabled:opacity-50"
               >
                 {categoriesLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 {categoriesLoading ? '保存中...' : '保存分类'}
@@ -1681,12 +1682,12 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
               {itemCategories.length === 0 && (
-                <span className="text-xs text-slate-400">暂无分类，请在下方添加</span>
+                <span className="text-xs text-steel">暂无分类，请在下方添加</span>
               )}
               {itemCategories.map((cat) => (
                 <span
                   key={cat}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-panel/40 text-slate rounded-sm text-xs font-bold"
                 >
                   {cat}
                   <button
@@ -1711,11 +1712,11 @@ const AdminDashboard: React.FC = () => {
                   }
                 }}
                 placeholder="输入新分类名"
-                className="flex-1 min-w-0 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className="flex-1 min-w-0 px-3.5 py-2 bg-panel/40 border border-hairline rounded-sm text-sm focus:bg-surface focus:border-ink outline-none"
               />
               <button
                 onClick={handleAddCategory}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                className="px-4 py-2 bg-panel hover:bg-panel text-slate rounded-sm text-xs font-bold transition-colors"
               >
                 添加
               </button>
@@ -1723,18 +1724,18 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Course departments config */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-5 shadow-surface">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <p className="text-sm font-bold text-slate-800">课程评价院系</p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-sm font-bold text-slate">课程评价院系</p>
+                <p className="text-xs text-steel mt-0.5">
                   院系列表在课程评价筛选与发布页实时生效，课程归属院系后可按院系筛选
                 </p>
               </div>
               <button
                 onClick={handleSaveDepartments}
                 disabled={departmentsLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-white rounded-sm text-xs font-bold transition-colors disabled:opacity-50"
               >
                 {departmentsLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 {departmentsLoading ? '保存中...' : '保存院系'}
@@ -1742,12 +1743,12 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
               {courseDepartments.length === 0 && (
-                <span className="text-xs text-slate-400">暂无院系，请在下方添加</span>
+                <span className="text-xs text-steel">暂无院系，请在下方添加</span>
               )}
               {courseDepartments.map((dept) => (
                 <span
                   key={dept}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-success/10 text-success rounded-sm text-xs font-bold"
                 >
                   {dept}
                   <button
@@ -1772,11 +1773,11 @@ const AdminDashboard: React.FC = () => {
                   }
                 }}
                 placeholder="输入院系名称"
-                className="flex-1 min-w-0 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className="flex-1 min-w-0 px-3.5 py-2 bg-panel/40 border border-hairline rounded-sm text-sm focus:bg-surface focus:border-ink outline-none"
               />
               <button
                 onClick={handleAddDepartment}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                className="px-4 py-2 bg-panel hover:bg-panel text-slate rounded-sm text-xs font-bold transition-colors"
               >
                 添加
               </button>
@@ -1784,11 +1785,11 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Storage maintenance: orphan files */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-surface rounded-md border border-hairline p-5 shadow-surface">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <p className="text-sm font-bold text-slate-800">存储清理</p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-sm font-bold text-slate">存储清理</p>
+                <p className="text-xs text-steel mt-0.5">
                   扫描未被任何食堂、菜品或二手商品引用的图片文件（孤儿文件）
                 </p>
               </div>
@@ -1796,7 +1797,7 @@ const AdminDashboard: React.FC = () => {
                 <button
                   onClick={scanOrphanFiles}
                   disabled={orphanScanning}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-panel hover:bg-panel text-slate rounded-sm text-xs font-bold transition-colors disabled:opacity-50"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
                   {orphanScanning ? '扫描中...' : '扫描孤儿文件'}
@@ -1805,7 +1806,7 @@ const AdminDashboard: React.FC = () => {
                   <button
                     onClick={cleanupOrphanFiles}
                     disabled={orphanCleanupLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-error hover:opacity-90 text-white rounded-sm text-xs font-bold transition-colors disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     {orphanCleanupLoading ? '清理中...' : `清理 ${orphanFiles.length} 个`}
@@ -1814,11 +1815,11 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             {orphanFiles.length > 0 && (
-              <div className="max-h-48 overflow-y-auto rounded-2xl bg-slate-50 border border-slate-100 p-3 space-y-1.5">
+              <div className="max-h-48 overflow-y-auto rounded-sm bg-panel/40 border border-hairline p-3 space-y-1.5">
                 {orphanFiles.map((f) => (
                   <div key={f.key} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-mono text-slate-600 truncate">{f.key}</span>
-                    <span className="text-slate-400 shrink-0">{(f.size / 1024).toFixed(1)} KB</span>
+                    <span className="font-mono text-slate truncate">{f.key}</span>
+                    <span className="text-steel shrink-0">{(f.size / 1024).toFixed(1)} KB</span>
                   </div>
                 ))}
               </div>
@@ -1831,10 +1832,10 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'canteen' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">食堂管理</h3>
+            <h3 className="text-lg font-bold text-ink">食堂管理</h3>
             <button
               onClick={fetchCanteens}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-panel hover:bg-panel text-slate rounded-sm text-xs font-bold transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${canteenLoading ? 'animate-spin' : ''}`} />
               刷新
@@ -1842,8 +1843,8 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Add / Edit canteen form */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
-            <p className="text-sm font-bold text-slate-800 mb-3">
+          <div className="bg-surface rounded-md border border-hairline p-5 shadow-surface">
+            <p className="text-sm font-bold text-slate mb-3">
               {editingCanteenId ? '编辑食堂' : '新增食堂'}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
@@ -1852,14 +1853,14 @@ const AdminDashboard: React.FC = () => {
                 value={canteenForm.name}
                 onChange={(e) => setCanteenForm({ ...canteenForm, name: e.target.value })}
                 placeholder="食堂名称（如：第一食堂）"
-                className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className="px-3.5 py-2.5 bg-panel/40 border border-hairline rounded-sm text-sm focus:bg-surface focus:border-ink outline-none"
               />
               <input
                 type="text"
                 value={canteenForm.location}
                 onChange={(e) => setCanteenForm({ ...canteenForm, location: e.target.value })}
                 placeholder="位置（如：北区）"
-                className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-600 outline-none"
+                className="px-3.5 py-2.5 bg-panel/40 border border-hairline rounded-sm text-sm focus:bg-surface focus:border-ink outline-none"
               />
               <ImagePicker
                 value={canteenForm.image}
@@ -1870,7 +1871,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => (editingCanteenId ? handleSaveCanteen(editingCanteenId) : handleAddCanteen())}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-white rounded-sm text-xs font-bold transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 {editingCanteenId ? '保存修改' : '创建食堂'}
@@ -1881,7 +1882,7 @@ const AdminDashboard: React.FC = () => {
                     setEditingCanteenId(null);
                     setCanteenForm({ name: '', location: '', image: '' });
                   }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-panel hover:bg-panel text-slate rounded-sm text-xs font-bold transition-colors"
                 >
                   取消编辑
                 </button>
@@ -1891,28 +1892,28 @@ const AdminDashboard: React.FC = () => {
 
           {/* Canteen list */}
           {canteenLoading && canteens.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-sm text-slate-400 shadow-xs">
+            <div className="bg-surface rounded-md border border-hairline p-8 text-center text-sm text-steel shadow-surface">
               加载中...
             </div>
           ) : canteens.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-sm text-slate-400 shadow-xs">
+            <div className="bg-surface rounded-md border border-hairline p-8 text-center text-sm text-steel shadow-surface">
               暂无食堂，请先在上方创建
             </div>
           ) : (
             canteens.map((c) => (
-              <div key={c.id} className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+              <div key={c.id} className="bg-surface rounded-md border border-hairline p-5 shadow-surface">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {c.image ? (
-                      <img src={imageSrc(c.image)} alt={c.name} className="w-12 h-12 rounded-xl object-cover" />
+                      <img src={imageSrc(c.image)} alt={c.name} className="w-12 h-12 rounded-sm object-cover" />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <UtensilsCrossed className="w-5 h-5 text-indigo-400" />
+                      <div className="w-12 h-12 rounded-sm bg-panel/40 flex items-center justify-center">
+                        <UtensilsCrossed className="w-5 h-5 text-steel" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-800">{c.name}</p>
-                      <p className="text-xs text-slate-400">{c.location || '未设置位置'}</p>
+                      <p className="text-sm font-bold text-slate">{c.name}</p>
+                      <p className="text-xs text-steel">{c.location || '未设置位置'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -1921,7 +1922,7 @@ const AdminDashboard: React.FC = () => {
                         setEditingCanteenId(c.id);
                         setCanteenForm({ name: c.name, location: c.location, image: c.image });
                       }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-panel hover:bg-panel text-slate rounded-lg text-xs font-bold transition-colors"
                     >
                       <Pencil className="w-3 h-3" />
                       编辑
@@ -1939,20 +1940,20 @@ const AdminDashboard: React.FC = () => {
                 {/* Stalls */}
                 <div className="space-y-3 mt-3">
                   {c.stalls?.length === 0 && (
-                    <p className="text-xs text-slate-400">暂无档口</p>
+                    <p className="text-xs text-steel">暂无档口</p>
                   )}
                   {c.stalls?.map((s) => (
-                    <div key={s.id} className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+                    <div key={s.id} className="rounded-sm bg-panel/40 border border-hairline p-3">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
                           {s.image ? (
                             <img src={imageSrc(s.image)} alt={s.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
                           ) : (
-                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                              <UtensilsCrossed className="w-3.5 h-3.5 text-slate-300" />
+                            <div className="w-7 h-7 rounded-lg bg-surface border border-hairline flex items-center justify-center shrink-0">
+                              <UtensilsCrossed className="w-3.5 h-3.5 text-steel" />
                             </div>
                           )}
-                          <p className="text-sm font-bold text-slate-700 truncate">{s.name}</p>
+                          <p className="text-sm font-bold text-slate truncate">{s.name}</p>
                         </div>
                         <button
                           onClick={() => handleDeleteStall(s.id, s.name)}
@@ -1966,13 +1967,13 @@ const AdminDashboard: React.FC = () => {
                       {/* Dishes */}
                       <div className="flex flex-wrap gap-2 mb-2">
                         {s.dishes?.map((d) => (
-                          <span key={d.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs">
+                          <span key={d.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-surface border border-hairline rounded-sm text-xs">
                             {d.image && <img src={imageSrc(d.image)} alt={d.name} className="w-4 h-4 rounded object-cover" />}
-                            <span className="font-bold text-slate-700">{d.name}</span>
-                            <span className="text-slate-400">¥{(d.price / 100).toFixed(2)}</span>
+                            <span className="font-bold text-slate">{d.name}</span>
+                            <span className="text-steel">¥{(d.price / 100).toFixed(2)}</span>
                             <button
                               onClick={() => handleDeleteDish(d.id, d.name)}
-                              className="text-slate-300 hover:text-red-500 transition-colors"
+                              className="text-steel hover:text-red-500 transition-colors"
                               aria-label={`删除菜品 ${d.name}`}
                             >
                               ×
@@ -1980,7 +1981,7 @@ const AdminDashboard: React.FC = () => {
                           </span>
                         ))}
                         {s.dishes?.length === 0 && (
-                          <span className="text-xs text-slate-400">暂无菜品</span>
+                          <span className="text-xs text-steel">暂无菜品</span>
                         )}
                       </div>
 
@@ -1989,18 +1990,18 @@ const AdminDashboard: React.FC = () => {
                         <input
                           type="text"
                           value={dishForm.stall_id === s.id ? dishForm.name : ''}
-                          onChange={(e) => setDishForm({ stall_id: s.id, name: e.target.value, price: dishForm.stall_id === s.id ? dishForm.price : '' })}
+                          onChange={(e) => setDishForm({ stall_id: s.id, name: e.target.value, price: dishForm.stall_id === s.id ? dishForm.price : '', image: dishForm.stall_id === s.id ? dishForm.image : '' })}
                           placeholder="菜品名称"
-                          className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                          className="flex-1 min-w-0 px-3 py-1.5 bg-surface border border-hairline rounded-lg text-xs focus:border-ink outline-none"
                         />
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={dishForm.stall_id === s.id ? dishForm.price : ''}
-                          onChange={(e) => setDishForm({ stall_id: s.id, name: dishForm.stall_id === s.id ? dishForm.name : '', price: e.target.value })}
+                          onChange={(e) => setDishForm({ stall_id: s.id, name: dishForm.stall_id === s.id ? dishForm.name : '', price: e.target.value, image: dishForm.stall_id === s.id ? dishForm.image : '' })}
                           placeholder="价格(元)"
-                          className="w-24 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                          className="w-24 px-3 py-1.5 bg-surface border border-hairline rounded-lg text-xs focus:border-ink outline-none"
                         />
                         <ImagePicker
                           value={dishForm.stall_id === s.id ? dishForm.image : ''}
@@ -2010,7 +2011,7 @@ const AdminDashboard: React.FC = () => {
                         />
                         <button
                           onClick={() => handleAddDish(s.id)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                          className="px-3 py-1.5 bg-ink hover:bg-slate text-white rounded-lg text-xs font-bold transition-colors"
                         >
                           添加菜品
                         </button>
@@ -2023,9 +2024,9 @@ const AdminDashboard: React.FC = () => {
                     <input
                       type="text"
                       value={stallForm.canteen_id === c.id ? stallForm.name : ''}
-                      onChange={(e) => setStallForm({ canteen_id: c.id, name: e.target.value })}
+                      onChange={(e) => setStallForm({ canteen_id: c.id, name: e.target.value, image: stallForm.canteen_id === c.id ? stallForm.image : '' })}
                       placeholder="新档口名称"
-                      className="flex-1 min-w-0 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:border-indigo-600 outline-none"
+                      className="flex-1 min-w-0 px-3 py-1.5 bg-panel/40 border border-hairline rounded-lg text-xs focus:border-ink outline-none"
                     />
                     <ImagePicker
                       value={stallForm.canteen_id === c.id ? stallForm.image : ''}
@@ -2035,7 +2036,7 @@ const AdminDashboard: React.FC = () => {
                     />
                     <button
                       onClick={() => handleAddStall(c.id)}
-                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors"
+                      className="px-3 py-1.5 bg-ink hover:bg-slate text-white rounded-lg text-xs font-bold transition-colors"
                     >
                       添加档口
                     </button>

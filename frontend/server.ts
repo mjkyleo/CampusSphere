@@ -42,8 +42,16 @@ async function startServer() {
       return true;
     },
     on: {
-      error: (err: Error) => {
+      // P2-22：后端不可达时必须给浏览器一个 502 响应——此前只 console.error，
+      // 覆盖了 http-proxy 默认的 502 响应器，浏览器请求无限悬挂。
+      error: (err: Error, req: any, res: any) => {
         console.error("[Proxy Error]", err.message);
+        if (res && !res.headersSent && typeof res.writeHead === "function") {
+          res.writeHead(502, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({ code: -1, message: "后端服务不可达，请稍后重试", data: null })
+          );
+        }
       },
       // express.json() 已消费请求体流，必须重建 body 再转发，否则 POST 请求会挂起超时
       proxyReq: (proxyReq: any, req: any) => {

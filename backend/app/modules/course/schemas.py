@@ -39,5 +39,6 @@ class CourseReviewOut(BaseModel):
     user_id: str
     rating: int
     content: str
+    helpful_count: int = 0
 
     model_config = {"from_attributes": True}
