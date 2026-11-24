@@ -246,11 +246,17 @@ cd e2e && npm install && npx playwright install chromium && npm test
 
 ## 生产部署
 
-一条命令拉起全部服务（app + worker + PostgreSQL + Redis + MinIO + Meilisearch + Nginx）：
+前置：一台装有 **Docker Engine + Compose 插件** 的 Linux 服务器（建议 2 核 2G）；Python / Node / PostgreSQL / Redis / MinIO / Meilisearch 全部由容器提供，宿主机无需单独安装。`deploy/.env` 需填真实密钥（SMTP 为硬前置，未配则注册不可用），文件缺失时 compose 会报错退出以防占位密钥上线。
+
+分两步（前端构建与常驻服务分离，避免 2G 机器上构建峰值内存与常驻服务叠加触发 OOM）：
 
 ```bash
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env.example up -d
+cp deploy/.env.example deploy/.env                                                      # 首次：填真实密钥
+docker compose --profile build -f deploy/docker-compose.yml run --rm frontend-builder   # ① 构建前端产物
+docker compose -f deploy/docker-compose.yml up -d                                      # ② 起 app + worker + pg + redis + minio + meili
 ```
+
+自带网关时再加 `--profile gateway`（nginx 占 80/443，证书放 `deploy/nginx/ssl/`）；若已有外部 nginx / 宝塔反代则不加该 profile，并设 `FRONTEND_DIST` 为宿主机绝对目录供外部 nginx 托管前端、反代 `/api` 与 `/ws`。国内构建慢可在 `.env` 配 `APT_MIRROR` / `PIP_INDEX_URL` 加速。
 
 详细步骤见 [docs/usage.md](docs/usage.md) 与 [docs/部署手册.md](docs/部署手册.md)。首次部署的配置清单（环境变量 / 配置文件 / 依赖服务 / 密钥 / 数据库初始化）见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
