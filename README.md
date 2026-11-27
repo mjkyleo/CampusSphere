@@ -276,8 +276,6 @@ docker compose -f deploy/docker-compose.yml up -d                               
 
 ## 维护者
 
-本项目由 **穆萨江（Ky）** 独立开发与维护（GitHub：[@mjkyleo](https://github.com/mjkyleo)）。
-
 - 问题反馈与功能讨论：请通过本仓库的 **Issue** 板块提出。
 - 联系方式：以仓库 Issue 为统一入口；如需私下沟通安全事项，见[安全](#安全)。
 
