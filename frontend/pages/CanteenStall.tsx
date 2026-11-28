@@ -118,7 +118,7 @@ const CanteenStall: React.FC = () => {
     return (
       <div className="max-w-5xl mx-auto p-12 text-center space-y-4">
         <h2 className="text-heading-2 text-ink">未找到该食堂</h2>
-        <Link to="/canteens" className="inline-block px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors">
+        <Link to="/canteens" className="inline-block px-4 py-2 bg-primary text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors">
           返回食堂列表
         </Link>
       </div>
@@ -133,7 +133,7 @@ const CanteenStall: React.FC = () => {
     : '该档口暂未标价';
 
   const inputCls =
-    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
@@ -146,26 +146,26 @@ const CanteenStall: React.FC = () => {
       </button>
 
       {/* Canteen Header */}
-      <div className="bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="bg-surface rounded-lg p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
             {canteen.opening_hours && (
-              <span className="px-2.5 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
+              <span className="px-2.5 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-lg tracking-mono">
                 {canteen.opening_hours}
               </span>
             )}
             {canteen.canteen_type && (
-              <span className="px-2.5 py-0.5 bg-panel text-slate font-mono font-bold text-xs rounded-sm tracking-mono">
+              <span className="px-2.5 py-0.5 bg-panel text-slate font-mono font-bold text-xs rounded-lg tracking-mono">
                 {canteen.canteen_type}
               </span>
             )}
             {canteen.floor && (
-              <span className="px-2.5 py-0.5 bg-panel text-slate font-mono font-bold text-xs rounded-sm tracking-mono">
+              <span className="px-2.5 py-0.5 bg-panel text-slate font-mono font-bold text-xs rounded-lg tracking-mono">
                 {canteen.floor}
               </span>
             )}
             {canteen.semester && (
-              <span className="px-2.5 py-0.5 bg-success/10 text-success font-mono font-bold text-xs rounded-sm tracking-mono">
+              <span className="px-2.5 py-0.5 bg-success/10 text-success font-mono font-bold text-xs rounded-lg tracking-mono">
                 {canteen.semester}
               </span>
             )}
@@ -183,7 +183,7 @@ const CanteenStall: React.FC = () => {
           {canteen.features && canteen.features.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {canteen.features.map((f) => (
-                <span key={f} className="px-2 py-0.5 bg-success/10 text-success text-[11px] font-mono font-bold rounded-sm tracking-mono">
+                <span key={f} className="px-2 py-0.5 bg-success/10 text-success text-[11px] font-mono font-bold rounded-lg tracking-mono">
                   {f}
                 </span>
               ))}
@@ -192,7 +192,7 @@ const CanteenStall: React.FC = () => {
         </div>
 
         {canteen.rating ? (
-          <div className="p-4 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-2 text-zone-canteen shrink-0">
+          <div className="p-4 bg-zone-canteen/10 rounded-lg border border-zone-canteen/20 flex items-center gap-2 text-zone-canteen shrink-0">
             <Star className="w-6 h-6 fill-zone-canteen text-zone-canteen" />
             <div>
               <span className="text-2xl font-black font-display tabular-nums">{Number(canteen.rating).toFixed(1)}</span>
@@ -200,7 +200,7 @@ const CanteenStall: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="px-4 py-3 bg-panel rounded-sm border border-hairline text-steel mono-label shrink-0 tracking-mono">
+          <div className="px-4 py-3 bg-panel rounded-lg border border-hairline text-steel mono-label shrink-0 tracking-mono">
             暂无评分
           </div>
         )}
@@ -208,14 +208,14 @@ const CanteenStall: React.FC = () => {
 
       {/* 招牌菜展示 */}
       {canteen.popular_dishes && canteen.popular_dishes.length > 0 && (
-        <div className="bg-surface rounded-md p-6 border border-hairline shadow-surface space-y-3">
+        <div className="soft-card shadow-surface space-y-3">
           <h3 className="text-heading-3 text-ink flex items-center gap-2">
             <Utensils className="w-5 h-5 text-zone-canteen" />
             招牌美食
           </h3>
           <div className="flex flex-wrap gap-2">
             {canteen.popular_dishes.map((d) => (
-              <span key={d} className="px-3 py-1.5 bg-panel border border-hairline text-slate rounded-sm text-body-2 font-medium mono-label tracking-mono">
+              <span key={d} className="px-3 py-1.5 bg-panel border border-hairline text-slate rounded-lg text-body-2 font-medium mono-label tracking-mono">
                 {d}
               </span>
             ))}
@@ -237,7 +237,7 @@ const CanteenStall: React.FC = () => {
               <button
                 key={stall.id}
                 onClick={() => handleSelectStall(stall.id)}
-                className={`p-4 rounded-sm border text-left transition-colors ${
+                className={`p-4 rounded-lg border text-left transition-colors ${
                   isSelected
                     ? 'bg-zone-canteen text-surface border-zone-canteen'
                     : 'bg-surface text-slate border-hairline hover:border-zone-canteen'
@@ -263,7 +263,7 @@ const CanteenStall: React.FC = () => {
 
       {/* Selected Stall Menu & Recommended Dishes */}
       {selectedStall && (
-        <div className="bg-surface rounded-md p-6 border border-hairline shadow-surface space-y-4">
+        <div className="soft-card shadow-surface space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-heading-3 text-ink flex items-center gap-2">
               <span>{selectedStall.name} - 招牌菜单</span>
@@ -277,7 +277,7 @@ const CanteenStall: React.FC = () => {
                 type="button"
                 key={dish.id}
                 onClick={() => handleSelectDish(dish.id)}
-                className={`p-3.5 rounded-sm border flex items-center justify-between text-left transition-colors ${
+                className={`p-3.5 rounded-lg border flex items-center justify-between text-left transition-colors ${
                   dish.id === selectedDishId
                     ? 'bg-zone-canteen/10 border-zone-canteen'
                     : 'bg-panel/40 border-hairline hover:border-zone-canteen'
@@ -300,7 +300,7 @@ const CanteenStall: React.FC = () => {
       <div className="grid md:grid-cols-12 gap-8">
         {/* Left: Add Review Form (5 cols) */}
         <div className="md:col-span-5 space-y-4">
-          <div className="bg-surface rounded-md p-6 border border-hairline shadow-surface space-y-4">
+          <div className="soft-card shadow-surface space-y-4">
             <h3 className="text-heading-3 text-ink flex items-center gap-2">
               <Plus className="w-4 h-4 text-zone-canteen" />
               点评档口菜品
@@ -348,14 +348,14 @@ const CanteenStall: React.FC = () => {
                   placeholder="分量足不足？汤底浓不浓？出餐快不快？..."
                   value={reviewContent}
                   onChange={(e) => setReviewContent(e.target.value)}
-                  className="w-full p-3 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                  className="w-full p-3 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submitting || !selectedDishId}
-                className="w-full py-3 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="w-full py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
                 {submitting ? '提交中...' : '提交美食点评'}
@@ -373,18 +373,18 @@ const CanteenStall: React.FC = () => {
 
           <div className="space-y-3">
             {reviews.length === 0 ? (
-              <div className="p-8 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
+              <div className="p-8 text-center bg-surface rounded-lg border border-hairline text-steel text-body-2">
                 {selectedDishId ? '该菜品暂无评价，快来抢先留下第一条美食点评吧！' : '该档口暂无可点评的菜品'}
               </div>
             ) : (
               reviews.map((rev) => (
                 <div
                   key={rev.id}
-                  className="p-5 bg-surface rounded-md border border-hairline space-y-3 hover:border-zone-canteen transition-colors"
+                  className="p-5 bg-surface rounded-lg border border-hairline space-y-3 hover:border-zone-canteen transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-sm bg-panel flex items-center justify-center text-xs font-bold text-zone-canteen border border-hairline">
+                      <div className="w-8 h-8 rounded-lg bg-panel flex items-center justify-center text-xs font-bold text-zone-canteen border border-hairline">
                         {rev.user_nickname?.charAt(0) || '食'}
                       </div>
                       <span className="font-bold text-ink text-body-1">{rev.user_nickname || '校友食客'}</span>
@@ -392,7 +392,7 @@ const CanteenStall: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       {selectedDish && (
-                        <span className="text-caption font-bold text-zone-canteen bg-zone-canteen/10 px-2 py-0.5 rounded-sm mono-label tracking-mono">
+                        <span className="text-caption font-bold text-zone-canteen bg-zone-canteen/10 px-2 py-0.5 rounded-lg mono-label tracking-mono">
                           {selectedDish.name}
                         </span>
                       )}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -83,6 +84,19 @@ celery_app.conf.update(
         "app.tasks.email.*": {"queue": "email"},
         "app.tasks.notify.*": {"queue": "notify"},
         "app.tasks.search_sync.*": {"queue": "search"},
+        "app.tasks.trade_maintenance.*": {"queue": "default"},
+    },
+    # 交易维护：超时释放每 5 分钟一次；状态对账每 30 分钟一次。
+    # 两条任务内部全部走 CAS，重复调度幂等，Beat 多实例也不会重复释放。
+    beat_schedule={
+        "expire-stale-trades": {
+            "task": "app.tasks.trade_maintenance.expire_stale_trades",
+            "schedule": crontab(minute="*/5"),
+        },
+        "reconcile-trade-states": {
+            "task": "app.tasks.trade_maintenance.reconcile_trade_states",
+            "schedule": crontab(minute="*/30"),
+        },
     },
     # 重试策略（指数退避，最多 3 次）
     task_annotations={

@@ -16,8 +16,10 @@ class ShareResource(Base, PKMixin, TimestampMixin):
     owner_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(128), index=True)
     description: Mapped[str] = mapped_column(Text, default="")
-    file_key: Mapped[str] = mapped_column(String(255), default="")  # 对象存储 key
+    file_key: Mapped[str] = mapped_column(String(255), default="")  # 平台自存对象 key（历史兼容）
+    file_url: Mapped[str] = mapped_column(String(512), default="", server_default="")  # 用户提供的外部链接
     category: Mapped[str] = mapped_column(String(32), default="other")
+    tags: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")  # JSON 数组字符串
     downloads: Mapped[int] = mapped_column(Integer, default=0)
     # 点赞数（P2-22：此前仅前端 mock，落库需要真实列）
     likes: Mapped[int] = mapped_column(Integer, default=0)

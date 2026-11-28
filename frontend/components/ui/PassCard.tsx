@@ -6,7 +6,7 @@ export interface PassSegment {
   mono?: boolean;
 }
 
-/** 登机牌凭证：分段式卡片，头部墨色条 + 分段字段 + mono 扫描码块 */
+/** 分段信息凭证卡：头部色条 + 分段字段 + mono 编号块 */
 export function PassCard({
   title,
   seq,
@@ -27,15 +27,15 @@ export function PassCard({
   const even = segments.length % 2 === 0;
   return (
     <div
-      className={`bg-surface border border-hairline rounded-lg overflow-hidden transition-colors duration-feedback ease-impeccable ${
-        onClick ? 'cursor-pointer hover:border-ink' : ''
+      className={`bg-surface rounded-lg overflow-hidden shadow-surface transition-all duration-300 ease-impeccable ${
+        onClick ? 'cursor-pointer hover:shadow-elevate hover:-translate-y-0.5' : ''
       }`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
     >
-      <div className="bg-ink text-surface px-4 py-2.5 flex items-center justify-between">
-        <span className="mono-label text-white/90">{title}</span>
-        {seq ? <span className="mono-label text-white/70">{seq}</span> : null}
+      <div className="bg-gradient-to-r from-primary to-primary-hover text-surface px-4 py-3 flex items-center justify-between">
+        <span className="mono-label text-white/95">{title}</span>
+        {seq ? <span className="mono-label text-white/75">{seq}</span> : null}
       </div>
 
       <div className={`grid ${even ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -62,7 +62,7 @@ export function PassCard({
                 className="h-6 w-20 shrink-0 opacity-90"
                 style={{
                   background:
-                    'repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 5px)',
+                    'repeating-linear-gradient(90deg, var(--primary) 0 3px, transparent 3px 5px)',
                 }}
               />
               <span className="mono-data !font-semibold !text-ink">{scanCode}</span>

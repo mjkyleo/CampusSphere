@@ -38,13 +38,15 @@ async def categories(db: AsyncSession = Depends(get_db)):
 @router.get("", response_model=ApiResponse[dict])
 async def list_all(
     keyword: str = Query(default=""),
+    category: str = Query(default=""),
     status: int = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     return ApiResponse.ok(data=await list_jobs(
-        db, keyword=keyword, status=status if status is not None else None,
+        db, keyword=keyword, category=category,
+        status=status if status is not None else None,
         page=page, page_size=page_size,
     ))
 
@@ -52,6 +54,12 @@ async def list_all(
 @router.post("", response_model=ApiResponse[JobOut])
 async def create(data: JobCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     return ApiResponse.ok(data=JobOut.model_validate(await create_job(db, user, data)))
+
+
+@router.get("/{job_id}", response_model=ApiResponse[JobOut])
+async def detail(job_id: str, db: AsyncSession = Depends(get_db)):
+    """岗位详情：卡片点击进入详情页。"""
+    return ApiResponse.ok(data=JobOut.model_validate(await get_job(db, job_id)))
 
 
 @router.post("/{job_id}/apply", response_model=ApiResponse[JobApplicationOut])

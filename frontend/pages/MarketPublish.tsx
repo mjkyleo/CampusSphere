@@ -172,7 +172,7 @@ const MarketPublish: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -184,9 +184,9 @@ const MarketPublish: React.FC = () => {
         取消并返回
       </button>
 
-      <div className="bg-surface rounded-md p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
+      <div className="bg-surface rounded-lg p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
         <div>
-          <div className="mono-label text-zone-market tracking-mono mb-1">MARKET · 发布登机口</div>
+          <div className="mono-label text-zone-market tracking-mono mb-1">MARKET · 发布闲置</div>
           <h1 className="text-heading-1 text-ink tracking-tight">发布闲置宝贝</h1>
           <p className="text-body-2 text-steel mt-1">
             转让二手书籍、电子设备、生活好物{aiEnabled ? '，支持 AI 一键润色商品介绍' : ''}
@@ -214,7 +214,7 @@ const MarketPublish: React.FC = () => {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink outline-none"
+                className="w-full px-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink focus:bg-white focus:shadow-soft outline-none"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -246,12 +246,12 @@ const MarketPublish: React.FC = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {images.map((img, idx) => (
-                <div key={idx} className="relative aspect-square rounded-sm overflow-hidden border border-hairline group">
+                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-hairline group">
                   <img src={getImageSrc(img)} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(idx)}
-                    className="absolute top-2 right-2 p-1 bg-ink/70 hover:bg-error text-surface rounded-sm text-xs transition-colors"
+                    className="absolute top-2 right-2 p-1 bg-primary/70 hover:bg-error text-surface rounded-lg text-xs transition-colors"
                   >
                     ✕
                   </button>
@@ -259,7 +259,7 @@ const MarketPublish: React.FC = () => {
               ))}
 
               {/* File upload tile */}
-              <label className={`aspect-square rounded-sm border-2 border-dashed border-hairline hover:border-ink flex flex-col items-center justify-center cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              <label className={`aspect-square rounded-lg border-2 border-dashed border-hairline hover:border-ink flex flex-col items-center justify-center cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
                 {uploading ? (
                   <>
                     <Loader2 className="w-6 h-6 text-ink animate-spin mb-1" />
@@ -300,7 +300,7 @@ const MarketPublish: React.FC = () => {
                   type="button"
                   onClick={handleGenerateAIDescription}
                   disabled={aiGenerating}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel hover:bg-slate/10 text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono transition-colors whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel hover:bg-primary-hover/10 text-ink border-0 rounded-lg shadow-slate mono-label uppercase tracking-mono transition-colors whitespace-nowrap"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-ink" />
                   {aiGenerating ? 'AI 正在构思...' : 'AI 智能润色文案'}
@@ -314,14 +314,14 @@ const MarketPublish: React.FC = () => {
               placeholder="详细描述物品的规格、使用频次、有无磨损、是否附带配件，以及期望在校内哪个区域面交..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-4 bg-surface border border-hairline rounded-sm text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+              className="w-full p-4 bg-surface border-0 rounded-lg shadow-slate text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? '正在发布...' : '确认发布到市集'}
           </button>

@@ -496,7 +496,6 @@ const INITIAL_MOCK_DATA = {
       file_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
       category: '课程课件',
       downloads: 420,
-      file_size: '4.8 MB',
       created_at: '2天前',
       likes: 88,
       comments_count: 24
@@ -511,7 +510,6 @@ const INITIAL_MOCK_DATA = {
       file_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
       category: '考研升学',
       downloads: 780,
-      file_size: '12.4 MB',
       created_at: '4天前',
       likes: 156,
       comments_count: 51
@@ -526,7 +524,6 @@ const INITIAL_MOCK_DATA = {
       file_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
       category: '生活经验',
       downloads: 310,
-      file_size: '150 KB',
       created_at: '1周前',
       likes: 62,
       comments_count: 18
@@ -1117,7 +1114,6 @@ function handleMockFallback<T>(endpoint: string, options: RequestInit): ApiRespo
       file_url: body.file_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
       category: body.category || '生活经验',
       downloads: 0,
-      file_size: body.file_size || '2.4 MB',
       created_at: '刚刚',
       likes: 0,
       comments_count: 0
@@ -1298,6 +1294,8 @@ export const api = {
     update: (id: string, data: ItemUpdate) => request<ItemOut>(`/api/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request<null>(`/api/items/${id}`, { method: 'DELETE' }),
     trade: (id: string) => request<TradeSessionOut>(`/api/items/${id}/trade`, { method: 'POST' }),
+    completeTrade: (tradeId: string) => request<TradeSessionOut>(`/api/items/trades/${tradeId}/complete`, { method: 'POST' }),
+    cancelTrade: (tradeId: string) => request<TradeSessionOut>(`/api/items/trades/${tradeId}/cancel`, { method: 'POST' }),
     search: (q: string) => request<ItemOut[]>(`/api/items/search?q=${encodeURIComponent(q)}`),
     categories: () => request<{ categories: string[] }>('/api/items/categories')
   },
@@ -1325,6 +1323,7 @@ export const api = {
       return request<{ total: number; items: JobOut[] }>(`/api/jobs?${q.toString()}`);
     },
     create: (data: JobCreate) => request<JobOut>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
+    get: (id: string) => request<JobOut>(`/api/jobs/${id}`),
     apply: (jobId: string, note?: string) => request<JobApplicationOut>(`/api/jobs/${jobId}/apply`, { method: 'POST', body: JSON.stringify({ note }) }),
     applications: (jobId: string) => request<JobApplicationOut[]>(`/api/jobs/${jobId}/applications`),
     categories: () => request<{ categories: string[] }>('/api/jobs/categories')
@@ -1433,6 +1432,7 @@ export const api = {
       return request<{ total: number; items: ShareOut[] }>(`/api/shares?${q.toString()}`);
     },
     create: (data: ShareCreate) => request<ShareOut>('/api/shares', { method: 'POST', body: JSON.stringify(data) }),
+    get: (id: string) => request<ShareOut>(`/api/shares/${id}`),
     download: async (id: string) => {
       // Backend returns { url: string }, frontend expects { download_url: string }
       const res = await request<{ url: string }>(`/api/shares/${id}/download`);
@@ -1541,7 +1541,7 @@ export const api = {
     },
     getAuditActions: () =>
       request<{ value: string; label: string }[]>('/api/admin/audit-logs/actions'),
-    getUsers: (page = 1, page_size = 20) => api.admin.users(page, page_size),
+    getUsers: (page = 1, page_size = 20, q = '') => api.admin.users(page, page_size, q),
     handleReport: (reportId: string, data: { status: number; action: any; feedback: string }) => {
       // P2-22：此前把 UI 的 reportAction（ReportAction 枚举：user_ban/warning…）
       // 原样透传给后端，且丢弃 status——后端只认 resolve/reject/ban，
@@ -1557,7 +1557,7 @@ export const api = {
     },
     updateUserStatus: (userId: string, status: number) =>
       status === 1 ? api.admin.banUser(userId) : api.admin.unbanUser(userId),
-    users: (page = 1, page_size = 20) => request<{ total: number; items: any[] }>(`/api/admin/users?page=${page}&page_size=${page_size}`),
+    users: (page = 1, page_size = 20, q = '') => request<{ total: number; items: any[] }>(`/api/admin/users?page=${page}&page_size=${page_size}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
     banUser: (userId: string, reason = '') => request<any>(`/api/admin/users/${userId}/ban`, { method: 'POST', body: JSON.stringify({ reason }) }),
     unbanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/unban`, { method: 'POST' }),
     getEmailConfig: () => request<EmailRegisterConfig>('/api/admin/auth/email-config'),

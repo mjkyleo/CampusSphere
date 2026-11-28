@@ -58,19 +58,19 @@ const AdminLoginPage: React.FC = () => {
     setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
 
   const fieldClass = (hasError?: string) =>
-    `w-full pl-10 pr-4 py-2.5 bg-surface border rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:ring-2 outline-none transition-colors ${
+    `w-full pl-10 pr-4 py-2.5 bg-surface border rounded-lg text-body-1 text-ink placeholder:text-steel focus:bg-white focus:ring-2 outline-none transition-colors ${
       hasError
         ? 'border-error focus:border-error focus:ring-error/10'
-        : 'border-hairline focus:border-ink focus:ring-ink/10'
+        : 'border-hairline focus:shadow-soft focus:ring-ink/10'
     }`;
 
   return (
     <div className="min-h-screen bg-ground flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-md w-full bg-surface rounded-lg shadow-surface border border-hairline overflow-hidden">
-        {/* 凭证顶条：管理调度网关 */}
+        {/* 凭证顶条：管理调度认证 */}
         <div className="px-6 py-2.5 border-b border-hairline bg-panel/60 flex items-center gap-2">
           <KeyRound className="w-3.5 h-3.5 text-ink" />
-          <span className="mono-label text-steel tracking-mono">ADMIN GATE · 管理调度认证</span>
+          <span className="mono-label text-steel tracking-mono">ADMIN · 管理调度认证</span>
         </div>
 
         <div className="p-6 sm:p-8 space-y-6">
@@ -81,7 +81,7 @@ const AdminLoginPage: React.FC = () => {
 
           {/* 登录失败提示：覆盖网关密钥错误 / 账号密码错误 / 后台未开放等场景 */}
           {formError && (
-            <div className="flex items-start gap-2.5 rounded-sm border border-error/60 bg-error/5 px-4 py-3 text-body-2 text-error">
+            <div className="flex items-start gap-2.5 rounded-lg border border-error/60 bg-error/5 px-4 py-3 text-body-2 text-error">
               <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{formError}</span>
             </div>
@@ -151,7 +151,7 @@ const AdminLoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-[0.99]"
+              className="w-full py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-[0.99]"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               进入管理后台

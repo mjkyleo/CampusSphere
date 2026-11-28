@@ -19,23 +19,23 @@ const FALLBACK_CONFIG: CanteenConfig = {
 };
 
 const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
-  <div className="group bg-surface rounded-md overflow-hidden border border-hairline hover:border-zone-canteen transition-colors flex flex-col justify-between">
+  <div className="group bg-surface rounded-lg overflow-hidden border border-hairline hover:border-zone-canteen transition-colors flex flex-col justify-between">
     <div className="p-6 sm:p-7 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
             {canteen.opening_hours && (
-              <span className="px-2 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-sm tracking-mono">
+              <span className="px-2 py-0.5 bg-zone-canteen/10 text-zone-canteen font-mono font-bold text-xs rounded-lg tracking-mono">
                 {canteen.opening_hours}
               </span>
             )}
             {canteen.canteen_type && (
-              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-sm tracking-mono">
+              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-lg tracking-mono">
                 {canteen.canteen_type}
               </span>
             )}
             {canteen.floor && (
-              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-sm tracking-mono">
+              <span className="px-2 py-0.5 bg-panel text-slate text-[11px] font-mono font-bold rounded-lg tracking-mono">
                 {canteen.floor}
               </span>
             )}
@@ -51,12 +51,12 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
           )}
         </div>
         {canteen.rating ? (
-          <div className="p-3 bg-zone-canteen/10 rounded-sm border border-zone-canteen/20 flex items-center gap-1.5 text-zone-canteen text-sm font-black shrink-0">
+          <div className="p-3 bg-zone-canteen/10 rounded-lg border border-zone-canteen/20 flex items-center gap-1.5 text-zone-canteen text-sm font-black shrink-0">
             <Star className="w-4 h-4 fill-zone-canteen text-zone-canteen" />
             <span className="font-display tabular-nums">{Number(canteen.rating).toFixed(1)}</span>
           </div>
         ) : (
-          <div className="px-3 py-2 bg-panel rounded-sm border border-hairline text-steel text-[11px] font-mono font-bold shrink-0 tracking-mono">
+          <div className="px-3 py-2 bg-panel rounded-lg border border-hairline text-steel text-[11px] font-mono font-bold shrink-0 tracking-mono">
             暂无评分
           </div>
         )}
@@ -65,7 +65,7 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
       {canteen.features && canteen.features.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {canteen.features.map((f) => (
-            <span key={f} className="px-2 py-0.5 bg-success/10 text-success text-[11px] font-mono font-bold rounded-sm tracking-mono">
+            <span key={f} className="px-2 py-0.5 bg-success/10 text-success text-[11px] font-mono font-bold rounded-lg tracking-mono">
               {f}
             </span>
           ))}
@@ -95,7 +95,7 @@ const CanteenCard: React.FC<{ canteen: CanteenOut }> = ({ canteen }) => (
     <div className="p-6 pt-0">
       <Link
         to={`/canteens/${canteen.id}`}
-        className="w-full py-3 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5"
+        className="w-full py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-1.5"
       >
         进入食堂浏览档口与点评 <ChevronRight className="w-4 h-4" />
       </Link>
@@ -198,7 +198,7 @@ const CanteenList: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div>
-        <div className="mono-label text-zone-canteen tracking-mono mb-1">CANTEEN · 食堂航站屏</div>
+        <div className="mono-label text-zone-canteen tracking-mono mb-1">CANTEEN · 食堂信息板</div>
         <h1 className="text-heading-1 text-ink tracking-tight">校园食堂与美食档口</h1>
         <p className="text-body-2 text-steel mt-0.5">
           按学部 · 餐饮区 · 类型多维度筛选，探索招牌热销菜品、口味评分与卫生评价
@@ -214,7 +214,7 @@ const CanteenList: React.FC = () => {
       </div>
 
       {/* 类型 chips + 学期 + 搜索 */}
-      <div className="bg-surface p-4 rounded-md border border-hairline shadow-surface space-y-3">
+      <div className="bg-surface p-4 rounded-lg border border-hairline shadow-surface space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="mono-label text-steel tracking-mono mr-1">类型</span>
           <FilterChip label="全部" active={selectedType === ''} onClick={() => setSelectedType('')} />
@@ -228,7 +228,7 @@ const CanteenList: React.FC = () => {
             <input
               type="text"
               placeholder="搜索食堂名称、校区位置或热门美食..."
-              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -237,7 +237,7 @@ const CanteenList: React.FC = () => {
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              className="px-3 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink outline-none"
+              className="px-3 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink focus:bg-white focus:shadow-soft outline-none"
             >
               <option value="">全部学期</option>
               {config.semesters.map((s) => (
@@ -252,7 +252,7 @@ const CanteenList: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((n) => (
-            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+            <div key={n} className="soft-card animate-pulse space-y-4">
               <div className="h-6 bg-panel rounded w-1/2"></div>
               <div className="h-4 bg-panel rounded w-3/4"></div>
             </div>
@@ -305,7 +305,7 @@ const CanteenList: React.FC = () => {
 const CampusTab: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-2 rounded-sm mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
+    className={`px-4 py-2 rounded-lg mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
       active ? 'bg-zone-canteen text-surface' : 'bg-surface border border-hairline text-steel hover:border-zone-canteen'
     }`}
   >
@@ -316,7 +316,7 @@ const CampusTab: React.FC<{ label: string; active: boolean; onClick: () => void 
 const FilterChip: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-sm mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
+    className={`px-3 py-1.5 rounded-lg mono-label uppercase tracking-mono whitespace-nowrap transition-colors ${
       active ? 'bg-zone-canteen text-surface' : 'bg-panel border border-transparent text-steel hover:text-ink'
     }`}
   >

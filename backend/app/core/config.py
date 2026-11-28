@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    # ----- 二手交易：预占超时与对账 -----
+    # RESERVED 物品超过该时长仍未完成/取消，由 Celery Beat 自动释放回 ON_SALE。
+    # 默认 30 分钟；设为 0 可关闭自动释放（仅保留手动 cancel）。
+    trade_reserve_timeout_minutes: int = 30
+    # 单次超时释放 / 对账扫描的最大条数，避免一次任务锁表过久。
+    trade_maintenance_batch_size: int = 200
+
     # ----- 限流 -----
     rate_limit_per_minute: int = 120
     # 登录 / 注册 / 验证码等认证端点单独限流（防爆破与刷接口）。

@@ -19,7 +19,11 @@ class Job(Base, PKMixin, TimestampMixin):
     description: Mapped[str] = mapped_column(Text, default="")
     company: Mapped[str] = mapped_column(String(128), default="")
     salary: Mapped[int] = mapped_column(Integer, default=0, comment="单位：分/天或月薪分")
+    salary_type: Mapped[int] = mapped_column(Integer, default=1)  # 0 时薪 1 日薪 2 月薪 3 按次
     category: Mapped[str] = mapped_column(String(32), default="other")
+    location: Mapped[str] = mapped_column(String(255), default="", server_default="")
+    contact: Mapped[str] = mapped_column(String(255), default="", server_default="")
+    requirements: Mapped[str] = mapped_column(Text, default="", server_default="")
     status: Mapped[int] = mapped_column(Integer, default=JobStatus.OPEN.value, index=True)
 
     applications: Mapped[list[JobApplication]] = relationship(

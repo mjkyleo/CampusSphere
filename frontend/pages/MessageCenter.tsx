@@ -243,7 +243,7 @@ const MessageCenter: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-surface rounded-md border border-hairline shadow-surface overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[640px]">
+      <div className="bg-surface rounded-lg border border-hairline shadow-surface overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[640px]">
         {/* Left: Conversation List */}
         <div className={`md:col-span-4 border-r border-hairline flex flex-col ${activeConvId ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-hairline bg-panel/50 flex items-center justify-between">
@@ -273,7 +273,7 @@ const MessageCenter: React.FC = () => {
                     }`}
                   >
                     <div className="relative shrink-0">
-                      <div className="w-12 h-12 rounded-sm overflow-hidden bg-panel border border-hairline">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-panel border border-hairline">
                         {conv.target_user?.avatar ? (
                           <img src={conv.target_user.avatar} alt="avatar" className="w-full h-full object-cover" />
                         ) : (
@@ -300,7 +300,7 @@ const MessageCenter: React.FC = () => {
                       </div>
 
                       {conv.related_item && (
-                        <div className="flex items-center gap-1 text-caption text-zone-message font-medium mb-1 truncate bg-zone-message/10 px-1.5 py-0.5 rounded-sm font-mono">
+                        <div className="flex items-center gap-1 text-caption text-zone-message font-medium mb-1 truncate bg-zone-message/10 px-1.5 py-0.5 rounded-lg font-mono">
                           <Tag className="w-3 h-3 shrink-0" />
                           <span className="truncate">{conv.related_item.title}</span>
                           <span className="shrink-0 font-bold">¥{formatPrice(conv.related_item.price)}</span>
@@ -327,11 +327,11 @@ const MessageCenter: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setActiveConvId(null)}
-                    className="md:hidden p-1.5 rounded-sm hover:bg-panel text-steel"
+                    className="md:hidden p-1.5 rounded-lg hover:bg-panel text-steel"
                   >
                     <ArrowLeft className="w-5 h-5" />
                   </button>
-                  <div className="w-10 h-10 rounded-sm overflow-hidden bg-panel border border-hairline">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-panel border border-hairline">
                     {activeConversation.target_user?.avatar ? (
                       <img
                         src={activeConversation.target_user.avatar}
@@ -373,7 +373,7 @@ const MessageCenter: React.FC = () => {
                         `与 ${activeConversation.target_user?.nickname || '对方'} 的会话`
                       )
                     }
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-sm border border-error/30 text-error text-caption font-mono hover:bg-error/5 transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-error/30 text-error text-caption font-mono hover:bg-error/5 transition-colors"
                   >
                     <ShieldAlert className="w-3.5 h-3.5" />
                     举报违规
@@ -385,7 +385,7 @@ const MessageCenter: React.FC = () => {
               {activeConversation.related_item && (
                 <div className="px-4 py-2.5 bg-panel/40 border-b border-hairline flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-sm overflow-hidden bg-panel border border-hairline shrink-0">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-panel border border-hairline shrink-0">
                       {activeConversation.related_item.images?.[0]?.object_key ? (
                         <img
                           src={activeConversation.related_item.images[0].object_key}
@@ -408,13 +408,13 @@ const MessageCenter: React.FC = () => {
                   <div className="flex gap-1.5 shrink-0">
                     <button
                       onClick={() => sendQuickReply('请问这个还能小刀一下价格吗？')}
-                      className="px-2.5 py-1 bg-surface border border-hairline text-slate rounded-sm text-caption font-mono hover:border-ink transition-colors"
+                      className="px-2.5 py-1 bg-surface border border-hairline text-slate rounded-lg text-caption font-mono hover:border-ink transition-colors"
                     >
                       申请小刀
                     </button>
                     <button
                       onClick={() => sendQuickReply('我诚心要，请问今天能在校内哪个地点当面交易验货？')}
-                      className="px-2.5 py-1 bg-zone-message text-surface rounded-sm text-caption font-mono hover:opacity-90 transition-colors"
+                      className="px-2.5 py-1 bg-zone-message text-surface rounded-lg text-caption font-mono hover:opacity-90 transition-colors"
                     >
                       约面交
                     </button>
@@ -441,7 +441,7 @@ const MessageCenter: React.FC = () => {
                   </div>
                 )}
                 <div className="text-center my-2">
-                  <span className="text-caption font-mono font-bold text-steel bg-panel px-3 py-1 rounded-sm uppercase tracking-mono">
+                  <span className="text-caption font-mono font-bold text-steel bg-panel px-3 py-1 rounded-lg uppercase tracking-mono">
                     会话建立安全加密通道 · 建议校内公共场所面交
                   </span>
                 </div>
@@ -450,7 +450,7 @@ const MessageCenter: React.FC = () => {
                   const isMe = msg.sender_id === (user?.id || 'usr-001');
                   return (
                     <div key={msg.id} className={`flex items-end gap-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <div className="w-8 h-8 rounded-sm overflow-hidden bg-panel shrink-0 mb-1 border border-hairline">
+                      <div className="w-8 h-8 rounded-lg overflow-hidden bg-panel shrink-0 mb-1 border border-hairline">
                         {isMe ? (
                           user?.avatar ? (
                             <img
@@ -476,9 +476,9 @@ const MessageCenter: React.FC = () => {
 
                       <div className={`max-w-[75%] space-y-1 ${isMe ? 'items-end' : 'items-start'}`}>
                         <div
-                          className={`p-3.5 rounded-sm text-body-1 leading-relaxed ${
+                          className={`p-3.5 rounded-lg text-body-1 leading-relaxed ${
                             isMe
-                              ? 'bg-ink text-surface rounded-br-none'
+                              ? 'bg-primary text-surface shadow-soft rounded-br-none'
                               : 'bg-surface text-slate rounded-bl-none border border-hairline shadow-surface'
                           }`}
                         >
@@ -501,7 +501,7 @@ const MessageCenter: React.FC = () => {
                   <button
                     key={quick}
                     onClick={() => sendQuickReply(quick)}
-                    className="whitespace-nowrap px-3 py-1 bg-panel hover:bg-zone-message hover:text-surface text-steel rounded-sm text-body-2 transition-colors"
+                    className="whitespace-nowrap px-3 py-1 bg-panel hover:bg-zone-message hover:text-surface text-steel rounded-lg text-body-2 transition-colors"
                   >
                     {quick}
                   </button>
@@ -515,12 +515,12 @@ const MessageCenter: React.FC = () => {
                   value={inputContent}
                   onChange={(e) => setInputContent(e.target.value)}
                   placeholder={isConnected ? '输入消息，商讨物品细节或约定见面地点...' : '正在连接实时服务器...'}
-                  className="flex-1 px-4 py-3 bg-ground border border-hairline rounded-sm focus:outline-none focus:border-ink focus:bg-surface text-body-1 text-ink transition-colors"
+                  className="flex-1 px-4 py-3 bg-ground border-0 rounded-lg shadow-slate focus:outline-none focus:shadow-soft focus:bg-surface text-body-1 text-ink transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!inputContent.trim() || !isConnected}
-                  className="p-3 bg-ink hover:bg-slate text-surface rounded-sm transition-colors active:scale-95 shrink-0 disabled:opacity-40"
+                  className="p-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg transition-colors active:scale-95 shrink-0 disabled:opacity-40"
                 >
                   <Send className="w-5 h-5" />
                 </button>

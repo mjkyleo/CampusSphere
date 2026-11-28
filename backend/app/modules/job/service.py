@@ -24,12 +24,21 @@ from app.modules.job.schemas import (
 _logger = get_logger("job.service")
 
 
-async def list_jobs(db: AsyncSession, keyword: str = "", status: int | None = None, page: int = 1, page_size: int = 20) -> dict:
+async def list_jobs(
+    db: AsyncSession,
+    keyword: str = "",
+    category: str = "",
+    status: int | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> dict:
     stmt = select(Job)
     if keyword:
         # P3：转义 LIKE 通配符，防止 "%" / "_" 被当作模式匹配（ILIKE 通配符转义助手）
         like = f"%{escape_like(keyword)}%"
         stmt = stmt.where(Job.title.ilike(like, escape="\\"))
+    if category:
+        stmt = stmt.where(Job.category == category)
     if status is not None:
         stmt = stmt.where(Job.status == status)
     total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
@@ -46,12 +55,15 @@ async def create_job(db: AsyncSession, poster: User, data: JobCreate) -> Job:
     from app.modules.admin.service import normalize_category
 
     payload = data.model_dump()
+    salary_cents = payload.pop("salary_cents", None)
+    if salary_cents is not None:
+        payload["salary"] = salary_cents
     payload["category"] = await normalize_category(db, "job", payload.get("category", ""))
 
     # 内容预审：命中敏感词时拒绝发布（默认关闭，可在后台开启）
     moderation_text = "\n".join(
         str(payload.get(k, ""))
-        for k in ("title", "description", "company")
+        for k in ("title", "description", "company", "location", "contact", "requirements")
     ).strip()
     moderation = await check_content_safety(db, moderation_text)
     if not moderation["safe"]:

@@ -1,6 +1,6 @@
 ---
 name: CampusSphere
-description: 校园一站式生活平台 · 登机牌 · 航站屏视觉系统
+description: 校园一站式生活平台 · 信息凭证 · 实时信息板视觉系统
 colors:
   ink: "#0B0D10"
   slate: "#1C2127"
@@ -108,25 +108,25 @@ components:
 
 # DESIGN
 
-<!-- 世界：登机牌 · 航站屏（Boarding Pass & Gate Board）· 方向契约 · 依据 PRODUCT.md -->
+<!-- 世界：信息凭证 · 实时信息板 · 方向契约 · 依据 PRODUCT.md -->
 
-> 视觉世界由用户在本轮方向决策页选定（challenger: vernacular-ephemera-boarding-pass-and-gate-board）。构建路径 **code-led**。craft bar 基准：`.impeccable/craft/boarding-hero.webp` 与 `boarding-board.webp`。按 impeccable 流程，替换世界的 DESIGN.md 本应在构建完成时由文档器从成品回写；此处按用户要求先落为「已确立方向 + 设计系统」，在逐 surface 构建完成后做最终校验回写（见「收尾」节）。
+> 视觉世界采用克制、可扫读的信息凭证与实时信息板语言。构建路径 **code-led**。按 impeccable 流程，DESIGN.md 在构建完成后由文档器从成品回写；此处按用户要求先落为「已确立方向 + 设计系统」，在逐 surface 构建完成后做最终校验回写（见「收尾」节）。
 
 ## 1. 世界陈述（World）
 
-CampusSphere 是校园的**实时信息枢纽**：学生像在航站楼里一样"盯板、抓准登机口、行动"。每个模块 / 每个条目都像一张**分段登机牌**（把你带向一门课、一个档口、一件闲置、一个搭子、一份兼职）；各模块首页与关键列表是**实时航站屏**——按关键序（时间 / 热度 / 评分 / 价格）原位重排的行，任何**变更以唯一警示色点亮并保持，直到你注意到**。
+CampusSphere 是校园的**实时信息枢纽**：学生通过"看板、筛选、行动"完成任务。每个模块 / 每个条目都是一张**分段信息凭证**（把你带向一门课、一个档口、一件闲置、一个搭子、一份兼职）；各模块首页与关键列表是**实时信息板**——按关键序（时间 / 热度 / 评分 / 价格）原位重排的行，任何**变更以唯一警示色点亮并保持，直到你注意到**。
 
 **模式**：全局 Operate（可扫读、一致、原生预期 > 表达）。首页作为中枢以 Operate 为骨架；管理后台是"调度控制板"，同样克制。
 
-**自检**：拒绝当前默认观感（靛紫渐变 hero + 六色浅彩模块卡 + 玻璃拟态 + 超大圆角 blob）；拒绝"蓝白政务门户"。任何一屏若看起来"是随便一个校园 App 都能猜中的样子"，即自检失败，须回炉。航站隐喻不得遮蔽任务、状态与熟悉操作（Operate 铁律）。
+**自检**：拒绝当前默认观感（靛紫渐变 hero + 六色浅彩模块卡 + 玻璃拟态 + 超大圆角 blob）；拒绝"蓝白政务门户"。任何一屏若看起来"是随便一个校园 App 都能猜中的样子"，即自检失败，须回炉。视觉隐喻不得遮蔽任务、状态与熟悉操作（Operate 铁律）。
 
 ## 2. 方向契约（Direction Contract）
 
-- **THESIS**：校园生活 = 盯航站屏、抓准登机口；界面 = 分段凭证（登机牌）+ 实时重排信息板。拒绝"渐变 + 玻璃 + 多彩贴纸"的默认校园观感。
+- **THESIS**：校园生活 = 看信息板、抓住关键项并行动；界面 = 分段信息凭证 + 实时重排信息板。拒绝"渐变 + 玻璃 + 多彩贴纸"的默认校园观感。
 - **OWN-WORLD**：高对比中性色（INK / SLATE / STEEL / PANEL / SURFACE），**唯一警示色铬黄 #FFD400 只留给"变更 / 需注意"**；mono 大写 UI 标签 + tabular 数据 + mono 扫描码块；行身份保持的原位重排；底部导航。
 - **STORY**：学生打开即见"屏上有变动、有方向"；先看板 → 选一行 → 看凭证 → 行动即达；变更永不静默，已办从板上退场。
 - **FIRST VIEWPORT**（首页）：顶部 = 全局"找"查询台 + 导航；主体 = 多块实时信息板（二手最新 / 热搜 / 课程 / 食堂 / 搭子），每行 = 关键序 + tabular；变更行亮警示色并保持；底部栏。
-- **FORM**：航站屏 + 分段凭证融合成一套 Operate 语言；mono 标签 / 数据、tabular 数字、行身份原位重排为**签名交互**。
+- **FORM**：实时信息板 + 分段凭证融合成一套 Operate 语言；mono 标签 / 数据、tabular 数字、行身份原位重排为**签名交互**。
 - **FINISH**：unreviewed and undocumented is unfinished；本轮以 finish review、DESIGN.md、每张交付栅格带 provenance 为结束条件。
 
 ## 3. 色彩（Color）
@@ -169,11 +169,11 @@ CampusSphere 是校园的**实时信息枢纽**：学生像在航站楼里一样
 
 - **Body / UI / 表单**：**Inter**（既有，UI 工作马）。
 - **所有 UI 标签 + 数据（tabular）+ 扫描码块**：**IBM Plex Mono**（mono，风格档位 B：更强）。**全部 UI 标签——按钮文字、导航项、眉题、信息板列名、凭证字段名——一律 mono 大写**（`text-transform: uppercase` + letter-spacing），仪表感更重；数字一律 `font-variant-numeric: tabular-nums`。
-- **展示 / 登机口大数**（h1、关键数字、大号 "门牌"）：**Space Grotesk**（bold）。回退 `system-ui`。
+- **展示 / 关键大数**（h1、关键数字、大号数据）：**Space Grotesk**（bold）。回退 `system-ui`。
 
 | 尺度 | 字号 / 行高 | 用途 |
 |---|---|---|
-| display-gate | 2.75–3rem / 1.05，700 Space Grotesk | 大号关键数字、hero 数据 |
+| display-stat | 2.75–3rem / 1.05，700 Space Grotesk | 大号关键数字、hero 数据 |
 | heading-1 | 1.75rem / 1.2，600 | 区块主标题 |
 | heading-2 | 1.25rem / 1.3，600 | 卡片 / 板标题 |
 | heading-3 | 1rem / 1.4，600 | 条目标题 |
@@ -202,7 +202,7 @@ CampusSphere 是校园的**实时信息枢纽**：学生像在航站楼里一样
 ## 7. 组件语言（Component Language）
 
 - **信息板（Board）**：固定列网格行；行即控件；变更行亮 `alert` 并保持；已办退场；空板给空态 + 可行动作。
-- **登机牌凭证（Pass / Card）**：分段式卡片——`目标（模块 / 分类）` + `关键序（时间 / 热度 / 评分 / 价格，tabular）` + `动作（联系 / 加入 / 购买 = 登机口）`；交易 / 验证场景带 mono **扫描码 / 确认码块**。
+- **分段信息凭证（Pass / Card）**：分段式卡片——`目标（模块 / 分类）` + `关键序（时间 / 热度 / 评分 / 价格，tabular）` + `动作（联系 / 加入 / 购买）`；交易 / 验证场景带 mono **编号 / 确认码块**。
 - **按钮**：primary（`ink` 实心，按下 0.98）、secondary（hairline + 墨文本）、text（墨 + 方向箭头）；按钮文字一律 **mono 大写**；active 态明确；清晰 :focus-visible。
 - **输入 / 搜索（"找"查询台）**：hairline 描边，聚焦显 `ink` 环；全局搜索是首页主入口；确认码类输入用 mono 回显。
 - **导航**：底部栏（移动）/ 顶部栏（桌面），导航项文字一律 **mono 大写**；激活项以该模块**区域色**作激活身份（实心 / 标记 / 下划线），中枢"首页"仍用 ink。
@@ -215,17 +215,17 @@ CampusSphere 是校园的**实时信息枢纽**：学生像在航站楼里一样
 - 通用 Unsplash 占位冒充真实内容；无数据时的假预览。
 - 无意义装饰动效、无限 hover 抖动。
 
-## 9. 各 surface 指引（Surface Map，映射为登机牌 / 航站屏）
+## 9. 各 surface 指引（Surface Map，映射为信息凭证 / 信息板）
 
 | Surface | 页面 | 要点 |
 |---|---|---|
-| shell | App / Navbar / 守卫 / ReportModal | 航站屏式导航 + 底部栏 + 全局"找"；loading 用骨架；守卫态清晰 |
-| auth | Login / AdminLogin | 凭证式表单；验证码呈现为扫描码 / 确认码块；状态明确 |
+| shell | App / Navbar / 守卫 / ReportModal | 信息板式导航 + 底部栏 + 全局"找"；loading 用骨架；守卫态清晰 |
+| auth | Login / AdminLogin | 凭证式表单；验证码呈现为编号 / 确认码块；状态明确 |
 | home | HomePage | 查询台 + 多块实时信息板（二手 / 课程 / 食堂 / 搭子 / 热搜），变更行 alert 保持（见 FIRST VIEWPORT） |
-| market | MarketList / Detail / Publish | 闲置=登机牌（价格 / 分类 / 卖家 / 联系=登机口）；列表=信息板；发布=强引导凭证表单 |
+| market | MarketList / Detail / Publish | 闲置=信息凭证（价格 / 分类 / 卖家 / 联系）；列表=信息板；发布=强引导凭证表单 |
 | course | CourseSearch / Detail / Review | 课程=凭证（名称 / 教师 / 评分）；评价=板；AI 摘要如实标注 |
 | canteen | CanteenList / Stall | 档口 / 菜品=凭证 + 板；口味 / 评分 tabular |
-| community | TeammatePost / ShareFeed / JobList | 招募 / 共享 / 兼职=凭证；申请=登机口动作；流转清晰 |
+| community | TeammatePost / ShareFeed / JobList | 招募 / 共享 / 兼职=凭证；申请 / 访问链接 = 明确动作；流转清晰 |
 | messaging | MessageCenter | 会话=实时重排板；新消息=alert 保持；WebSocket 在线 / 断开态明确 |
 | profile | UserProfile | 一卡通式个人凭证卡（个人信息 + 关键数据） |
 | admin | AdminDashboard | 调度控制板：看板 + 举报 / 工单=需处理的行，alert 保持；发丝排版 |

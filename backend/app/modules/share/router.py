@@ -13,6 +13,7 @@ from app.modules.share.schemas import ShareCreate, ShareOut
 from app.modules.share.service import (
     create_share,
     get_share,
+    get_share_out,
     increment_download,
     list_shares,
     presign_download,
@@ -33,16 +34,25 @@ async def categories(db: AsyncSession = Depends(get_db)):
 @router.get("", response_model=ApiResponse[dict])
 async def list_all(
     category: str = Query(default=""),
+    keyword: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    return ApiResponse.ok(data=await list_shares(db, category=category, page=page, page_size=page_size))
+    return ApiResponse.ok(data=await list_shares(
+        db, category=category, keyword=keyword, page=page, page_size=page_size,
+    ))
 
 
 @router.post("", response_model=ApiResponse[ShareOut])
 async def create(data: ShareCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     return ApiResponse.ok(data=ShareOut.model_validate(await create_share(db, user, data)))
+
+
+@router.get("/{share_id}", response_model=ApiResponse[ShareOut])
+async def detail(share_id: str, db: AsyncSession = Depends(get_db)):
+    """资源详情：卡片点击进入详情页。"""
+    return ApiResponse.ok(data=await get_share_out(db, share_id))
 
 
 @router.get("/{share_id}/download", response_model=ApiResponse[dict])

@@ -23,6 +23,11 @@ const CanteenStall = lazy(() => import('./pages/CanteenStall.tsx'));
 const TeammatePost = lazy(() => import('./pages/TeammatePost.tsx'));
 const ShareFeed = lazy(() => import('./pages/ShareFeed.tsx'));
 const JobList = lazy(() => import('./pages/JobList.tsx'));
+const { TeamDetail, ShareDetail, JobDetail } = {
+  TeamDetail: lazy(() => import('./pages/ModuleDetail.tsx').then((m) => ({ default: m.TeamDetail }))),
+  ShareDetail: lazy(() => import('./pages/ModuleDetail.tsx').then((m) => ({ default: m.ShareDetail }))),
+  JobDetail: lazy(() => import('./pages/ModuleDetail.tsx').then((m) => ({ default: m.JobDetail }))),
+};
 const MessageCenter = lazy(() => import('./pages/MessageCenter.tsx'));
 const UserProfile = lazy(() => import('./pages/UserProfile.tsx'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard.tsx'));
@@ -33,7 +38,7 @@ const PageFallback: React.FC = () => (
   <div className="min-h-[50vh] flex items-center justify-center">
     <div className="text-center space-y-3">
       <div className="w-10 h-10 border-4 border-ink border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p className="mono-label text-slate">正在登机...</p>
+      <p className="mono-label text-slate">正在加载...</p>
     </div>
   </div>
 );
@@ -74,8 +79,11 @@ const AppContent: React.FC = () => {
               <Route path="/canteens/:id" element={<CanteenStall />} />
               <Route path="/canteens/stall/:id" element={<CanteenStall />} />
               <Route path="/teammates" element={<TeammatePost />} />
+              <Route path="/teammates/:id" element={<TeamDetail />} />
               <Route path="/share" element={<ShareFeed />} />
+              <Route path="/share/:id" element={<ShareDetail />} />
               <Route path="/jobs" element={<JobList />} />
+              <Route path="/jobs/:id" element={<JobDetail />} />
               <Route path="/messages" element={<ProtectedRoute><MessageCenter /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

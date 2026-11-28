@@ -52,14 +52,20 @@ export const Navbar: React.FC = () => {
   const profileLabel = loading ? '…' : isAdminAuthenticated ? '后台' : isAuthenticated && user ? (user.nickname || user.username) : '登录';
   const profileZone = isAdminAuthenticated ? 'bg-zone-message' : isAuthenticated && user ? 'bg-zone-home' : 'bg-zone-home';
 
-  const NavLink = ({ item }: { item: (typeof desktopNav)[number] }) => {
+  const NavLink = ({ item, onAppBar = false }: { item: (typeof desktopNav)[number]; onAppBar?: boolean }) => {
     const isActive = active(item.path);
     return (
       <Link
         to={item.path}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex flex-col lg:flex-row items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
-          isActive ? `${item.zone} text-surface` : 'text-steel hover:text-ink'
+        className={`relative flex flex-col lg:flex-row items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-all duration-[250ms] ease-impeccable ${
+          onAppBar
+            ? isActive
+              ? 'bg-white/20 text-white'
+              : 'text-white/80 hover:bg-white/10 hover:text-white'
+            : isActive
+              ? `${item.zone} text-white`
+              : 'text-steel hover:text-ink'
         }`}
       >
         <div className="relative">
@@ -90,7 +96,7 @@ export const Navbar: React.FC = () => {
       <Link
         to={profileHref}
         aria-current={isActive ? 'page' : undefined}
-        className={`relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
+        className={`relative flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg mono-label transition-colors ${
           isActive ? `${profileZone} text-surface` : 'text-steel hover:text-ink'
         }`}
       >
@@ -115,17 +121,17 @@ export const Navbar: React.FC = () => {
   return (
     <>
       {/* 桌面顶部导航 */}
-      <nav className="hidden lg:flex fixed top-0 left-0 right-0 bg-surface border-b border-hairline px-4 py-2 items-center justify-between z-50">
+      <nav className="hidden lg:flex fixed top-0 left-0 right-0 h-16 bg-primary px-4 items-center justify-between z-50 shadow-md-4">
         <div className="flex items-center gap-3 mr-6">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 bg-ink rounded-lg flex items-center justify-center text-surface font-black text-lg font-display group-hover:bg-slate transition-colors">
+            <div className="w-9 h-9 bg-surface text-primary rounded-md flex items-center justify-center font-bold text-lg shadow-md-2 group-hover:shadow-md-4 transition-all duration-[250ms] ease-impeccable">
               C
             </div>
             <div className="flex flex-col">
-              <span className="font-display font-bold text-lg tracking-tight text-ink leading-tight">
+              <span className="font-display font-medium text-lg tracking-tight text-white leading-tight">
                 CampusSphere
               </span>
-              <span className="mono-label text-steel">校园生活一站式平台</span>
+              <span className="mono-label text-white/70">校园生活一站式平台</span>
             </div>
           </Link>
         </div>
@@ -133,7 +139,7 @@ export const Navbar: React.FC = () => {
         <div className="flex flex-1 justify-start gap-1 overflow-x-auto no-scrollbar py-1">
           {desktopNav.map((item) => (
             <React.Fragment key={item.path}>
-              <NavLink item={item} />
+              <NavLink item={item} onAppBar />
             </React.Fragment>
           ))}
         </div>
@@ -144,7 +150,7 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/admin"
                 className={`mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors ${
-                  active('/admin') ? 'bg-ink text-surface border-ink' : 'bg-transparent text-slate border-hairline hover:border-ink'
+                  active('/admin') ? 'bg-white/20 text-white border-white/30' : 'bg-transparent text-white/80 border-white/30 hover:bg-white/10'
                 }`}
                 title="管理控制台"
               >
@@ -153,7 +159,7 @@ export const Navbar: React.FC = () => {
               </Link>
               <button
                 onClick={adminLogout}
-                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate border border-hairline hover:border-ink transition-colors"
+                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white/80 border border-white/30 hover:bg-white/10 transition-colors"
                 title="退出管理后台"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -164,7 +170,7 @@ export const Navbar: React.FC = () => {
             <>
               <Link
                 to="/profile"
-                className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-md border border-hairline hover:border-ink transition-colors"
+                className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10 transition-colors"
               >
                 <div className="w-7 h-7 rounded-full overflow-hidden bg-panel border border-hairline shrink-0">
                   {user.avatar ? (
@@ -173,13 +179,13 @@ export const Navbar: React.FC = () => {
                     <ImagePlaceholder variant="avatar" className="w-7 h-7" />
                   )}
                 </div>
-                <span className="mono-label text-slate max-w-[90px] truncate">
+                <span className="mono-label text-white max-w-[90px] truncate">
                   {user.nickname || user.username}
                 </span>
               </Link>
               <button
                 onClick={logout}
-                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate border border-hairline hover:border-ink transition-colors"
+                className="mono-label flex items-center gap-1.5 px-3 py-1.5 rounded-md text-white/80 border border-white/30 hover:bg-white/10 transition-colors"
                 title="退出登录"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -188,13 +194,13 @@ export const Navbar: React.FC = () => {
             </>
           ) : loading ? (
             <div className="flex items-center gap-2.5 pl-2 pr-3 py-1.5" aria-hidden="true">
-              <div className="w-7 h-7 rounded-full bg-panel animate-pulse shrink-0"></div>
-              <div className="w-16 h-3 bg-panel animate-pulse rounded"></div>
+              <div className="w-7 h-7 rounded-full bg-white/20 animate-pulse shrink-0"></div>
+              <div className="w-16 h-3 bg-white/20 animate-pulse rounded"></div>
             </div>
           ) : (
             <Link
               to="/login"
-              className="mono-label flex items-center gap-1.5 px-4 py-2 rounded-md bg-ink text-surface hover:bg-slate transition-colors"
+              className="mono-label flex items-center gap-1.5 px-4 py-2 rounded-md bg-white text-primary shadow-md-2 hover:bg-white/90 hover:shadow-md-4 transition-all duration-[250ms] ease-impeccable"
             >
               <User className="w-3.5 h-3.5" />
               <span>登录 / 注册</span>
@@ -204,10 +210,10 @@ export const Navbar: React.FC = () => {
       </nav>
 
       {/* 移动端底部导航：4 主项 + 更多 */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-hairline z-50">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl z-50 shadow-[0_-4px_20px_rgba(99,102,241,0.10)]">
         {/* 更多抽屉 */}
         {moreOpen && (
-          <div className="absolute bottom-full left-0 right-0 bg-surface border-t border-hairline shadow-elevate">
+          <div className="absolute bottom-full left-0 right-0 bg-surface/95 backdrop-blur-xl shadow-elevate rounded-t-xl">
             <div className="grid grid-cols-4 gap-1 p-3">
               {moreModules.map((m) => {
                 const isActive = active(m.path);
@@ -215,7 +221,7 @@ export const Navbar: React.FC = () => {
                   <Link
                     key={m.path}
                     to={m.path}
-                    className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label transition-colors ${
+                    className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg mono-label transition-colors ${
                       isActive ? `${m.zone} text-surface` : 'text-steel hover:text-ink'
                     }`}
                   >
@@ -227,7 +233,7 @@ export const Navbar: React.FC = () => {
               {isAdminAuthenticated && (
                 <Link
                   to="/admin"
-                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label text-steel hover:text-ink"
+                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg mono-label text-steel hover:text-ink"
                 >
                   <ShieldCheck className="w-5 h-5" strokeWidth={1.8} />
                   <span className="text-[11px]">管理</span>
@@ -236,7 +242,7 @@ export const Navbar: React.FC = () => {
               {isAuthenticated && user && (
                 <button
                   onClick={logout}
-                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-md mono-label text-error hover:text-error"
+                  className="flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-lg mono-label text-error hover:text-error"
                 >
                   <LogOut className="w-5 h-5" strokeWidth={1.8} />
                   <span className="text-[11px]">退出</span>
@@ -262,7 +268,7 @@ export const Navbar: React.FC = () => {
             onClick={() => setMoreOpen((v) => !v)}
             aria-expanded={moreOpen}
             aria-label={moreOpen ? '收起更多功能' : '展开更多功能'}
-            className={`flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-md mono-label transition-colors ${
+            className={`flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg mono-label transition-colors ${
               moreOpen ? 'text-ink' : 'text-steel hover:text-ink'
             }`}
           >

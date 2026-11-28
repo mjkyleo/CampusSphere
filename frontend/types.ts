@@ -439,7 +439,6 @@ export interface ShareOut {
   category: string;
   downloads: number;
   download_url?: string | null;
-  file_size?: string;
   tags?: string[];
   created_at?: string;
   likes?: number;
@@ -451,7 +450,6 @@ export interface ShareCreate {
   description: string;
   category: string;
   file_url: string;
-  file_size?: string;
   tags?: string[];
 }
 

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Users, Plus, Search, MessageSquare, Send, CheckCircle2,
-  Sparkles, Calendar, User, Tag, Lock, Trash2, ArrowRight
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Plus, Tag } from 'lucide-react';
 import { api } from '../services/api.ts';
 import { TeamOut, TeamStatus } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
@@ -12,6 +10,7 @@ import { useToast } from '../context/ToastContext.tsx';
 const FALLBACK_CATEGORIES = ['学术竞赛', '考研考公', '运动健身', '游戏开黑', '旅行逛街', '期末自习', '其他'];
 
 const TeammatePost: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { success, error, info } = useToast();
 
@@ -135,14 +134,14 @@ const TeammatePost: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="mono-label text-zone-teammate tracking-mono mb-1">TEAM · 组队登机口</div>
+          <div className="mono-label text-zone-teammate tracking-mono mb-1">TEAM · 组队协作</div>
           <h1 className="text-heading-1 text-ink tracking-tight">找搭子 & 竞赛组队</h1>
           <p className="text-body-2 text-steel mt-0.5">
             寻找同频队友，覆盖数模国赛、考研自习、球类运动、兴趣探索
@@ -151,7 +150,7 @@ const TeammatePost: React.FC = () => {
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
         >
           <Plus className="w-4 h-4" />
           发布招募帖
@@ -159,12 +158,12 @@ const TeammatePost: React.FC = () => {
       </div>
 
       {/* Category Pills */}
-      <div className="bg-surface p-3 rounded-md border border-hairline shadow-surface flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="bg-surface p-3 rounded-lg border border-hairline shadow-surface flex gap-2 overflow-x-auto no-scrollbar">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCat(cat)}
-            className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+            className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-lg transition-colors ${
               selectedCat === cat
                 ? 'bg-zone-teammate text-surface'
                 : 'bg-panel text-steel hover:text-ink'
@@ -179,20 +178,20 @@ const TeammatePost: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+            <div key={n} className="soft-card animate-pulse space-y-4">
               <div className="h-5 bg-panel rounded w-3/4"></div>
               <div className="h-16 bg-panel rounded"></div>
             </div>
           ))}
         </div>
       ) : teams.length === 0 ? (
-        <div className="bg-surface rounded-md p-16 text-center border border-hairline space-y-4">
+        <div className="bg-surface rounded-lg p-16 text-center border border-hairline space-y-4">
           <Users className="w-12 h-12 text-steel mx-auto" />
           <h3 className="text-heading-3 text-ink">暂无该类别的搭子招募</h3>
           <p className="text-body-2 text-steel">做第一个发起组队邀请的队长吧！</p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors"
+            className="px-4 py-2 bg-primary text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors"
           >
             立即发布招募
           </button>
@@ -205,15 +204,19 @@ const TeammatePost: React.FC = () => {
             return (
               <div
                 key={team.id}
-                className="group bg-surface rounded-md p-6 border border-hairline hover:border-zone-teammate transition-colors flex flex-col justify-between space-y-5"
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(`/teammates/${team.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/teammates/${team.id}`); }}
+                className="group soft-card hover:border-zone-teammate hover:shadow-md-4 cursor-pointer transition-all flex flex-col justify-between space-y-5"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="px-2 py-0.5 bg-zone-teammate/10 text-zone-teammate text-xs font-mono font-bold rounded-sm tracking-mono">
+                    <span className="px-2 py-0.5 bg-zone-teammate/10 text-zone-teammate text-xs font-mono font-bold rounded-lg tracking-mono">
                       {team.category || '组队招募'}
                     </span>
                     <span
-                      className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded-sm tracking-mono ${
+                      className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded-lg tracking-mono ${
                         isOpen ? 'bg-zone-teammate/10 text-zone-teammate' : 'bg-panel text-steel'
                       }`}
                     >
@@ -225,7 +228,7 @@ const TeammatePost: React.FC = () => {
                     {team.title}
                   </h3>
 
-                  <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-sm border border-hairline">
+                  <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-lg border border-hairline">
                     {team.description}
                   </p>
 
@@ -239,7 +242,7 @@ const TeammatePost: React.FC = () => {
                       <span>目标人数：{team.current_members || 1} / {team.max_members || 3} 人</span>
                     </div>
                     {team.contact_info && (
-                      <div className="text-caption text-zone-teammate bg-zone-teammate/5 px-2.5 py-1 rounded-sm border border-zone-teammate/20 font-mono">
+                      <div className="text-caption text-zone-teammate bg-zone-teammate/5 px-2.5 py-1 rounded-lg border border-zone-teammate/20 font-mono">
                         队长联系方式: {team.contact_info}
                       </div>
                     )}
@@ -248,7 +251,7 @@ const TeammatePost: React.FC = () => {
 
                 <div className="pt-4 border-t border-hairline flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-sm bg-panel flex items-center justify-center text-xs font-bold text-zone-teammate">
+                    <div className="w-7 h-7 rounded-lg bg-panel flex items-center justify-center text-xs font-bold text-zone-teammate">
                       {team.creator_nickname?.charAt(0) || '队'}
                     </div>
                     <span className="text-body-2 font-bold text-ink">{team.creator_nickname || '队长'}</span>
@@ -258,8 +261,8 @@ const TeammatePost: React.FC = () => {
                     <div className="flex gap-1.5">
                       {isOpen && (
                         <button
-                          onClick={() => handleCloseRecruit(team.id)}
-                          className="px-3 py-1.5 bg-panel hover:bg-slate/10 text-slate text-body-2 font-bold rounded-sm mono-label uppercase tracking-mono transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handleCloseRecruit(team.id); }}
+                          className="px-3 py-1.5 bg-panel hover:bg-primary-hover/10 text-slate text-body-2 font-bold rounded-lg mono-label uppercase tracking-mono transition-colors"
                         >
                           结束招募
                         </button>
@@ -267,9 +270,9 @@ const TeammatePost: React.FC = () => {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setApplyingTeamId(team.id)}
+                      onClick={(e) => { e.stopPropagation(); setApplyingTeamId(team.id); }}
                       disabled={!isOpen}
-                      className="px-4 py-2 bg-ink hover:bg-slate disabled:bg-panel disabled:text-steel text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95"
+                      className="px-4 py-2 bg-primary hover:bg-primary-hover disabled:bg-panel disabled:text-steel text-surface rounded-lg mono-label uppercase tracking-mono transition-colors active:scale-95"
                     >
                       申请加入
                     </button>
@@ -284,7 +287,7 @@ const TeammatePost: React.FC = () => {
       {/* Create Team Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface rounded-lg max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-heading-3 text-ink">发布搭子与组队招募</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-steel hover:text-ink text-xl font-bold">
@@ -351,7 +354,7 @@ const TeammatePost: React.FC = () => {
                   placeholder="说明目前进度、预期目标、时间投入要求以及对队友的期望..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                  className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                 />
               </div>
 
@@ -370,14 +373,14 @@ const TeammatePost: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 border border-hairline text-steel rounded-sm text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
+                  className="flex-1 py-3 border border-hairline text-steel rounded-lg text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-3 bg-ink hover:bg-slate text-surface rounded-sm text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
+                  className="flex-1 py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
                 >
                   {submitting ? '发布中...' : '确认发布'}
                 </button>
@@ -390,7 +393,7 @@ const TeammatePost: React.FC = () => {
       {/* Apply Modal */}
       {applyingTeamId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-md w-full p-6 space-y-4 shadow-elevate border border-hairline">
+          <div className="bg-surface rounded-lg max-w-md w-full p-6 space-y-4 shadow-elevate border border-hairline">
             <h3 className="text-heading-3 text-ink">向队长申请入队</h3>
             <p className="text-body-2 text-steel">简要介绍自己的特长、相关经验或时间安排：</p>
             <textarea
@@ -399,20 +402,20 @@ const TeammatePost: React.FC = () => {
               placeholder="例如：我是软件工程大三学生，熟练掌握 Python 和数据清洗，有美赛打比赛经验，本学期时间充裕！"
               value={applyMessage}
               onChange={(e) => setApplyMessage(e.target.value)}
-              className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+              className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
             />
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setApplyingTeamId(null)}
-                className="flex-1 py-2.5 border border-hairline text-steel rounded-sm text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
+                className="flex-1 py-2.5 border border-hairline text-steel rounded-lg text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={() => handleApply(applyingTeamId)}
-                className="flex-1 py-2.5 bg-ink text-surface rounded-sm text-body-2 font-bold mono-label uppercase tracking-mono hover:bg-slate transition-colors"
+                className="flex-1 py-2.5 bg-primary text-surface shadow-soft rounded-lg text-body-2 font-bold mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors"
               >
                 发送入队申请
               </button>

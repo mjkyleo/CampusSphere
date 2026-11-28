@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import UserStatus
@@ -45,6 +45,11 @@ class OAuthAccount(Base, PKMixin, TimestampMixin):
     """第三方账号绑定（微信/QQ）。"""
 
     __tablename__ = "oauth_accounts"
+
+    # 同一 provider 的 openid 全局唯一：堵住 check-then-insert 并发绑定竞态。
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_openid", name="uq_oauth_provider_openid"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True

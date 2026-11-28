@@ -66,6 +66,17 @@ class TradeSession(Base, PKMixin, TimestampMixin):
             sqlite_where=text("status IN (0, 1)"),
             postgresql_where=text("status IN (0, 1)"),
         ),
+        # (item_id, buyer_id) 显式表达"同一买家对同一物品最多一个活跃会话"的幂等语义。
+        # 与上面的 (item_id) 索引并存：后者防一物多卖，前者防同一买家重复点击。
+        # 终态会话不参与约束，历史记录仍可保留。
+        Index(
+            "uq_trade_session_active_item_buyer",
+            "item_id",
+            "buyer_id",
+            unique=True,
+            sqlite_where=text("status IN (0, 1)"),
+            postgresql_where=text("status IN (0, 1)"),
+        ),
     )
 
     item_id: Mapped[str] = mapped_column(

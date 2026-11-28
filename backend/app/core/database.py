@@ -184,10 +184,23 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, list[tuple[str, str]]]] = [
             ("helpful_count", "INTEGER DEFAULT 0"),
         ],
     ),
+    # 共享资源：外链语义改造后需要 file_url / tags（likes 历史迁移顺带修正表名）
     (
-        "shares",
+        "share_resources",
         [
             ("likes", "INTEGER DEFAULT 0"),
+            ("file_url", "VARCHAR(512) DEFAULT ''"),
+            ("tags", "TEXT DEFAULT '[]'"),
+        ],
+    ),
+    # 兼职：补齐前端发布表单一直在传、后端此前忽略的字段
+    (
+        "jobs",
+        [
+            ("salary_type", "INTEGER DEFAULT 1"),
+            ("location", "VARCHAR(255) DEFAULT ''"),
+            ("contact", "VARCHAR(255) DEFAULT ''"),
+            ("requirements", "TEXT DEFAULT ''"),
         ],
     ),
 ]
@@ -203,6 +216,11 @@ _SQLITE_INDEX_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
             "uq_trade_session_active_item",
             "CREATE UNIQUE INDEX uq_trade_session_active_item "
             "ON trade_sessions (item_id) WHERE status IN (0, 1)",
+        ),
+        (
+            "uq_trade_session_active_item_buyer",
+            "CREATE UNIQUE INDEX uq_trade_session_active_item_buyer "
+            "ON trade_sessions (item_id, buyer_id) WHERE status IN (0, 1)",
         ),
     ],
     # P1-7：评价去重的并发兜底——同一用户对同一课程/菜品仅一条评价。
@@ -250,6 +268,14 @@ _SQLITE_INDEX_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
             "uq_user_favorite",
             "CREATE UNIQUE INDEX uq_user_favorite "
             "ON user_favorites (user_id, item_id)",
+        ),
+    ],
+    # OAuth 绑定去重：与模型层 UniqueConstraint(uq_oauth_provider_openid) 对齐。
+    "oauth_accounts": [
+        (
+            "uq_oauth_provider_openid",
+            "CREATE UNIQUE INDEX uq_oauth_provider_openid "
+            "ON oauth_accounts (provider, provider_openid)",
         ),
     ],
 }

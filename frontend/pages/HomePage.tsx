@@ -109,21 +109,21 @@ const HomePage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* 查询台 + 问候 + AI 洞察 */}
-      <section className="bg-surface border border-hairline rounded-lg p-6 md:p-8">
+      <section className="bg-surface border-0 rounded-lg shadow-slate p-6 md:p-8">
         <div className="space-y-4 max-w-2xl">
           {!aiLoading && aiAvailable && (
             <span className="mono-label inline-flex items-center gap-2 px-3 py-1 bg-panel rounded">
               <Sparkles className="w-3.5 h-3.5" /> AI 校园智能助手
             </span>
           )}
-          <h1 className="font-display text-display-gate font-bold tracking-tight leading-tight text-ink">
+          <h1 className="font-display text-display-stat font-bold tracking-tight leading-tight text-ink">
             你好，{user?.nickname || '同学'} <span className="inline-block">👋</span>
           </h1>
 
           {/* 每日问候 · 微采集（可降级到本地模板，主流程永不空白） */}
           <AiGreetingCard />
 
-          <div className="bg-ground border border-hairline rounded-md p-4">
+          <div className="bg-ground border-0 rounded-lg shadow-slate p-4">
             {aiLoading ? (
               <p className="mono-data text-steel"><span className="animate-pulse">正在加载校园智能洞察...</span></p>
             ) : aiAvailable && insight ? (
@@ -140,10 +140,10 @@ const HomePage: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索闲置数码、复习资料、竞赛队友或选课评价..."
-                className="w-full pl-11 pr-4 py-3 bg-surface text-ink placeholder:text-steel rounded-md border border-hairline focus:border-ink focus:ring-2 focus:ring-ink/15 outline-none transition-colors text-body-1"
+                className="w-full pl-11 pr-4 py-3 bg-surface text-ink placeholder:text-steel rounded-lg border border-hairline focus:shadow-soft focus:ring-2 focus:ring-ink/15 outline-none transition-colors text-body-1"
               />
             </div>
-            <button type="submit" className="mono-label px-6 py-3 bg-ink text-surface hover:bg-slate rounded-md transition-colors active:scale-[0.98] shrink-0">
+            <button type="submit" className="mono-label px-6 py-3 bg-primary text-surface shadow-soft hover:bg-primary-hover rounded-lg transition-colors active:scale-[0.98] shrink-0">
               全站搜索
             </button>
           </form>
@@ -152,26 +152,20 @@ const HomePage: React.FC = () => {
 
       {/* 区域入口矩阵 */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-display text-heading-2 text-ink flex items-center gap-2">
-            <Zap className="w-4 h-4" /> 核心功能矩阵
-          </h2>
-          <span className="mono-label text-steel">涵盖校园日常全周期场景</span>
-        </div>
+        <h2 className="font-display text-heading-2 text-ink flex items-center gap-2 px-1">
+          <Zap className="w-4 h-4 text-primary" /> 核心功能
+        </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {quickLinks.map((link) => (
             <Link
               key={link.label}
               to={link.path}
-              className="group bg-surface border border-hairline rounded-md p-4 hover:border-ink transition-colors flex flex-col items-center text-center space-y-2"
+              className="group bg-surface rounded-lg shadow-surface hover:shadow-md-4 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-[250ms] ease-impeccable flex flex-col items-center text-center gap-3 p-4"
             >
-              <div className="p-3 bg-panel rounded-md group-hover:bg-ink group-hover:text-surface transition-colors">
-                <link.icon className="w-5 h-5" strokeWidth={1.8} />
+              <div className="w-11 h-11 bg-primary-soft text-primary rounded-full flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-[250ms]">
+                <link.icon className="w-5 h-5" strokeWidth={2} />
               </div>
-              <div>
-                <span className="mono-label text-ink block">{link.label}</span>
-                <span className="text-caption text-steel font-normal line-clamp-1">{link.desc}</span>
-              </div>
+              <span className="text-body-2 font-medium text-ink">{link.label}</span>
             </Link>
           ))}
         </div>
@@ -261,7 +255,7 @@ const HomePage: React.FC = () => {
             <h2 className="font-display text-heading-2 text-ink flex items-center gap-2 px-1">
               <TrendingUp className="w-4 h-4" /> 校园热搜榜
             </h2>
-            <div className="bg-surface border border-hairline rounded-lg p-4">
+            <div className="bg-surface border-0 rounded-lg shadow-slate p-4">
               <div className="flex flex-col gap-1.5">
                 {trendingTags.map((item, i) => (
                   <Link

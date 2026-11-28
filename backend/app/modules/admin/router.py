@@ -158,10 +158,11 @@ async def dashboard_view(db: AsyncSession = Depends(get_db), _=Depends(require_a
 async def users(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    q: str = Query(default="", description="按用户名/昵称模糊搜索"),
     db: AsyncSession = Depends(get_db),
     _=Depends(require_admin),
 ):
-    return ApiResponse.ok(data=await list_users(db, page=page, page_size=page_size))
+    return ApiResponse.ok(data=await list_users(db, q=q, page=page, page_size=page_size))
 
 
 @router.post("/users/{user_id}/ban", response_model=ApiResponse[dict])

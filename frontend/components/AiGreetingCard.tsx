@@ -82,7 +82,7 @@ const AiGreetingCard: React.FC = () => {
   const isAi = greeting?.source === 'llm';
 
   return (
-    <div className="bg-white/5 border border-white/10 backdrop-blur-xs rounded-2xl p-4 space-y-3">
+    <div className="bg-gradient-to-br from-primary-soft to-surface rounded-2xl p-5 space-y-3 shadow-surface">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 min-w-0">
           <span className="text-xl leading-none mt-0.5" aria-hidden>
@@ -90,9 +90,9 @@ const AiGreetingCard: React.FC = () => {
           </span>
           <div className="min-w-0">
             {loading && !greeting ? (
-              <span className="text-sm text-slate-400 animate-pulse">正在准备今日问候...</span>
+              <span className="text-sm text-steel animate-pulse">正在准备今日问候...</span>
             ) : (
-              <p className="text-sm md:text-base text-slate-100 leading-relaxed">
+              <p className="text-sm md:text-base text-ink leading-relaxed">
                 {greeting?.text || '欢迎回来，今天也请多关照。'}
               </p>
             )}
@@ -104,7 +104,7 @@ const AiGreetingCard: React.FC = () => {
           onClick={() => load(mood, focus, true)}
           disabled={loading}
           title="换一句"
-          className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-white/10 transition-colors disabled:opacity-40"
+          className="shrink-0 p-2 rounded-full bg-surface text-steel shadow-slate hover:text-primary hover:shadow-soft hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-40"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -112,8 +112,8 @@ const AiGreetingCard: React.FC = () => {
 
       <div className="flex items-center gap-2">
         {isAi && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-medium text-indigo-200">
-            <Sparkles className="w-3 h-3 text-indigo-400" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-[11px] font-medium text-primary">
+            <Sparkles className="w-3 h-3" />
             AI 生成
           </span>
         )}
@@ -121,7 +121,7 @@ const AiGreetingCard: React.FC = () => {
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="text-[11px] text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline"
+            className="text-[11px] text-primary hover:text-primary-hover underline-offset-2 hover:underline transition-colors"
           >
             换个更懂我的问候
           </button>
@@ -129,18 +129,18 @@ const AiGreetingCard: React.FC = () => {
       </div>
 
       {pickerOpen && (
-        <div className="space-y-2.5 pt-1 border-t border-white/10">
+        <div className="space-y-2.5 pt-3 border-t border-hairline">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 mr-1">今天状态</span>
+            <span className="text-[11px] text-steel mr-1">今天状态</span>
             {MOODS.map((m) => (
               <button
                 key={m.key}
                 type="button"
                 onClick={() => setMood(m.key)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-300 ${
                   mood === m.key
-                    ? 'bg-indigo-500/30 border-indigo-400/50 text-white'
-                    : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                    ? 'bg-primary text-surface shadow-soft'
+                    : 'bg-surface text-slate shadow-slate hover:shadow-soft hover:-translate-y-0.5'
                 }`}
               >
                 {m.emoji} {m.label}
@@ -149,16 +149,16 @@ const AiGreetingCard: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 mr-1">今日重点</span>
+            <span className="text-[11px] text-steel mr-1">今日重点</span>
             {FOCUS.map((f) => (
               <button
                 key={f.key}
                 type="button"
                 onClick={() => setFocus(f.key)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-300 ${
                   focus === f.key
-                    ? 'bg-indigo-500/30 border-indigo-400/50 text-white'
-                    : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                    ? 'bg-primary text-surface shadow-soft'
+                    : 'bg-surface text-slate shadow-slate hover:shadow-soft hover:-translate-y-0.5'
                 }`}
               >
                 {f.label}
@@ -170,7 +170,7 @@ const AiGreetingCard: React.FC = () => {
             type="button"
             onClick={submitCollection}
             disabled={loading}
-            className="px-3 py-1.5 rounded-xl bg-indigo-500/90 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-primary text-surface shadow-soft hover:bg-primary-hover hover:shadow-soft-lg hover:-translate-y-0.5 active:scale-[0.98] text-xs font-medium transition-all duration-300 disabled:opacity-50"
           >
             就按这个来
           </button>

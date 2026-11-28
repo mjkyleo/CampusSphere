@@ -2,7 +2,7 @@ import React from 'react';
 
 export type BoardCols = string;
 
-/** 信息板容器：表面底 + hairline 边 + 小圆角（航站屏） */
+/** 信息板容器：表面底 + hairline 边 + 小圆角 */
 export function Board({
   children,
   className = '',
@@ -11,7 +11,7 @@ export function Board({
   className?: string;
 }) {
   return (
-    <div className={`bg-surface border border-hairline rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-surface border-0 rounded-lg shadow-slate overflow-hidden ${className}`}>
       {children}
     </div>
   );

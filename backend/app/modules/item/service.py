@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
@@ -409,9 +409,15 @@ async def complete_trade(db: AsyncSession, trade: TradeSession, user: User) -> T
         ItemStatus.SOLD.value,
         message="物品已不在交易保留状态（可能已被重新上架），请先取消交易",
     )
+    seller_id = str(trade.seller_id)
+    buyer_id = str(trade.buyer_id)
+    item_title = str(trade.item_id)
     await db.commit()
     await db.refresh(trade)
     await invalidate_namespace("items")
+    # 成交通知买卖双方（best-effort，与创建交易时的通知同一策略）。
+    for uid in {seller_id, buyer_id}:
+        _notify_user(uid, "交易已完成", f"你参与的闲置交易已完成（物品 ID: {item_title}）")
     _logger.info("trade_completed", trade_id=str(trade.id), actor=str(user.id))
     return trade
 
@@ -419,8 +425,12 @@ async def complete_trade(db: AsyncSession, trade: TradeSession, user: User) -> T
 async def cancel_trade(db: AsyncSession, trade: TradeSession, user: User) -> TradeSession:
     """取消交易：会话 → CANCELLED，物品释放回 ON_SALE（解锁卡死状态）。
 
-    物品释放是尽力而为：若物品已被改到其他状态（卖家手动下架等），
-    跳过释放但取消本身仍然生效。
+    释放策略（P2 修复）：
+    - 先 CAS 会话状态，保证并发下只有一次取消生效。
+    - 再 CAS 物品 RESERVED → ON_SALE。若失败，重新读取物品真实状态：
+      * 仍是 RESERVED（极端并发下被其他路径改回）→ 再尝试一次 CAS；
+      * 已是 ON_SALE / OFF_SHELF / SOLD → 记录 warning，取消本身仍提交，
+        避免在物品已被卖家下架或已成交时错误地把它改回在售。
     """
     _ensure_trade_participant(trade, user)
     result = await db.execute(
@@ -435,17 +445,233 @@ async def cancel_trade(db: AsyncSession, trade: TradeSession, user: User) -> Tra
     )
     if result.rowcount != 1:
         raise BizError(ErrorCode.CONFLICT, "该交易已完成或已取消")
+
+    item_id = str(trade.item_id)
     try:
         await cas_item_status(
-            db, str(trade.item_id), ItemStatus.RESERVED.value, ItemStatus.ON_SALE.value
+            db, item_id, ItemStatus.RESERVED.value, ItemStatus.ON_SALE.value
         )
+        released = True
     except BizError:
-        _logger.info(
+        # 重新读取真实状态，区分"仍卡在 RESERVED"与"已被改到其他状态"。
+        item = await db.get(Item, item_id)
+        current_status = item.status if item else None
+        if current_status == ItemStatus.RESERVED.value:
+            try:
+                await cas_item_status(
+                    db, item_id, ItemStatus.RESERVED.value, ItemStatus.ON_SALE.value
+                )
+                released = True
+            except BizError:
+                released = False
+        else:
+            released = current_status == ItemStatus.ON_SALE.value
+        _logger.warning(
             "trade_cancel_item_not_reserved",
-            trade_id=str(trade.id), item_id=str(trade.item_id),
+            trade_id=str(trade.id),
+            item_id=item_id,
+            item_status=current_status,
+            released=released,
         )
+
+    seller_id = str(trade.seller_id)
+    buyer_id = str(trade.buyer_id)
     await db.commit()
     await db.refresh(trade)
     await invalidate_namespace("items")
+    for uid in {seller_id, buyer_id}:
+        _notify_user(uid, "交易已取消", f"你参与的闲置交易已取消（物品 ID: {item_id}）")
     _logger.info("trade_cancelled", trade_id=str(trade.id), actor=str(user.id))
     return trade
+
+
+# ---------------------------------------------------------------------------
+# 预占超时释放与一致性对账（P2 修复）
+#
+# 此前 RESERVED 只能靠用户手动 cancel 退出：用户忘记确认、掉线或恶意占着不
+# 取消时，物品永久卡在 RESERVED，部分唯一索引挡住所有新交易。这里提供两条
+# 后台兜底路径，均由 Celery Beat 周期调用：
+# - expire_stale_trades：按时间释放超时的活跃会话
+# - reconcile_trade_states：按状态一致性修复错位数据（不依赖时间）
+# ---------------------------------------------------------------------------
+def _active_statuses() -> list[int]:
+    return [TradeStatus.PENDING.value, TradeStatus.IN_PROGRESS.value]
+
+
+async def expire_stale_trades(
+    db: AsyncSession,
+    *,
+    timeout_minutes: int | None = None,
+    now: datetime | None = None,
+    batch_size: int | None = None,
+) -> dict:
+    """释放超时未确认的预占：会话 CAS 至 CANCELLED，物品回 ON_SALE。
+
+    只处理"仍活跃且已超时"的会话，与 complete/cancel 的 CAS 语义一致：
+    先 CAS 会话状态（并发下只有一次成功），再尽力 CAS 物品状态。这样即使
+    Beat 任务与用户操作同时到达，也不会把已完成交易的物品错误释放。
+
+    ``timeout_minutes <= 0`` 视为关闭自动释放，直接返回零统计。
+    """
+    minutes = settings.trade_reserve_timeout_minutes if timeout_minutes is None else timeout_minutes
+    if minutes <= 0:
+        return {"scanned": 0, "expired": 0, "released": 0, "timeout_minutes": minutes}
+    limit = settings.trade_maintenance_batch_size if batch_size is None else batch_size
+    current = now or datetime.now(UTC)
+    cutoff = current - timedelta(minutes=minutes)
+
+    rows = (
+        await db.scalars(
+            select(TradeSession)
+            .where(
+                TradeSession.status.in_(_active_statuses()),
+                TradeSession.created_at < cutoff,
+            )
+            .order_by(TradeSession.created_at.asc())
+            .limit(limit)
+        )
+    ).all()
+
+    expired = 0
+    released = 0
+    affected_items: set[str] = set()
+    for trade in rows:
+        # 第一道 CAS：抢到"取消"权才继续释放物品。
+        res = await db.execute(
+            update(TradeSession)
+            .where(
+                TradeSession.id == str(trade.id),
+                TradeSession.status.in_(_active_statuses()),
+            )
+            .values(status=TradeStatus.CANCELLED.value)
+        )
+        if res.rowcount != 1:
+            continue
+        expired += 1
+
+        item_id = str(trade.item_id)
+        item_res = await db.execute(
+            update(Item)
+            .where(Item.id == item_id, Item.status == ItemStatus.RESERVED.value)
+            .values(status=ItemStatus.ON_SALE.value)
+        )
+        if item_res.rowcount == 1:
+            released += 1
+            affected_items.add(item_id)
+        else:
+            _logger.warning(
+                "stale_trade_item_release_failed",
+                trade_id=str(trade.id),
+                item_id=item_id,
+            )
+
+    if expired:
+        await db.commit()
+        if affected_items:
+            await invalidate_namespace("items")
+            for item_id in affected_items:
+                item = await db.get(Item, item_id)
+                if item is not None:
+                    search_sync.index_item(item)
+        _logger.info(
+            "stale_trades_expired",
+            scanned=len(rows),
+            expired=expired,
+            released=released,
+        )
+    return {
+        "scanned": len(rows),
+        "expired": expired,
+        "released": released,
+        "timeout_minutes": minutes,
+    }
+
+
+async def reconcile_trade_states(
+    db: AsyncSession,
+    *,
+    batch_size: int | None = None,
+) -> dict:
+    """对账并修复物品状态与交易会话的不一致（不依赖时间）。
+
+    修复两类错位：
+    1. 物品 RESERVED 但没有任何活跃会话（僵尸预留）→ CAS 回 ON_SALE。
+    2. 会话活跃但物品已不是 RESERVED（卖家重新上架/后台改状态）→ CAS 会话至
+       CANCELLED，避免"活跃会话永远占用唯一索引"。
+
+    以"会话状态"为权威来源：物品状态可以人工调整，但只有活跃会话才代表
+    真实占用。所有修复都走 CAS，天然幂等，重复执行无副作用。
+    """
+    limit = settings.trade_maintenance_batch_size if batch_size is None else batch_size
+    active = _active_statuses()
+
+    # 1) 僵尸预留：RESERVED 且无活跃会话。
+    active_item_ids = select(TradeSession.item_id).where(TradeSession.status.in_(active))
+    orphans = (
+        await db.scalars(
+            select(Item)
+            .where(
+                Item.status == ItemStatus.RESERVED.value,
+                Item.deleted_at.is_(None),
+                ~Item.id.in_(active_item_ids),
+            )
+            .limit(limit)
+        )
+    ).all()
+    released_orphans = 0
+    affected_items: set[str] = set()
+    for item in orphans:
+        item_id = str(item.id)
+        res = await db.execute(
+            update(Item)
+            .where(Item.id == item_id, Item.status == ItemStatus.RESERVED.value)
+            .values(status=ItemStatus.ON_SALE.value)
+        )
+        if res.rowcount == 1:
+            released_orphans += 1
+            affected_items.add(item_id)
+
+    # 2) 活跃会话但物品不是 RESERVED：取消会话以释放唯一索引占用。
+    mismatched = (
+        await db.scalars(
+            select(TradeSession)
+            .join(Item, Item.id == TradeSession.item_id)
+            .where(
+                TradeSession.status.in_(active),
+                Item.status != ItemStatus.RESERVED.value,
+            )
+            .limit(limit)
+        )
+    ).all()
+    cancelled_sessions = 0
+    for trade in mismatched:
+        res = await db.execute(
+            update(TradeSession)
+            .where(
+                TradeSession.id == str(trade.id),
+                TradeSession.status.in_(active),
+            )
+            .values(status=TradeStatus.CANCELLED.value)
+        )
+        if res.rowcount == 1:
+            cancelled_sessions += 1
+
+    if released_orphans or cancelled_sessions:
+        await db.commit()
+        if affected_items:
+            await invalidate_namespace("items")
+            for item_id in affected_items:
+                item = await db.get(Item, item_id)
+                if item is not None:
+                    search_sync.index_item(item)
+        _logger.info(
+            "trade_states_reconciled",
+            released_orphans=released_orphans,
+            cancelled_sessions=cancelled_sessions,
+        )
+    return {
+        "orphans_found": len(orphans),
+        "orphans_released": released_orphans,
+        "mismatched_sessions_found": len(mismatched),
+        "sessions_cancelled": cancelled_sessions,
+    }

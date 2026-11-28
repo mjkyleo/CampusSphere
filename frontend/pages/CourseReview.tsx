@@ -71,7 +71,7 @@ const CourseReview: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -83,9 +83,9 @@ const CourseReview: React.FC = () => {
         取消并返回
       </button>
 
-      <div className="bg-surface rounded-md p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
+      <div className="bg-surface rounded-lg p-6 sm:p-10 border border-hairline shadow-surface space-y-8">
         <div>
-          <div className="mono-label text-zone-course tracking-mono mb-1">COURSE · 评课登机口</div>
+          <div className="mono-label text-zone-course tracking-mono mb-1">COURSE · 发布评价</div>
           <h1 className="text-heading-1 text-ink tracking-tight">
             发布真实选课评价
           </h1>
@@ -112,7 +112,7 @@ const CourseReview: React.FC = () => {
           </div>
 
           {/* Rating stars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 bg-panel/40 rounded-sm border border-hairline">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 bg-panel/40 rounded-lg border border-hairline">
             {/* Overall Rating */}
             <div className="space-y-2">
               <label className="block mono-label text-steel tracking-mono">
@@ -200,14 +200,14 @@ const CourseReview: React.FC = () => {
               placeholder="分享讲课风格（板书/PPT/互动）、点名频率、期中期末题型、避坑指南及刷题建议..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full p-4 bg-surface border border-hairline rounded-sm text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+              className="w-full p-4 bg-surface border-0 rounded-lg shadow-slate text-body-1 leading-relaxed text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             <Send className="w-4 h-4" />
             {loading ? '正在发布...' : '提交我的评课'}

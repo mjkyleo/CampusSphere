@@ -112,7 +112,7 @@ const SliderCaptcha: React.FC<SliderCaptchaProps> = ({ onSuccess, onClose }) => 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 p-4"
       onClick={onClose}
       role="presentation"
     >

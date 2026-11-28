@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Share2, Plus, Download, Heart, MessageSquare, Search,
-  FileText, FileArchive, CheckCircle2, ShieldAlert, Sparkles, Send, Tag
+  Share2, Plus, Heart, MessageSquare, Search,
+  FileText, FileArchive, CheckCircle2, ShieldAlert, Sparkles, Send, Tag, ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api.ts';
 import { ShareOut, ShareCommentOut } from '../types.ts';
@@ -12,8 +13,9 @@ import { useToast } from '../context/ToastContext.tsx';
 const FALLBACK_CATEGORIES = ['期末复习题', '考研考证', '课件PPT', '实验报告模版', '竞赛真题', '开源代码'];
 
 const ShareFeed: React.FC = () => {
+  const navigate = useNavigate();
   const { user, openReport } = useAuth();
-  const { success, error, info } = useToast();
+  const { success, error } = useToast();
 
   const [shares, setShares] = useState<ShareOut[]>([]);
   const [categories, setCategories] = useState<string[]>(['全部', ...FALLBACK_CATEGORIES]);
@@ -27,7 +29,6 @@ const ShareFeed: React.FC = () => {
   const [category, setCategory] = useState(FALLBACK_CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [fileUrl, setFileUrl] = useState('');
-  const [fileSize, setFileSize] = useState('4.2 MB');
   const [tagsInput, setTagsInput] = useState('高等数学, 历年真题, 98分学霸手写');
   const [submitting, setSubmitting] = useState(false);
 
@@ -90,26 +91,22 @@ const ShareFeed: React.FC = () => {
     }
   };
 
-  const handleDownload = async (share: ShareOut) => {
+  const handleOpenResource = async (share: ShareOut) => {
     try {
       const res = await api.shares.download(share.id);
-      if (res.code === 0 && res.data?.download_url) {
-        const url = res.data.download_url;
-        // 只允许 http(s) 链接，防止后端配置异常时把 javascript:/data: 之类地址交给浏览器
-        if (!/^https?:\/\//i.test(url)) {
-          error('下载链接无效，请联系管理员');
-          return;
-        }
-        setShares((prev) =>
-          prev.map((s) => (s.id === share.id ? { ...s, downloads: (s.downloads || 0) + 1 } : s))
-        );
-        success(`正在启动安全下载通道: 《${share.title}》`);
-        window.open(url, '_blank', 'noopener');
-      } else {
-        error(res.message || '获取下载链接失败');
+      const url = res.data?.download_url || share.file_url;
+      // 只允许 http(s) 链接，防止后端配置异常时把 javascript:/data: 之类地址交给浏览器
+      if (!url || !/^https?:\/\//i.test(url)) {
+        error('资源链接无效，请联系分享者');
+        return;
       }
+      setShares((prev) =>
+        prev.map((s) => (s.id === share.id ? { ...s, downloads: (s.downloads || 0) + 1 } : s))
+      );
+      success(`正在打开《${share.title}》的外部链接`);
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      error('下载服务异常');
+      error('打开资源失败');
     }
   };
 
@@ -144,7 +141,11 @@ const ShareFeed: React.FC = () => {
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !fileUrl.trim()) {
-      error('请填写完整资料标题及附件链接');
+      error('请填写资源标题和外部链接');
+      return;
+    }
+    if (!/^https?:\/\//i.test(fileUrl.trim())) {
+      error('资源链接需以 http:// 或 https:// 开头');
       return;
     }
 
@@ -160,7 +161,6 @@ const ShareFeed: React.FC = () => {
         category,
         description: description.trim(),
         file_url: fileUrl.trim(),
-        file_size: fileSize.trim(),
         tags
       });
 
@@ -181,45 +181,45 @@ const ShareFeed: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="mono-label text-zone-share tracking-mono mb-1">SHARE · 共享资源库</div>
+          <div className="mono-label text-zone-share tracking-mono mb-1">SHARE · 资源共享</div>
           <h1 className="text-heading-1 text-ink tracking-tight">学术资源与资料共享</h1>
           <p className="text-body-2 text-steel mt-0.5">
-            历年期末真题、考研笔记、实验代码与高分复习提纲，开放互助下载
+            历年期末真题、考研笔记、实验代码与高分复习提纲，开放互助交流
           </p>
         </div>
 
         <button
           onClick={() => setShowUploadModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
         >
           <Plus className="w-4 h-4" />
-          贡献上传资料
+          分享资源链接
         </button>
       </div>
 
       {/* Search and Category Filter */}
-      <div className="bg-surface p-4 rounded-md border border-hairline shadow-surface space-y-4">
+      <div className="bg-surface p-4 rounded-lg border border-hairline shadow-surface space-y-4">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-steel w-4 h-4" />
             <input
               type="text"
               placeholder="搜索高数复习、离散数学、考研408、英语六级真题..."
-              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
           </div>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+            className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors"
           >
             检索
           </button>
@@ -230,7 +230,7 @@ const ShareFeed: React.FC = () => {
             <button
               key={cat}
               onClick={() => setSelectedCat(cat)}
-              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-lg transition-colors ${
                 selectedCat === cat
                   ? 'bg-zone-share text-surface'
                   : 'bg-panel text-steel hover:text-ink'
@@ -246,33 +246,37 @@ const ShareFeed: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((n) => (
-            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+            <div key={n} className="soft-card animate-pulse space-y-4">
               <div className="h-5 bg-panel rounded w-2/3"></div>
               <div className="h-12 bg-panel rounded"></div>
             </div>
           ))}
         </div>
       ) : shares.length === 0 ? (
-        <div className="bg-surface rounded-md p-16 text-center border border-hairline space-y-4">
+        <div className="bg-surface rounded-lg p-16 text-center border border-hairline space-y-4">
           <FileText className="w-12 h-12 text-steel mx-auto" />
           <h3 className="text-heading-3 text-ink">暂无相关资源分享</h3>
-          <p className="text-body-2 text-steel">快来上传分享你的学霸笔记吧！</p>
+          <p className="text-body-2 text-steel">快来分享你的学习资源链接吧！</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {shares.map((share) => (
             <div
               key={share.id}
-              className="group bg-surface rounded-md p-6 sm:p-7 border border-hairline hover:border-zone-share transition-colors flex flex-col justify-between space-y-4"
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate(`/share/${share.id}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/share/${share.id}`); }}
+              className="group bg-surface rounded-lg p-6 sm:p-7 border border-hairline hover:border-zone-share hover:shadow-md-4 cursor-pointer transition-all flex flex-col justify-between space-y-4"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-sm bg-zone-share/10 flex items-center justify-center text-zone-share shrink-0 border border-zone-share/20">
+                    <div className="w-12 h-12 rounded-lg bg-zone-share/10 flex items-center justify-center text-zone-share shrink-0 border border-zone-share/20">
                       <FileArchive className="w-6 h-6" />
                     </div>
                     <div>
-                      <span className="text-[11px] font-mono font-bold text-zone-share bg-zone-share/10 px-2 py-0.5 rounded-sm tracking-mono">
+                      <span className="text-[11px] font-mono font-bold text-zone-share bg-zone-share/10 px-2 py-0.5 rounded-lg tracking-mono">
                         {share.category}
                       </span>
                       <h3 className="text-heading-3 text-ink group-hover:text-zone-share transition-colors mt-1">
@@ -281,12 +285,12 @@ const ShareFeed: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="text-caption font-bold text-steel bg-panel px-2.5 py-1 rounded-sm font-mono shrink-0">
-                    {share.file_size || '3.5 MB'}
+                  <span className="text-caption font-bold text-steel bg-panel px-2.5 py-1 rounded-lg font-mono shrink-0">
+                    外部链接
                   </span>
                 </div>
 
-                <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-sm border border-hairline">
+                <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-lg border border-hairline">
                   {share.description}
                 </p>
 
@@ -296,7 +300,7 @@ const ShareFeed: React.FC = () => {
                     {share.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-2.5 py-0.5 bg-panel text-steel text-[11px] font-mono rounded-sm"
+                        className="px-2.5 py-0.5 bg-panel text-steel text-[11px] font-mono rounded-lg"
                       >
                         #{tag}
                       </span>
@@ -309,7 +313,7 @@ const ShareFeed: React.FC = () => {
               <div className="pt-4 border-t border-hairline flex items-center justify-between">
                 <div className="flex items-center gap-4 text-body-2 text-steel">
                   <button
-                    onClick={() => handleLike(share.id)}
+                    onClick={(e) => { e.stopPropagation(); handleLike(share.id); }}
                     className="flex items-center gap-1 hover:text-error font-semibold transition-colors"
                   >
                     <Heart className="w-4 h-4 text-error" />
@@ -317,7 +321,7 @@ const ShareFeed: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleOpenComments(share.id)}
+                    onClick={(e) => { e.stopPropagation(); handleOpenComments(share.id); }}
                     className="flex items-center gap-1 hover:text-zone-share font-semibold transition-colors"
                   >
                     <MessageSquare className="w-4 h-4 text-zone-share" />
@@ -325,7 +329,7 @@ const ShareFeed: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => openReport('share', share.id, share.title)}
+                    onClick={(e) => { e.stopPropagation(); openReport('share', share.id, share.title); }}
                     className="text-steel hover:text-error flex items-center gap-1 text-caption font-mono"
                   >
                     <ShieldAlert className="w-3.5 h-3.5" />
@@ -334,11 +338,11 @@ const ShareFeed: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => handleDownload(share)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95"
+                  onClick={(e) => { e.stopPropagation(); handleOpenResource(share); }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-surface shadow-md-2 rounded-md md-button-text transition-colors active:scale-95"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>下载附件 ({share.downloads || 0})</span>
+                  <ExternalLink className="w-4 h-4" />
+                  <span>访问链接 ({share.downloads || 0})</span>
                 </button>
               </div>
             </div>
@@ -349,9 +353,9 @@ const ShareFeed: React.FC = () => {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface rounded-lg max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
-              <h3 className="text-heading-3 text-ink">贡献上传校园学术资源</h3>
+              <h3 className="text-heading-3 text-ink">分享校园学习资源</h3>
               <button onClick={() => setShowUploadModal(false)} className="text-steel hover:text-ink text-xl font-bold">
                 ✕
               </button>
@@ -383,16 +387,6 @@ const ShareFeed: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="block mono-label text-steel tracking-mono">预估文件大小</label>
-                  <input
-                    type="text"
-                    value={fileSize}
-                    onChange={(e) => setFileSize(e.target.value)}
-                    placeholder="例如: 5.8 MB"
-                    className={inputCls + ' font-mono'}
-                  />
-                </div>
               </div>
 
               <div className="space-y-1">
@@ -407,10 +401,11 @@ const ShareFeed: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block mono-label text-steel tracking-mono">资源文件下载链接 / 云盘分享地址 *</label>
+                <label className="block mono-label text-steel tracking-mono">资源链接（网盘 / 课程站 / 开源仓库）*</label>
                 <input
                   type="url"
                   required
+                  placeholder="https://..."
                   value={fileUrl}
                   onChange={(e) => setFileUrl(e.target.value)}
                   className={inputCls + ' font-mono text-xs'}
@@ -425,7 +420,7 @@ const ShareFeed: React.FC = () => {
                   placeholder="简述该资料的适用年级、重点章节及学习方法建议..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                  className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                 />
               </div>
 
@@ -433,14 +428,14 @@ const ShareFeed: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="flex-1 py-3 border border-hairline text-steel rounded-sm text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
+                  className="flex-1 py-3 border border-hairline text-steel rounded-lg text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-3 bg-ink hover:bg-slate text-surface rounded-sm text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
+                  className="flex-1 py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
                 >
                   {submitting ? '上传中...' : '确认发布'}
                 </button>
@@ -453,7 +448,7 @@ const ShareFeed: React.FC = () => {
       {/* Resource Comments Drawer/Modal */}
       {activeShareId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-lg w-full p-6 space-y-4 shadow-elevate border border-hairline max-h-[85vh] flex flex-col">
+          <div className="bg-surface rounded-lg max-w-lg w-full p-6 space-y-4 shadow-elevate border border-hairline max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center pb-2 border-b border-hairline">
               <h3 className="text-heading-3 text-ink">学术资料讨论交流区</h3>
               <button onClick={() => setActiveShareId(null)} className="text-steel hover:text-ink text-xl font-bold">
@@ -468,7 +463,7 @@ const ShareFeed: React.FC = () => {
                 </div>
               ) : (
                 comments.map((c) => (
-                  <div key={c.id} className="p-3.5 bg-panel/40 rounded-sm border border-hairline space-y-1">
+                  <div key={c.id} className="p-3.5 bg-panel/40 rounded-lg border border-hairline space-y-1">
                     <div className="flex items-center justify-between text-body-2 font-mono">
                       <span className="font-bold text-ink">{c.user_nickname || '校友同学'}</span>
                       <span className="text-caption text-steel">{new Date(c.created_at).toLocaleDateString()}</span>
@@ -486,11 +481,11 @@ const ShareFeed: React.FC = () => {
                 placeholder="留下您的疑问、纠错或感谢..."
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
-                className="flex-1 px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-2 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                className="flex-1 px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-2 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors"
+                className="px-4 py-2.5 bg-primary text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors"
               >
                 发表
               </button>

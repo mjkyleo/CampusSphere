@@ -256,8 +256,8 @@ const UserProfile: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
-  const panelCls = 'bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface space-y-6';
+    'w-full px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+  const panelCls = 'bg-surface rounded-lg p-6 sm:p-8 border border-hairline shadow-surface space-y-6';
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: '基本资料修改', icon: Edit3 },
@@ -269,10 +269,10 @@ const UserProfile: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-24">
       {/* 个人凭证卡 Profile Pass Card */}
-      <div className="bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="bg-surface rounded-lg p-6 sm:p-8 border border-hairline shadow-surface flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="relative">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-sm overflow-hidden bg-panel border-2 border-ink">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-panel border-2 border-ink">
               {avatar || user?.avatar ? (
                 <img
                   src={avatar || user?.avatar || ''}
@@ -283,7 +283,7 @@ const UserProfile: React.FC = () => {
                 <ImagePlaceholder variant="avatar" className="w-full h-full rounded-none border-0" />
               )}
             </div>
-            <span className="absolute -bottom-1 -right-1 p-1 bg-success text-surface rounded-sm border-2 border-surface">
+            <span className="absolute -bottom-1 -right-1 p-1 bg-success text-surface rounded-lg border-2 border-surface">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </span>
           </div>
@@ -291,7 +291,7 @@ const UserProfile: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h1 className="text-heading-1 text-ink">{user?.nickname || '校园同学'}</h1>
-              <span className="px-2 py-0.5 bg-ink text-surface mono-label tracking-mono rounded-sm">
+              <span className="px-2 py-0.5 bg-primary text-surface shadow-soft mono-label tracking-mono rounded-lg">
                 {user?.role === 'admin' ? '系统管理员' : '已认证学生'}
               </span>
             </div>
@@ -306,7 +306,7 @@ const UserProfile: React.FC = () => {
 
         <button
           onClick={logout}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-panel hover:bg-error hover:text-surface text-slate rounded-sm mono-label uppercase tracking-mono transition-colors self-start sm:self-center"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-panel hover:bg-error hover:text-surface text-slate rounded-lg mono-label uppercase tracking-mono transition-colors self-start sm:self-center"
         >
           <LogOut className="w-4 h-4" />
           退出当前登录
@@ -314,14 +314,14 @@ const UserProfile: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-surface border border-hairline rounded-md mono-label text-steel tracking-mono overflow-x-auto no-scrollbar shadow-surface">
+      <div className="flex gap-2 p-1 bg-surface border-0 rounded-lg shadow-slate mono-label text-steel tracking-mono overflow-x-auto no-scrollbar shadow-surface">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 py-2.5 px-4 rounded-sm transition-colors whitespace-nowrap uppercase tracking-mono ${
+            className={`flex items-center gap-2 py-2.5 px-4 rounded-lg transition-colors whitespace-nowrap uppercase tracking-mono ${
               activeTab === t.id
-                ? 'bg-ink text-surface'
+                ? 'bg-primary text-surface shadow-soft'
                 : 'text-steel hover:text-ink'
             }`}
           >
@@ -419,14 +419,14 @@ const UserProfile: React.FC = () => {
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="介绍一下自己吧，例如你的兴趣爱好、自习常去地点等..."
-                className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
               />
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
             >
               {saving ? '正在保存...' : '保存资料修改'}
             </button>
@@ -443,9 +443,9 @@ const UserProfile: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* WeChat */}
-              <div className="p-4 rounded-sm border border-hairline bg-panel/40 flex items-center justify-between">
+              <div className="p-4 rounded-lg border border-hairline bg-panel/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#07C160]/10 text-[#07C160] rounded-sm">
+                  <div className="p-2.5 bg-brand-wechat/10 text-brand-wechat rounded-lg">
                     <MessageSquare className="w-5 h-5 fill-current" />
                   </div>
                   <div>
@@ -457,7 +457,7 @@ const UserProfile: React.FC = () => {
                 </div>
                 <button
                   onClick={() => handleOAuthToggle('wechat', !!bindings?.wechat_bound)}
-                  className={`px-3.5 py-1.5 rounded-sm mono-label uppercase tracking-mono transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-lg mono-label uppercase tracking-mono transition-colors ${
                     bindings?.wechat_bound
                       ? 'bg-panel text-slate hover:bg-error hover:text-surface'
                       : 'bg-[#0B7A3B] text-white hover:bg-[#096A33]'
@@ -468,9 +468,9 @@ const UserProfile: React.FC = () => {
               </div>
 
               {/* QQ */}
-              <div className="p-4 rounded-sm border border-hairline bg-panel/40 flex items-center justify-between">
+              <div className="p-4 rounded-lg border border-hairline bg-panel/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#12B7F5]/10 text-[#12B7F5] rounded-sm">
+                  <div className="p-2.5 bg-brand-qq/10 text-brand-qq rounded-lg">
                     <MessageCircle className="w-5 h-5 fill-current" />
                   </div>
                   <div>
@@ -482,7 +482,7 @@ const UserProfile: React.FC = () => {
                 </div>
                 <button
                   onClick={() => handleOAuthToggle('qq', !!bindings?.qq_bound)}
-                  className={`px-3.5 py-1.5 rounded-sm mono-label uppercase tracking-mono transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-lg mono-label uppercase tracking-mono transition-colors ${
                     bindings?.qq_bound
                       ? 'bg-panel text-slate hover:bg-error hover:text-surface'
                       : 'bg-[#0E6FA8] text-white hover:bg-[#0C5F8F]'
@@ -520,13 +520,13 @@ const UserProfile: React.FC = () => {
                     value={bindEmailAddr}
                     onChange={(e) => setBindEmailAddr(e.target.value)}
                     placeholder="例如: student@whu.edu.cn"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                   />
                   <button
                     type="button"
                     disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr)}
                     onClick={() => handleSendBindCode(bindEmailAddr, 'bind_email')}
-                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border-0 rounded-lg shadow-slate mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {codeCooldown.seconds > 0 && codeCooldown.target === bindEmailAddr ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
                   </button>
@@ -546,7 +546,7 @@ const UserProfile: React.FC = () => {
               </div>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+                className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors"
               >
                 绑定邮箱
               </button>
@@ -570,13 +570,13 @@ const UserProfile: React.FC = () => {
                     value={bindPhoneNum}
                     onChange={(e) => setBindPhoneNum(e.target.value)}
                     placeholder="11 位手机号"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                   />
                   <button
                     type="button"
                     disabled={sendingCode || (codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum)}
                     onClick={() => handleSendBindCode(bindPhoneNum, 'bind_phone')}
-                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border border-hairline rounded-sm mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2.5 whitespace-nowrap bg-panel text-ink border-0 rounded-lg shadow-slate mono-label uppercase tracking-mono hover:border-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {codeCooldown.seconds > 0 && codeCooldown.target === bindPhoneNum ? `${codeCooldown.seconds}s 后重发` : '获取验证码'}
                   </button>
@@ -596,7 +596,7 @@ const UserProfile: React.FC = () => {
               </div>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+                className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors"
               >
                 绑定手机号
               </button>
@@ -646,7 +646,7 @@ const UserProfile: React.FC = () => {
               <button
                 type="submit"
                 disabled={changingPass}
-                className="px-6 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors disabled:opacity-50"
               >
                 {changingPass ? '正在更新...' : '更新密码'}
               </button>
@@ -662,14 +662,14 @@ const UserProfile: React.FC = () => {
             <h3 className="text-heading-3 text-ink">我发布的闲置宝贝 ({myItems.length})</h3>
             <Link
               to="/market/publish"
-              className="px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors"
+              className="px-4 py-2 bg-primary text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors"
             >
               + 发布新闲置
             </Link>
           </div>
 
           {myItems.length === 0 ? (
-            <div className="p-12 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
+            <div className="p-12 text-center bg-surface rounded-lg border border-hairline text-steel text-body-2">
               您尚未发布任何二手闲置物品
             </div>
           ) : (
@@ -677,16 +677,16 @@ const UserProfile: React.FC = () => {
               {myItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-4 bg-surface rounded-md border border-hairline flex gap-3 items-center"
+                  className="p-4 bg-surface rounded-lg border border-hairline flex gap-3 items-center"
                 >
                   {item.images?.[0]?.object_key ? (
                     <img
                       src={item.images[0].object_key}
                       alt={item.title}
-                      className="w-16 h-16 rounded-sm object-cover border border-hairline"
+                      className="w-16 h-16 rounded-lg object-cover border border-hairline"
                     />
                   ) : (
-                    <ImagePlaceholder className="w-16 h-16 rounded-sm shrink-0" />
+                    <ImagePlaceholder className="w-16 h-16 rounded-lg shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-body-2 text-ink truncate">{item.title}</h4>
@@ -711,7 +711,7 @@ const UserProfile: React.FC = () => {
           <h3 className="text-heading-3 text-ink">我的心愿与收藏 ({favorites.length})</h3>
 
           {favorites.length === 0 ? (
-            <div className="p-12 text-center bg-surface rounded-md border border-hairline text-steel text-body-2">
+            <div className="p-12 text-center bg-surface rounded-lg border border-hairline text-steel text-body-2">
               您还没有收藏任何闲置物品
             </div>
           ) : (
@@ -720,16 +720,16 @@ const UserProfile: React.FC = () => {
                 <Link
                   key={item.id}
                   to={`/market/${item.id}`}
-                  className="p-4 bg-surface rounded-md border border-hairline flex gap-3 items-center hover:border-zone-market transition-colors"
+                  className="p-4 bg-surface rounded-lg border border-hairline flex gap-3 items-center hover:border-zone-market transition-colors"
                 >
                   {item.images?.[0]?.object_key ? (
                     <img
                       src={item.images[0].object_key}
                       alt={item.title}
-                      className="w-16 h-16 rounded-sm object-cover border border-hairline"
+                      className="w-16 h-16 rounded-lg object-cover border border-hairline"
                     />
                   ) : (
-                    <ImagePlaceholder className="w-16 h-16 rounded-sm shrink-0" />
+                    <ImagePlaceholder className="w-16 h-16 rounded-lg shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-body-2 text-ink truncate">{item.title}</h4>

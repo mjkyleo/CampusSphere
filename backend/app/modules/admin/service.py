@@ -204,10 +204,10 @@ async def promote_user_to_admin(
     return user
 
 
-async def list_users(db: AsyncSession, page: int = 1, page_size: int = 20) -> dict:
+async def list_users(db: AsyncSession, q: str = "", page: int = 1, page_size: int = 20) -> dict:
     from app.modules.user.service import list_users as user_list
 
-    return await user_list(db, page=page, page_size=page_size)
+    return await user_list(db, q=q, page=page, page_size=page_size)
 
 
 async def _audit_admin_action(
@@ -835,6 +835,10 @@ async def admin_update_item(db: AsyncSession, item_id: str, data: ItemUpdate) ->
     if data.category is not None:
         item.category = data.category
     if data.status is not None and data.status != item.status:
+        # 与前台 update_item 对齐：先做状态机白名单校验，再走 CAS。
+        # 此前管理员可绕过状态机把 SOLD 改回 ON_SALE 或 RESERVED 改到任意值，
+        # 造成"交易记录已成交但物品重新在售"的错位。
+        validate_transition(item.status, data.status)
         # 复用前台的条件 UPDATE：管理员改状态同样走 CAS，避免与买家抢购
         # 并发时互相覆盖（管理员看到旧页面点"下架"，实际物品已被预订）。
         await db.flush()

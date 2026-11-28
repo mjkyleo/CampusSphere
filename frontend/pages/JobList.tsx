@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Briefcase, Plus, Search, MapPin, DollarSign, Clock,
-  Building, CheckCircle2, Send, Tag, Phone, Mail
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Briefcase, Plus, Search, MapPin, Building, Send } from 'lucide-react';
 import { api, formatPrice, toCents } from '../services/api.ts';
 import { JobOut, SalaryType } from '../types.ts';
 import { useAuth } from '../context/AuthContext.tsx';
@@ -12,6 +10,7 @@ import { useToast } from '../context/ToastContext.tsx';
 const FALLBACK_CATEGORIES = ['助教/助管', '家教辅导', '校园代理', '技术开发', '设计剪辑', '活动执行', '文案编辑'];
 
 const JobList: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { success, error } = useToast();
 
@@ -153,14 +152,14 @@ const JobList: React.FC = () => {
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
+    'w-full px-3.5 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="mono-label text-zone-job tracking-mono mb-1">JOB · 勤工登机口</div>
+          <div className="mono-label text-zone-job tracking-mono mb-1">JOB · 兼职机会</div>
           <h1 className="text-heading-1 text-ink tracking-tight">校内兼职与勤工助学</h1>
           <p className="text-body-2 text-steel mt-0.5">
             官方助教、校内行政助理、家教辅导与高性价比实习
@@ -169,7 +168,7 @@ const JobList: React.FC = () => {
 
         <button
           onClick={() => setShowPostModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors active:scale-95 shrink-0"
         >
           <Plus className="w-4 h-4" />
           发布兼职招聘
@@ -177,21 +176,21 @@ const JobList: React.FC = () => {
       </div>
 
       {/* Search and Category Filter */}
-      <div className="bg-surface p-4 rounded-md border border-hairline shadow-surface space-y-4">
+      <div className="bg-surface p-4 rounded-lg border border-hairline shadow-surface space-y-4">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-steel w-4 h-4" />
             <input
               type="text"
               placeholder="搜索岗位、工作地点、雇主名称（如：计算机助教、初三英语家教）..."
-              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft focus:ring-2 focus:ring-ink/10 outline-none transition-colors"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
           </div>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+            className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors"
           >
             搜索
           </button>
@@ -202,7 +201,7 @@ const JobList: React.FC = () => {
             <button
               key={cat}
               onClick={() => setSelectedCat(cat)}
-              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-sm transition-colors ${
+              className={`whitespace-nowrap px-3.5 py-1.5 mono-label uppercase tracking-mono rounded-lg transition-colors ${
                 selectedCat === cat
                   ? 'bg-zone-job text-surface'
                   : 'bg-panel text-steel hover:text-ink'
@@ -218,14 +217,14 @@ const JobList: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((n) => (
-            <div key={n} className="bg-surface rounded-md p-6 border border-hairline animate-pulse space-y-4">
+            <div key={n} className="soft-card animate-pulse space-y-4">
               <div className="h-5 bg-panel rounded w-1/2"></div>
               <div className="h-16 bg-panel rounded"></div>
             </div>
           ))}
         </div>
       ) : jobs.length === 0 ? (
-        <div className="bg-surface rounded-md p-16 text-center border border-hairline space-y-4">
+        <div className="bg-surface rounded-lg p-16 text-center border border-hairline space-y-4">
           <Briefcase className="w-12 h-12 text-steel mx-auto" />
           <h3 className="text-heading-3 text-ink">暂无符合条件的兼职岗位</h3>
           <p className="text-body-2 text-steel">请尝试更换搜索词或选择全部岗位</p>
@@ -235,7 +234,11 @@ const JobList: React.FC = () => {
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="group bg-surface rounded-md p-6 sm:p-7 border border-hairline hover:border-zone-job transition-colors flex flex-col justify-between space-y-4"
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate(`/jobs/${job.id}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/jobs/${job.id}`); }}
+              className="group soft-card hover:border-zone-job hover:shadow-md-4 cursor-pointer transition-all flex flex-col justify-between space-y-4"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -259,7 +262,7 @@ const JobList: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-sm border border-hairline">
+                <p className="text-body-2 text-steel leading-relaxed bg-panel/40 p-3.5 rounded-lg border border-hairline">
                   {job.description}
                 </p>
 
@@ -278,8 +281,8 @@ const JobList: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setApplyingJobId(job.id)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors active:scale-95"
+                  onClick={(e) => { e.stopPropagation(); setApplyingJobId(job.id); }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors active:scale-95"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>立即投递意向</span>
@@ -293,7 +296,7 @@ const JobList: React.FC = () => {
       {/* Post Job Modal */}
       {showPostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface rounded-lg max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-elevate border border-hairline max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-heading-3 text-ink">发布校园兼职与实习招聘</h3>
               <button onClick={() => setShowPostModal(false)} className="text-steel hover:text-ink text-xl font-bold">
@@ -397,7 +400,7 @@ const JobList: React.FC = () => {
                   placeholder="详细说明具体工作内容、每周所需工作时长及要求..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+                  className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
                 />
               </div>
 
@@ -416,14 +419,14 @@ const JobList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPostModal(false)}
-                  className="flex-1 py-3 border border-hairline text-steel rounded-sm text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
+                  className="flex-1 py-3 border border-hairline text-steel rounded-lg text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-3 bg-ink hover:bg-slate text-surface rounded-sm text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
+                  className="flex-1 py-3 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg text-body-2 font-bold mono-label uppercase tracking-mono disabled:opacity-50 transition-colors"
                 >
                   {submitting ? '发布中...' : '确认发布岗位'}
                 </button>
@@ -436,7 +439,7 @@ const JobList: React.FC = () => {
       {/* Apply Modal */}
       {applyingJobId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate/70">
-          <div className="bg-surface rounded-md max-w-md w-full p-6 space-y-4 shadow-elevate border border-hairline">
+          <div className="bg-surface rounded-lg max-w-md w-full p-6 space-y-4 shadow-elevate border border-hairline">
             <h3 className="text-heading-3 text-ink">投递兼职意向</h3>
             <p className="text-body-2 text-steel">简要附上您的专业年级、相关特长及每周可出勤时间：</p>
             <textarea
@@ -445,20 +448,20 @@ const JobList: React.FC = () => {
               placeholder="例如：您好，我是计算机大三学生张三，曾获校二等奖学金，算法课成绩94分，每周二、四下午及周末均可线下答疑！联系电话：13800138000"
               value={applyMessage}
               onChange={(e) => setApplyMessage(e.target.value)}
-              className="w-full p-3.5 bg-surface border border-hairline rounded-sm text-body-1 text-ink placeholder:text-steel focus:bg-white focus:border-ink outline-none transition-colors"
+              className="w-full p-3.5 bg-surface border-0 rounded-lg shadow-slate text-body-1 text-ink placeholder:text-steel focus:bg-white focus:shadow-soft outline-none transition-colors"
             />
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setApplyingJobId(null)}
-                className="flex-1 py-2.5 border border-hairline text-steel rounded-sm text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
+                className="flex-1 py-2.5 border border-hairline text-steel rounded-lg text-body-2 font-semibold mono-label uppercase tracking-mono hover:bg-panel transition-colors"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyJob(applyingJobId)}
-                className="flex-1 py-2.5 bg-ink text-surface rounded-sm text-body-2 font-bold mono-label uppercase tracking-mono hover:bg-slate transition-colors"
+                className="flex-1 py-2.5 bg-primary text-surface shadow-soft rounded-lg text-body-2 font-bold mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors"
               >
                 确认发送投递
               </button>

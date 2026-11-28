@@ -60,6 +60,15 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
+# Windows 控制台默认 GBK；若 bat 已 chcp 65001 则 stdout 需强制 UTF-8。
+# reconfigure 在管道/重定向场景下可能不可用，失败即忽略（此时 PYTHONIOENCODING 兜底）。
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 RUN_DIR = ROOT / ".run"
 LOG_DIR = RUN_DIR / "logs"
@@ -282,6 +291,7 @@ class Service:
     cwd: Path
     health_url: str
     log_name: str
+    reload: bool = False  # 仅后端有效：uvicorn --reload（开发热重载）
 
     @property
     def pid_file(self) -> Path:
@@ -303,7 +313,7 @@ class Service:
                     "未找到已安装 uvicorn 的 Python 解释器。"
                     f"请在 {BACKEND_DIR} 下执行：pip install -e \".[dev]\""
                 )
-            return [
+            cmd = [
                 python,
                 "-m",
                 "uvicorn",
@@ -312,7 +322,10 @@ class Service:
                 "127.0.0.1",
                 "--port",
                 str(self.port),
-            ], False
+            ]
+            if self.reload:
+                cmd.append("--reload")
+            return cmd, False
 
         npm = shutil.which("npm")
         if npm is None:
@@ -497,6 +510,11 @@ def _stop_service(service: Service, graceful_timeout: float, force: bool) -> boo
 # --------------------------------------------------------------------------
 def cmd_up(args: argparse.Namespace) -> int:
     targets = _targets(args)
+    # 开发热重载：--reload 只作用于后端 uvicorn，前端 Vite 自身已带 HMR。
+    reload_enabled = getattr(args, "reload", False)
+    for svc in targets:
+        if svc.name == "backend":
+            svc.reload = reload_enabled
     RUN_DIR.mkdir(parents=True, exist_ok=True)
 
     if args.mode == "docker":
@@ -784,17 +802,29 @@ def _wait_healthy(service: Service, timeout: float) -> tuple[bool, str]:
 
 
 def _print_ready(targets: list[Service]) -> None:
+    # 从 backend/.env 读取真实凭据（复用已有的 dotenv 加载逻辑），避免硬编码。
+    env = _load_dotenv_overrides()
+    gw_key = env.get("ADMIN_GATEWAY_KEY", "<未配置>")
+    admin_user = env.get("ADMIN_BOOTSTRAP_USERNAME", "<未配置>")
+    admin_pass = env.get("ADMIN_BOOTSTRAP_PASSWORD", "<未配置>")
+
     print(flush=True)
-    print("=" * 62, flush=True)
+    print("=" * 66, flush=True)
     print("  CampusSphere 已就绪", flush=True)
-    for svc in targets:
-        if svc.name == "backend":
-            print(f"    后端 API  : http://127.0.0.1:{BACKEND_PORT}  (文档 /docs)")
-        else:
-            print(f"    前端站点  : http://127.0.0.1:{FRONTEND_PORT}")
-    print(f"    运行日志  : {LOG_DIR}", flush=True)
-    print(f"    停止服务  : python scripts{os.sep}devctl.py down", flush=True)
-    print("=" * 62, flush=True)
+    print("=" * 66, flush=True)
+    print("  访问入口", flush=True)
+    print(f"    前端站点    http://127.0.0.1:{FRONTEND_PORT}", flush=True)
+    print(f"    后端 API    http://127.0.0.1:{BACKEND_PORT}  (文档 /docs)", flush=True)
+    print("  登录入口", flush=True)
+    print(f"    普通用户    http://127.0.0.1:{FRONTEND_PORT}/login", flush=True)
+    print("                账号 user01~user15 / 密码 123456", flush=True)
+    print(f"    管理后台    http://127.0.0.1:{FRONTEND_PORT}/admin/login", flush=True)
+    print(f"                网关密钥 {gw_key}", flush=True)
+    print(f"                管理员   {admin_user} / {admin_pass}", flush=True)
+    print("  其他", flush=True)
+    print(f"    运行日志    {LOG_DIR}", flush=True)
+    print(f"    停止服务    python scripts{os.sep}devctl.py down", flush=True)
+    print("=" * 66, flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -820,6 +850,8 @@ def build_parser() -> argparse.ArgumentParser:
                       help="清理端口上健康检查未通过的残留进程后重启")
     p_up.add_argument("--foreground", action="store_true",
                       help="前台驻留：任一子进程退出即结束（配合 Ctrl+C 或另开终端 down）")
+    p_up.add_argument("--reload", action="store_true",
+                      help="后端启用 uvicorn --reload（开发热重载；前端 Vite 自带 HMR）")
     _common(p_up)
     p_up.set_defaults(func=cmd_up)
 
@@ -842,6 +874,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_restart.add_argument("--foreground", action="store_true",
                            help="前台驻留：任一子进程退出即结束（配合 Ctrl+C 或另开终端 down）")
     p_restart.add_argument("--purge-logs", action="store_true", help="同时删除运行日志")
+    p_restart.add_argument("--reload", action="store_true",
+                           help="后端启用 uvicorn --reload（开发热重载）")
     _common(p_restart)
     p_restart.set_defaults(func=cmd_restart)
 

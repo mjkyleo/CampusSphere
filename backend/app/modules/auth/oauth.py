@@ -6,6 +6,7 @@ import uuid
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import UserStatus
@@ -60,7 +61,28 @@ async def _get_or_create_user_by_openid(
     db.add(user)
     await db.flush()
     db.add(OAuthAccount(user_id=user.id, provider=provider, provider_openid=openid))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # 并发首次登录：另一个请求已用同一 openid 建好了账号。
+        # 回滚后重新按 openid 查询，复用已存在的账号，避免误建第二个用户。
+        await db.rollback()
+        acct = await db.scalar(
+            select(OAuthAccount).where(
+                OAuthAccount.provider == provider,
+                OAuthAccount.provider_openid == openid,
+            )
+        )
+        if acct:
+            existing = await db.get(User, acct.user_id)
+            if existing:
+                _logger.info(
+                    "oauth_user_created_concurrent_reuse",
+                    provider=provider,
+                    user_id=str(existing.id),
+                )
+                return existing, False
+        raise BizError(ErrorCode.CONFLICT, "登录初始化冲突，请重试") from exc
     await db.refresh(user)
     _logger.info("oauth_user_created", provider=provider, user_id=str(user.id))
     return user, True
@@ -167,5 +189,19 @@ async def bind_oauth(
             "该第三方账号已绑定其他账号，请登录原账号解绑后再绑定",
         )
     db.add(OAuthAccount(user_id=user.id, provider=provider, provider_openid=openid))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # 与上面 SELECT 预检之间的并发窗口：唯一约束兜底，转业务 409 而非 500。
+        await db.rollback()
+        _logger.warning(
+            "oauth_bind_conflict",
+            user_id=str(user.id),
+            provider=provider,
+            error=str(exc),
+        )
+        raise BizError(
+            ErrorCode.CONFLICT,
+            "该第三方账号已绑定其他账号，请登录原账号解绑后再绑定",
+        ) from exc
     _logger.info("user_bind_oauth", user_id=str(user.id), provider=provider)

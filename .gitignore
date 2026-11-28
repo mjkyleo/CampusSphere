@@ -83,7 +83,10 @@ npm-cache-tmp/
 # ---- AI 协作工具本地配置（不入库）----
 .claude/
 .codex/
-frontend/.impeccable/
+.impeccable/
+
+# 开发过程错误日志（不入库）
+*.err
 
 # 前端构建产物（docker compose --profile build 生成，不入库）
 deploy/frontend-dist/

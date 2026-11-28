@@ -52,7 +52,7 @@ const MarketDetail: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto p-12 text-center space-y-4">
         <h2 className="text-heading-2 text-ink">该闲置物品不存在或已被下架</h2>
-        <Link to="/market" className="inline-block px-4 py-2 bg-ink text-surface rounded-sm mono-label uppercase tracking-mono hover:bg-slate transition-colors">
+        <Link to="/market" className="inline-block px-4 py-2 bg-primary text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono hover:bg-primary-hover transition-colors">
           返回市集列表
         </Link>
       </div>
@@ -138,10 +138,10 @@ const MarketDetail: React.FC = () => {
       </button>
 
       {/* Main Grid */}
-      <div className="grid md:grid-cols-12 gap-8 bg-surface rounded-md p-6 sm:p-8 border border-hairline shadow-surface">
+      <div className="grid md:grid-cols-12 gap-8 bg-surface rounded-lg p-6 sm:p-8 border border-hairline shadow-surface">
         {/* Left: Images Carousel (6 cols) */}
         <div className="md:col-span-6 space-y-4">
-          <div className="aspect-[4/3] rounded-sm overflow-hidden bg-panel border border-hairline relative group">
+          <div className="aspect-[4/3] rounded-lg overflow-hidden bg-panel border border-hairline relative group">
             {item.images?.[activeImageIdx]?.object_key || item.images?.[0]?.object_key ? (
               <img
                 src={item.images?.[activeImageIdx]?.object_key || item.images?.[0]?.object_key || ''}
@@ -151,7 +151,7 @@ const MarketDetail: React.FC = () => {
             ) : (
               <ImagePlaceholder className="w-full h-full rounded-none" />
             )}
-            <div className="absolute top-2 left-2 px-2 py-0.5 bg-ink/70 backdrop-blur-sm rounded-sm text-surface mono-label tracking-mono">
+            <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary/70 backdrop-blur-sm rounded-lg text-surface mono-label tracking-mono">
               {item.category}
             </div>
           </div>
@@ -163,7 +163,7 @@ const MarketDetail: React.FC = () => {
                 <button
                   key={i}
                   onClick={() => setActiveImageIdx(i)}
-                  className={`aspect-square rounded-sm overflow-hidden border-2 transition-all ${
+                  className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                     activeImageIdx === i ? 'border-ink scale-95' : 'border-hairline opacity-70 hover:opacity-100'
                   }`}
                 >
@@ -179,7 +179,7 @@ const MarketDetail: React.FC = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-zone-market/10 text-zone-market mono-label tracking-mono rounded-sm">
+                <span className="px-2 py-0.5 bg-zone-market/10 text-zone-market mono-label tracking-mono rounded-lg">
                   {item.category}
                 </span>
                 <span className="text-caption text-steel">
@@ -193,14 +193,14 @@ const MarketDetail: React.FC = () => {
             </div>
 
             {/* Price section */}
-            <div className="p-4 bg-panel/50 rounded-sm border border-hairline flex items-baseline justify-between">
+            <div className="p-4 bg-panel/50 rounded-lg border border-hairline flex items-baseline justify-between">
               <div className="flex items-baseline gap-1 text-zone-market">
                 <span className="text-sm font-mono font-bold">¥</span>
                 <span className="text-3xl font-black font-display tabular-nums">{formatPrice(item.price)}</span>
                 <span className="text-caption text-steel ml-2">校内面交价</span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-caption text-success font-semibold bg-success/10 px-2 py-1 rounded-sm border border-success/20">
+              <div className="flex items-center gap-1.5 text-caption text-success font-semibold bg-success/10 px-2 py-1 rounded-lg border border-success/20">
                 <ShieldCheck className="w-3.5 h-3.5 text-success" />
                 <span>实名校园认证</span>
               </div>
@@ -209,15 +209,15 @@ const MarketDetail: React.FC = () => {
             {/* Description */}
             <div className="space-y-1.5">
               <h3 className="mono-label text-steel tracking-mono">物品详细说明</h3>
-              <p className="text-body-2 text-slate leading-relaxed whitespace-pre-wrap bg-panel/40 p-4 rounded-sm border border-hairline">
+              <p className="text-body-2 text-slate leading-relaxed whitespace-pre-wrap bg-panel/40 p-4 rounded-lg border border-hairline">
                 {item.description || '卖家未补充更多描述信息。'}
               </p>
             </div>
 
             {/* Seller profile card */}
-            <div className="p-4 rounded-sm border border-hairline bg-surface flex items-center justify-between">
+            <div className="p-4 rounded-lg border border-hairline bg-surface flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-sm overflow-hidden bg-panel border border-hairline">
+                <div className="w-11 h-11 rounded-lg overflow-hidden bg-panel border border-hairline">
                   {item.owner_avatar ? (
                     <img
                       src={item.owner_avatar}
@@ -237,7 +237,7 @@ const MarketDetail: React.FC = () => {
               {!isOwner && (
                 <button
                   onClick={() => openReport('item', item.id, item.title)}
-                  className="flex items-center gap-1 text-caption text-error hover:text-ink font-semibold px-2.5 py-1 rounded-sm hover:bg-error/5 transition-colors"
+                  className="flex items-center gap-1 text-caption text-error hover:text-ink font-semibold px-2.5 py-1 rounded-lg hover:bg-error/5 transition-colors"
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
                   举报
@@ -255,21 +255,21 @@ const MarketDetail: React.FC = () => {
                   {item.status === ItemStatus.OnSale ? (
                     <button
                       onClick={() => handleStatusChange(ItemStatus.Sold)}
-                      className="flex-1 py-2.5 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+                      className="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors"
                     >
                       标记为已售出
                     </button>
                   ) : (
                     <button
                       onClick={() => handleStatusChange(ItemStatus.OnSale)}
-                      className="flex-1 py-2.5 bg-success hover:opacity-90 text-surface rounded-sm mono-label uppercase tracking-mono transition-colors"
+                      className="flex-1 py-2.5 bg-success hover:opacity-90 text-surface rounded-lg mono-label uppercase tracking-mono transition-colors"
                     >
                       重新上架
                     </button>
                   )}
                   <button
                     onClick={handleDeleteItem}
-                    className="p-2.5 bg-error/10 text-error hover:bg-error/20 rounded-sm transition-colors"
+                    className="p-2.5 bg-error/10 text-error hover:bg-error/20 rounded-lg transition-colors"
                     title="删除物品"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -281,7 +281,7 @@ const MarketDetail: React.FC = () => {
                 <button
                   onClick={handleStartTrade}
                   disabled={actionLoading}
-                  className="flex-1 py-3.5 px-6 bg-ink hover:bg-slate text-surface rounded-sm mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                  className="flex-1 py-3.5 px-6 bg-primary hover:bg-primary-hover text-surface shadow-soft rounded-lg mono-label uppercase tracking-mono transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                 >
                   <MessageCircle className="w-4 h-4" />
                   {actionLoading ? '正在建立交易会话...' : '发起交易与在线咨询'}
@@ -289,7 +289,7 @@ const MarketDetail: React.FC = () => {
                 <button
                   onClick={handleFavorite}
                   disabled={favoriteLoading}
-                  className="p-3.5 bg-panel hover:bg-slate text-slate rounded-sm transition-colors disabled:opacity-50"
+                  className="p-3.5 bg-panel hover:bg-primary-hover text-slate rounded-lg transition-colors disabled:opacity-50"
                   title="收藏"
                 >
                   <Heart className="w-4 h-4" />
@@ -300,9 +300,9 @@ const MarketDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* 交易登机牌：登机牌·航站屏世界签名组件（PassCard）落地 */}
+      {/* 交易信息卡：分段展示交易关键信息 */}
       <PassCard
-        title="MARKET · 交易登机牌"
+        title="MARKET · 交易信息"
         seq={`ITEM ${item.id}`}
         segments={[
           {
@@ -326,7 +326,7 @@ const MarketDetail: React.FC = () => {
               className="mono-label inline-flex items-center gap-1.5 text-zone-market hover:text-ink transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
-              前往消息登机口撮合交易
+              前往消息中心沟通交易
             </Link>
           )
         }
