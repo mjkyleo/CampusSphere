@@ -90,3 +90,6 @@ npm-cache-tmp/
 
 # 前端构建产物（docker compose --profile build 生成，不入库）
 deploy/frontend-dist/
+
+# Vite 开发缓存
+frontend/.vite/
